@@ -1,44 +1,53 @@
 #include "Arduino.h"
 #include "InfluxDb.h"
 
+/**
+ * Construct an InfluxDb instance.
+ * @param host the InfluxDb host
+ * @param port the InfluxDb port
+ */
 Influxdb::Influxdb(String host, uint16_t port)
 {
   _port = port;
   _host = host;
 }
 
+/**
+ * Set the database to be used.
+ */
 void Influxdb::setDb(String db)
 {
   _db = String(db);
+  // TODO: recreate client on db change
+  // http = new HTTPClient();
+  http.begin(_host, _port, "/write?db=" + _db);
+  http.addHeader("Content-Type", "text/plain");
 }
 
-// TODO: set db with user
+// TODO: set db with user & password
 
 /**
  * Send a single measurement to the InfluxDb.
- **/
+ */
 boolean Influxdb::post(InfluxData data)
 {
   return post(data.toString());
 }
 
+/**
+ * Send raw data to InfluxDb.
+ */
 boolean Influxdb::post(String data)
 {
-  Serial.print("write ");
+  Serial.print(" -> writing to " + _db + ": ");
   Serial.println(data);
 
-  // TODO: check if the client can be reused
-  HTTPClient http;
-  http.begin(_host, _port, "/write?db=" + _db);
-  http.addHeader("Content-Type", "text/plain");
-  //
-
   int httpResponseCode = http.POST(data);
-  Serial.print(" -> Response: ");
+  Serial.print(" <- Response: ");
   Serial.print(httpResponseCode);
 
   String response = http.getString();
-  Serial.println(" -> \"" + response + "\"");
+  Serial.println(" \"" + response + "\"");
 
   boolean success;
   if (httpResponseCode == 204)

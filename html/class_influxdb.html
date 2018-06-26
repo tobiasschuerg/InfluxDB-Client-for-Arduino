@@ -73,8 +73,8 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ad9993e8cfc7560872d965bae8315e9e3"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#ad9993e8cfc7560872d965bae8315e9e3">Influxdb</a> (String host, uint16_t port)</td></tr>
-<tr class="separator:ad9993e8cfc7560872d965bae8315e9e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab1a58669240f294c240297e91067095c"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#ab1a58669240f294c240297e91067095c">Influxdb</a> (String host, uint16_t port=8086)</td></tr>
+<tr class="separator:ab1a58669240f294c240297e91067095c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb69ab3463eeb07b28935233d5225087"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#aeb69ab3463eeb07b28935233d5225087">setDb</a> (String db)</td></tr>
 <tr class="separator:aeb69ab3463eeb07b28935233d5225087"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4e5728918ad972cf37d5140b7b73a3e6"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#a4e5728918ad972cf37d5140b7b73a3e6">post</a> (<a class="el" href="class_influx_data.html">InfluxData</a> data)</td></tr>
@@ -83,8 +83,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ae8c91a6245d4c5a87a50774adaa89763"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="ad9993e8cfc7560872d965bae8315e9e3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad9993e8cfc7560872d965bae8315e9e3">&#9670;&nbsp;</a></span>Influxdb()</h2>
+<a id="ab1a58669240f294c240297e91067095c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab1a58669240f294c240297e91067095c">&#9670;&nbsp;</a></span>Influxdb()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -99,7 +99,7 @@ Public Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint16_t&#160;</td>
-          <td class="paramname"><em>port</em>&#160;</td>
+          <td class="paramname"><em>port</em> = <code>8086</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -108,6 +108,13 @@ Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<p>Construct an InfluxDb instance. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">host</td><td>the InfluxDb host </td></tr>
+    <tr><td class="paramname">port</td><td>the InfluxDb port </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -146,6 +153,7 @@ Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<p>Send raw data to InfluxDb. </p>
 
 </div>
 </div>
@@ -164,6 +172,7 @@ Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+<p>Set the database to be used. </p>
 
 </div>
 </div>

@@ -6,7 +6,7 @@
 class Influxdb
 {
 public:
-  Influxdb(String host, uint16_t port);
+  Influxdb(String host, uint16_t port = 8086);
 
   void setDb(String db);
 
@@ -14,6 +14,7 @@ public:
   boolean post(String data);
 
 private:
+  HTTPClient http;
   String _host;
   uint16_t _port;
   String _db;
