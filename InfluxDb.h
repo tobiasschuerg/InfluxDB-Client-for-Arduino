@@ -6,15 +6,15 @@
 class Influxdb
 {
 public:
-  Influxdb(const char *host, uint16_t port);
+  Influxdb(String host, uint16_t port);
 
-  void setDb(const char *db);
+  void setDb(String db);
 
   boolean post(InfluxData data);
   boolean post(String data);
 
 private:
-  String _port;
   String _host;
+  uint16_t _port;
   String _db;
 };
