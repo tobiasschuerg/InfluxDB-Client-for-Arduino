@@ -1,6 +1,8 @@
 
 #include "Arduino.h"
 #include <ESP8266HTTPClient.h>
+#include <list>
+
 #include "InfluxData.h"
 
 class Influxdb
@@ -10,6 +12,9 @@ public:
 
   void setDb(String db);
 
+  void prepare(InfluxData data);
+  boolean post();
+
   boolean post(InfluxData data);
   boolean post(String data);
 
@@ -18,4 +23,5 @@ private:
   String _host;
   uint16_t _port;
   String _db;
+  std::list<InfluxData> prepared;
 };

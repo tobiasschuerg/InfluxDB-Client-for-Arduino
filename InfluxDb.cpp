@@ -1,13 +1,12 @@
-#include "Arduino.h"
 #include "InfluxDb.h"
+#include "Arduino.h"
 
 /**
  * Construct an InfluxDb instance.
  * @param host the InfluxDb host
  * @param port the InfluxDb port
  */
-Influxdb::Influxdb(String host, uint16_t port)
-{
+Influxdb::Influxdb(String host, uint16_t port) {
   _port = port;
   _host = host;
 }
@@ -15,8 +14,7 @@ Influxdb::Influxdb(String host, uint16_t port)
 /**
  * Set the database to be used.
  */
-void Influxdb::setDb(String db)
-{
+void Influxdb::setDb(String db) {
   _db = String(db);
   // TODO: recreate client on db change
   // http = new HTTPClient();
@@ -26,19 +24,25 @@ void Influxdb::setDb(String db)
 
 // TODO: set db with user & password
 
+void Influxdb::prepare(InfluxData data) { prepared.push_back(data); }
+
+boolean Influxdb::post() {
+  String data = "";
+  for (auto const& i : prepared) {
+    data = (data == "") ? (i.toString()) : (data + "\n" + i.toString());
+  }
+  return post(data);
+}
+
 /**
  * Send a single measurement to the InfluxDb.
  */
-boolean Influxdb::post(InfluxData data)
-{
-  return post(data.toString());
-}
+boolean Influxdb::post(InfluxData data) { return post(data.toString()); }
 
 /**
  * Send raw data to InfluxDb.
  */
-boolean Influxdb::post(String data)
-{
+boolean Influxdb::post(String data) {
   Serial.print(" -> writing to " + _db + ": ");
   Serial.println(data);
 
@@ -50,13 +54,9 @@ boolean Influxdb::post(String data)
   Serial.println(" \"" + response + "\"");
 
   boolean success;
-  if (httpResponseCode == 204)
-  {
-
+  if (httpResponseCode == 204) {
     success = true;
-  }
-  else
-  {
+  } else {
     Serial.println("#####\nPOST FAILED\n#####");
     success = false;
   }
