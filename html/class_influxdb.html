@@ -77,12 +77,20 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ab1a58669240f294c240297e91067095c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb69ab3463eeb07b28935233d5225087"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#aeb69ab3463eeb07b28935233d5225087">setDb</a> (String db)</td></tr>
 <tr class="separator:aeb69ab3463eeb07b28935233d5225087"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4e5728918ad972cf37d5140b7b73a3e6"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#a4e5728918ad972cf37d5140b7b73a3e6">post</a> (<a class="el" href="class_influx_data.html">InfluxData</a> data)</td></tr>
-<tr class="separator:a4e5728918ad972cf37d5140b7b73a3e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae8c91a6245d4c5a87a50774adaa89763"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#ae8c91a6245d4c5a87a50774adaa89763">post</a> (String data)</td></tr>
-<tr class="separator:ae8c91a6245d4c5a87a50774adaa89763"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac413538b4f9d5ca6bc2b70cfe67643b7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#ac413538b4f9d5ca6bc2b70cfe67643b7">prepare</a> (<a class="el" href="class_influx_data.html">InfluxData</a> data)</td></tr>
+<tr class="separator:ac413538b4f9d5ca6bc2b70cfe67643b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac24f21cf7fa8e2d54eac81ab1a2cf11d"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#ac24f21cf7fa8e2d54eac81ab1a2cf11d">write</a> ()</td></tr>
+<tr class="separator:ac24f21cf7fa8e2d54eac81ab1a2cf11d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2c68d858a4a67b74cde9892bcdb4cabd"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#a2c68d858a4a67b74cde9892bcdb4cabd">write</a> (<a class="el" href="class_influx_data.html">InfluxData</a> data)</td></tr>
+<tr class="separator:a2c68d858a4a67b74cde9892bcdb4cabd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aabc81883ba05cea58553193172f1ac5c"><td class="memItemLeft" align="right" valign="top">boolean&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="class_influxdb.html#aabc81883ba05cea58553193172f1ac5c">write</a> (String data)</td></tr>
+<tr class="separator:aabc81883ba05cea58553193172f1ac5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>ESP8266 InfluxDb: <a class="el" href="_influx_db_8h.html">Influxdb.h</a></p>
+<p>Purpose: Helps with sending measurements to an Influx database.</p>
+<dl class="section author"><dt>Author</dt><dd>Tobias Schürg </dd></dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ab1a58669240f294c240297e91067095c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ab1a58669240f294c240297e91067095c">&#9670;&nbsp;</a></span>Influxdb()</h2>
 
@@ -108,7 +116,10 @@ Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Construct an InfluxDb instance. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>ESP8266 InfluxDb: <a class="el" href="_influx_db_8cpp.html">Influxdb.cpp</a></p>
+<p>Purpose: Helps with sending measurements to an Influx database.</p>
+<dl class="section author"><dt>Author</dt><dd>Tobias Schürg Construct an InfluxDb instance. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">host</td><td>the InfluxDb host </td></tr>
     <tr><td class="paramname">port</td><td>the InfluxDb port </td></tr>
@@ -119,14 +130,14 @@ Public Member Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="a4e5728918ad972cf37d5140b7b73a3e6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4e5728918ad972cf37d5140b7b73a3e6">&#9670;&nbsp;</a></span>post() <span class="overload">[1/2]</span></h2>
+<a id="ac413538b4f9d5ca6bc2b70cfe67643b7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac413538b4f9d5ca6bc2b70cfe67643b7">&#9670;&nbsp;</a></span>prepare()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">boolean Influxdb::post </td>
+          <td class="memname">void Influxdb::prepare </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="class_influx_data.html">InfluxData</a>&#160;</td>
           <td class="paramname"><em>data</em></td><td>)</td>
@@ -134,26 +145,7 @@ Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Send a single measurement to the InfluxDb. </p>
-
-</div>
-</div>
-<a id="ae8c91a6245d4c5a87a50774adaa89763"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae8c91a6245d4c5a87a50774adaa89763">&#9670;&nbsp;</a></span>post() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">boolean Influxdb::post </td>
-          <td>(</td>
-          <td class="paramtype">String&#160;</td>
-          <td class="paramname"><em>data</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-<p>Send raw data to InfluxDb. </p>
+<p>Prepare a measurement to be sent. </p>
 
 </div>
 </div>
@@ -173,6 +165,62 @@ Public Member Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <p>Set the database to be used. </p>
+
+</div>
+</div>
+<a id="ac24f21cf7fa8e2d54eac81ab1a2cf11d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac24f21cf7fa8e2d54eac81ab1a2cf11d">&#9670;&nbsp;</a></span>write() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">boolean Influxdb::write </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Write all prepared measurements into the db. </p>
+
+</div>
+</div>
+<a id="a2c68d858a4a67b74cde9892bcdb4cabd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2c68d858a4a67b74cde9892bcdb4cabd">&#9670;&nbsp;</a></span>write() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">boolean Influxdb::write </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="class_influx_data.html">InfluxData</a>&#160;</td>
+          <td class="paramname"><em>data</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Write a single measurement into the db. </p>
+
+</div>
+</div>
+<a id="aabc81883ba05cea58553193172f1ac5c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aabc81883ba05cea58553193172f1ac5c">&#9670;&nbsp;</a></span>write() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">boolean Influxdb::write </td>
+          <td>(</td>
+          <td class="paramtype">String&#160;</td>
+          <td class="paramname"><em>data</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Send raw data to InfluxDb. </p>
 
 </div>
 </div>
