@@ -3,7 +3,7 @@
 Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Influx database.
 
 ## Initialization
-```
+```cpp
  #define INFLUXDB_HOST "192.168.0.32"
  #define INFLUXDB_PORT "1337"
  #define INFLUXDB_DATABASE "test"
@@ -20,7 +20,7 @@ Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Infl
 
 ## Sending a single measurement
 **Using an InfluxData object:**
-```
+```cpp
 // create a measurement object
 InfluxData measurement ("temperature");
 measurement.addTag("device", d2);
@@ -32,13 +32,13 @@ influx.write(measurement);
 ```
 
 **Using raw-data**
-```
+```cpp
  influx.write("temperature,device=d2,sensor=dht11 value=24.0")
 ```
 
 ## Write multiple data points at once
 Batching measurements and send them with a single request will result in a much higher performance.
-```
+```cpp
 
 InfluxData measurement1 = readTemperature()
 influx.prepare(measurement1)
