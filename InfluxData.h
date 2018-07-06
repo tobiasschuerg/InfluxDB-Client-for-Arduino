@@ -1,3 +1,13 @@
+/**
+    ESP8266 InfluxDb: InfluxData
+
+    Purpose: Holds the data of a single measurement.
+
+    @see
+   https://docs.influxdata.com/influxdb/v1.5/concepts/glossary/#measurement
+
+    @author Tobias Schürg
+*/
 
 class InfluxData {
  public:

@@ -1,3 +1,10 @@
+/**
+    ESP8266 InfluxDb: Influxdb.cpp
+
+    Purpose: Helps with sending measurements to an Influx database.
+
+    @author Tobias Schürg
+*/
 #include "InfluxDb.h"
 #include "Arduino.h"
 
@@ -24,26 +31,33 @@ void Influxdb::setDb(String db) {
 
 // TODO: set db with user & password
 
+/**
+ * Prepare a measurement to be sent.
+ */
 void Influxdb::prepare(InfluxData data) { prepared.push_back(data); }
 
-boolean Influxdb::post() {
+/**
+ * Write all prepared measurements into the db.
+ */
+boolean Influxdb::write() {
   String data = "";
   for (auto const& i : prepared) {
     data = (data == "") ? (i.toString()) : (data + "\n" + i.toString());
   }
-  return post(data);
+  prepared.clear();
+  return write(data);
 }
 
 /**
- * Send a single measurement to the InfluxDb.
+ * Write a single measurement into the db.
  */
-boolean Influxdb::post(InfluxData data) { return post(data.toString()); }
+boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
 
 /**
  * Send raw data to InfluxDb.
  */
-boolean Influxdb::post(String data) {
-  Serial.print(" -> writing to " + _db + ": ");
+boolean Influxdb::write(String data) {
+  Serial.print(" -> writing to " + _db + ":\n");
   Serial.println(data);
 
   int httpResponseCode = http.POST(data);
