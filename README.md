@@ -53,5 +53,24 @@ influx.prepare(measurement3)
 boolean success = influx.write();
 ```
 
+## Http client error codes
+Internally `ESP8266HTTPClient` is used.
+```C
+/// HTTP client errors
+#define HTTPC_ERROR_CONNECTION_REFUSED  (-1)
+#define HTTPC_ERROR_SEND_HEADER_FAILED  (-2)
+#define HTTPC_ERROR_SEND_PAYLOAD_FAILED (-3)
+#define HTTPC_ERROR_NOT_CONNECTED       (-4)
+#define HTTPC_ERROR_CONNECTION_LOST     (-5)
+#define HTTPC_ERROR_NO_STREAM           (-6)
+#define HTTPC_ERROR_NO_HTTP_SERVER      (-7)
+#define HTTPC_ERROR_TOO_LESS_RAM        (-8)
+#define HTTPC_ERROR_ENCODING            (-9)
+#define HTTPC_ERROR_STREAM_WRITE        (-10)
+#define HTTPC_ERROR_READ_TIMEOUT        (-11)
+...
+```
+See [list of error codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L44-L55) and [list of http status codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L60-L120).
+
 ## Documentation
 For the documentation see [html/class_influxdb.html](html/class_influxdb.html) (only works locally).
