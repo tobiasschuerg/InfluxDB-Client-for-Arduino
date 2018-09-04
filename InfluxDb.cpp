@@ -55,6 +55,10 @@ boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
 
 /**
  * Send raw data to InfluxDb.
+ *
+ * @see
+ * https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L44-L55
+ * for a list of error codes.
  */
 boolean Influxdb::write(String data) {
   Serial.print(" -> writing to " + _db + ":\n");
