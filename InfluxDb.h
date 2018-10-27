@@ -18,6 +18,8 @@ class Influxdb {
 
   void setDb(String db);
 
+  void setDbAuth(String db, String user, String pass);
+
   void prepare(InfluxData data);
   boolean write();
 
@@ -29,5 +31,7 @@ class Influxdb {
   String _host;
   uint16_t _port;
   String _db;
+  String _user;
+  String _pass;
   std::list<InfluxData> prepared;
 };
