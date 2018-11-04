@@ -23,10 +23,7 @@ Influxdb::Influxdb(String host, uint16_t port) {
  */
 void Influxdb::setDb(String db) {
   _db = String(db);
-  // TODO: recreate client on db change
-  // http = new HTTPClient();
-  http.begin(_host, _port, "/write?db=" + _db);
-  http.addHeader("Content-Type", "text/plain");
+  begin();
 }
 
 /**
@@ -36,11 +33,19 @@ void Influxdb::setDbAuth(String db, String user, String pass) {
   _db = String(db);
   _user = user;
   _pass = pass;
-  // TODO: recreate client on db change
-  // http = new HTTPClient();
-  http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db );
+  begin();
+}
+
+void Influxdb::begin() {
+  // TODO: recreate HttpClient on db change?
+  if (_user && _pass) {
+    http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db);
+  } else {
+    http.begin(_host, _port, "/write?db=" + _db);
+  }
   http.addHeader("Content-Type", "text/plain");
 }
+
 /**
  * Prepare a measurement to be sent.
  */
@@ -71,11 +76,11 @@ boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
  * for a list of error codes.
  */
 boolean Influxdb::write(String data) {
-  Serial.print(" -> writing to " + _db + ":\n");
+  Serial.print(" --> writing to " + _db + ":\n");
   Serial.println(data);
 
   int httpResponseCode = http.POST(data);
-  Serial.print(" <- Response: ");
+  Serial.print(" <-- Response: ");
   Serial.print(httpResponseCode);
 
   String response = http.getString();

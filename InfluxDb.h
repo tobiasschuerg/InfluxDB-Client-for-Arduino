@@ -17,7 +17,6 @@ class Influxdb {
   Influxdb(String host, uint16_t port = 8086);
 
   void setDb(String db);
-
   void setDbAuth(String db, String user, String pass);
 
   void prepare(InfluxData data);
@@ -34,4 +33,6 @@ class Influxdb {
   String _user;
   String _pass;
   std::list<InfluxData> prepared;
+  
+  void begin();
 };
