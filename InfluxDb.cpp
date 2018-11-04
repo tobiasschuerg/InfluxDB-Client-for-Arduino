@@ -29,8 +29,18 @@ void Influxdb::setDb(String db) {
   http.addHeader("Content-Type", "text/plain");
 }
 
-// TODO: set db with user & password
-
+/**
+ * Set the database to be used with authentication.
+ */
+void Influxdb::setDbAuth(String db, String user, String pass) {
+  _db = String(db);
+  _user = user;
+  _pass = pass;
+  // TODO: recreate client on db change
+  // http = new HTTPClient();
+  http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db );
+  http.addHeader("Content-Type", "text/plain");
+}
 /**
  * Prepare a measurement to be sent.
  */

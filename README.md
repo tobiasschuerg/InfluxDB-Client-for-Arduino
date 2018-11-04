@@ -7,6 +7,9 @@ Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Infl
  #define INFLUXDB_HOST "192.168.0.32"
  #define INFLUXDB_PORT "1337"
  #define INFLUXDB_DATABASE "test"
+ //if used with authentication
+ #define INFLUXDB_USER "user"
+ #define INFLUXDB_PASS "password"
 
  // TODO: connect to WiFi
 
@@ -16,6 +19,8 @@ Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Infl
 
  // set the target database
  influx.setDb(INFLUXDB_DATABASE);
+ // or 
+ influx.setDbAuth(INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASS) // with authentication
 ```
 
 ## Sending a single measurement
