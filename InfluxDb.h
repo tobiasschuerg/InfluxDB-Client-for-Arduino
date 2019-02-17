@@ -6,9 +6,14 @@
 
     @author Tobias Schürg
 */
+#if defined(ESP8266)
 #include <ESP8266HTTPClient.h>
+#elif defined(ESP32)
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <list>
 #include "Arduino.h"
+#endif
 
 #include "InfluxData.h"
 
