@@ -18,11 +18,16 @@ class InfluxData {
     _values = (_values == "") ? (" ") : (_values += ",");
     _values += key + "=" + String(value);
   }
+  void setTimestamp(long int seconds)
+  {
+    _timestamp = " " + String(seconds) + "000000000";
+  }
 
-  String toString() const { return _measurement + _tags + _values; }
+  String toString() const { return _measurement + _tags + _values + _time; }
 
  private:
   String _measurement;
   String _tags;
   String _values;
+  String _timestamp;
 };
