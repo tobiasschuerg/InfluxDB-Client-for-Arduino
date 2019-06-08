@@ -27,7 +27,7 @@ class InfluxData {
     _timestamp = " " + String(seconds) + "000000000";
   }
 
-  String toString() const { return _measurement + _tags + _values + _time; }
+  String toString() const { return _measurement + _tags + _values + _timestamp; }
 
  private:
   String _measurement;
