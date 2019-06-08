@@ -36,6 +36,13 @@ void Influxdb::setDbAuth(String db, String user, String pass) {
   begin();
 }
 
+/**
+ * Set Serial Monitor logging On/Off
+ */
+void Influxdb::setDebug(boolean debug) {
+  _debug = debug;
+}
+
 void Influxdb::begin() {
   // TODO: recreate HttpClient on db change?
   if (_user && _pass) {
@@ -76,24 +83,31 @@ boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
  * for a list of error codes.
  */
 boolean Influxdb::write(String data) {
-  Serial.print(" --> writing to " + _db + ":\n");
-  Serial.println(data);
+  if (_debug == true) {
+    Serial.print(" --> writing to " + _db + ":\n");
+    Serial.println(data);
 
-  int httpResponseCode = http.POST(data);
-  Serial.print(" <-- Response: ");
-  Serial.print(httpResponseCode);
+    int httpResponseCode = http.POST(data);
+    Serial.print(" <-- Response: ");
+    Serial.print(httpResponseCode);
 
-  String response = http.getString();
-  Serial.println(" \"" + response + "\"");
+    String response = http.getString();
+    Serial.println(" \"" + response + "\"");
 
-  boolean success;
-  if (httpResponseCode == 204) {
-    success = true;
+    boolean success = false;
+    if (httpResponseCode == 204 || httpResponseCode == 200) {
+      success = true;
+    } else {
+      Serial.println("#####\nPOST FAILED\n#####");
+    }
   } else {
-    Serial.println("#####\nPOST FAILED\n#####");
-    success = false;
+    int httpResponseCode = http.POST(data);
+    boolean success = false;
+    if (httpResponseCode == 204 || httpResponseCode == 200) {
+      success = true;
+    }
   }
-
+  
   http.end();
   return success;
 }

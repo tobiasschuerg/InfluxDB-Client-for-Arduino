@@ -13,9 +13,10 @@ Influxdb	KEYWORD1
 # Methods and Functions (KEYWORD2)
 #######################################
 
-setDb	KEYWORD2
-prepare	KEYWORD2
-write	KEYWORD2
+setDb	 KEYWORD2
+prepare	 KEYWORD2
+write	 KEYWORD2
+setDebug KEYWORD2
 
 #######################################
 # Instances (KEYWORD2)

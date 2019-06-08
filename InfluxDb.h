@@ -31,8 +31,11 @@ class Influxdb {
   boolean write(InfluxData data);
   boolean write(String data);
 
+  void setDebug(boolean debug = true)
+
  private:
   HTTPClient http;
+  boolean _debug;
   String _host;
   uint16_t _port;
   String _db;
