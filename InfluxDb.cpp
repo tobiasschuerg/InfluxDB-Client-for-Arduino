@@ -20,6 +20,7 @@ Influxdb::Influxdb(String host, uint16_t port) {
 
 /**
  * Set the database to be used.
+ * @param db the Influx Database to be written to.
  */
 void Influxdb::setDb(String db) {
   _db = String(db);
@@ -36,12 +37,61 @@ void Influxdb::setDbAuth(String db, String user, String pass) {
   begin();
 }
 
+/**
+ * Set the Bucket to be used v2.0 ONLY.
+ * @param bucket the InfluxDB Bucket which must already exist
+ */
+void Influxdb::setBucket(String bucket) {
+  _bucket = String(bucket);
+  begin();
+}
+
+/**
+ * Set the influxDB port. 
+ * @param port v1.x uses 8086, v2 uses 9999
+ */
+void Influxdb::setPort(uint16 port){
+  _port = port;
+  begin();
+}
+/**
+ * Set the Organization to be used v2.0 ONLY
+ * @param org the Name of the organization unit to use which must already exist
+ */
+void Influxdb::setOrg(String org){
+  _org = String(org);
+  begin();
+}
+
+/**
+ * Set the authorization token v2.0 ONLY
+ * @param token the Auth Token from InfluxDBv2 *required*
+ */
+void Influxdb::setToken(String token){
+  _token = String(token);
+  begin();
+}
+
+/**
+ * Set the version of InfluxDB to write to
+ * @param version accepts 1 for version 1.x or 2 for version 2.x
+ */
+void Influxdb::setVersion(uint16_t version){
+  _db_v = version;
+  begin();
+}
+
 void Influxdb::begin() {
   // TODO: recreate HttpClient on db change?
-  if (_user && _pass) {
-    http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db);
+  if(_db_v == 2){
+    http.begin(_host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket);
+    http.addHeader("Authorization", "Token " + _token);
   } else {
-    http.begin(_host, _port, "/write?db=" + _db);
+    if (_user && _pass) {
+      http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db);
+    } else {
+      http.begin(_host, _port, "/write?db=" + _db);
+    }
   }
   http.addHeader("Content-Type", "text/plain");
 }
@@ -76,9 +126,17 @@ boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
  * for a list of error codes.
  */
 boolean Influxdb::write(String data) {
-  Serial.print(" --> writing to " + _db + ":\n");
-  Serial.println(data);
-
+  if(_db_v == 2){
+    if(_token == NULL || _token.length() < 10){
+      Serial.println("#####\nInvalid Access Token\n#####");
+      return false;
+    }
+    Serial.print(" --> writing to host: " + _host + " Port: " + _port + " URL: /api/v2/write?org=" + _org + "&bucket=" + _bucket + ":\n");
+    Serial.println(data);
+  } else {
+    Serial.print(" --> writing to " + _db + ":\n");
+    Serial.println(data);
+  }
   int httpResponseCode = http.POST(data);
   Serial.print(" <-- Response: ");
   Serial.print(httpResponseCode);

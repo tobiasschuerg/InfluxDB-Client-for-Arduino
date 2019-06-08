@@ -25,7 +25,11 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   influx.setDb("test");
-
+// Uncomment the following lines to use the v2.0 InfluxDB
+// influx.setVersion(2);
+// influx.setOrg("myOrganization");
+// influx.setBucket("myBucket");
+// influx.setToken("myToken");
   Serial.println("Setup done");
 }
 

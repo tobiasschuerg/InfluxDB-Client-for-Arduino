@@ -25,6 +25,12 @@ class Influxdb {
   void setDb(String db);
   void setDbAuth(String db, String user, String pass);
 
+  void setVersion(uint16_t version);
+  void setBucket(String bucket);
+  void setOrg(String org);
+  void setToken(String token);
+  void setPort(uint16_t port);
+
   void prepare(InfluxData data);
   boolean write();
 
@@ -38,6 +44,11 @@ class Influxdb {
   String _db;
   String _user;
   String _pass;
+  String _bucket;
+  String _org;
+  String _token;
+  uint16_t _db_v;
+
   std::list<InfluxData> prepared;
   
   void begin();
