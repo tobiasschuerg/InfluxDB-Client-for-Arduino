@@ -24,7 +24,7 @@ Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Infl
  // or use a db with auth
  influx.setDbAuth(INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASS); // with authentication
  // set the serial monitor logging
- influx.setDebug(false); // serial log defaults to true 
+ influx.setDebug(false); // serial log defaults to true, set to false only if you want to disable it
 ```
 
 ## Sending a single measurement
