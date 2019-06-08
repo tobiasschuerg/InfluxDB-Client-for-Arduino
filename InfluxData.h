@@ -18,6 +18,10 @@ class InfluxData {
     _values = (_values == "") ? (" ") : (_values += ",");
     _values += key + "=" + String(value);
   }
+  void addValueString(String key, String value) {
+    _values = (_values == "") ? (" ") : (_values += ",");
+    _values += key + "=\"" + value + "\"";
+  }
   void setTimestamp(long int seconds)
   {
     _timestamp = " " + String(seconds) + "000000000";
