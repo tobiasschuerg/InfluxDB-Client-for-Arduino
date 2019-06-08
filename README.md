@@ -2,6 +2,8 @@
 
 Library for NodeMcu / ESP8266 (and Arduino?) for sending measurements to an Influx database.
 
+[There is also a branch with v2 support](https://github.com/tobiasschuerg/ESP8266_Influx_DB/tree/v2)
+
 ## Initialization
 ```cpp
  #define INFLUXDB_HOST "192.168.0.32"
