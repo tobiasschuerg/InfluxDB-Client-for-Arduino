@@ -16,6 +16,7 @@
 Influxdb::Influxdb(String host, uint16_t port) {
   _port = port;
   _host = host;
+  _debug = true;
 }
 
 /**
