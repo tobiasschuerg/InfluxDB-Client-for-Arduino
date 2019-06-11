@@ -84,7 +84,7 @@ boolean Influxdb::write(InfluxData data) { return write(data.toString()); }
  * for a list of error codes.
  */
 boolean Influxdb::write(String data) {
-  if (_debug == true) {
+  if (_debug) {
     Serial.print(" --> writing to " + _db + ":\n");
     Serial.println(data);
 
