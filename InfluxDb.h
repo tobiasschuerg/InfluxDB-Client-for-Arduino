@@ -31,7 +31,7 @@ class Influxdb {
   boolean write(InfluxData data);
   boolean write(String data);
 
-  void setDebug(boolean debug)
+  void setDebug(boolean debug);
 
  private:
   HTTPClient http;
