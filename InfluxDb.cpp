@@ -153,6 +153,8 @@ boolean Influxdb::write(String data) {
     Serial.print(" --> writing to " + _db + ":\n");
     Serial.println(data);
   }
+  if(_db_v == 2)
+    http.addHeader("Authorization", "Token " + _token);
   int httpResponseCode = http.POST(data);
   Serial.print(" <-- Response: ");
   Serial.print(httpResponseCode);
