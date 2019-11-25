@@ -8,6 +8,7 @@
 */
 #if defined(ESP8266)
 #include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
 #elif defined(ESP32)
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -30,6 +31,7 @@ class Influxdb {
   void setOrg(String org);
   void setToken(String token);
   void setPort(uint16_t port);
+  void setFingerPrint(char *fingerPrint);
 
   void prepare(InfluxData data);
   boolean write();
@@ -39,6 +41,7 @@ class Influxdb {
 
  private:
   HTTPClient http;
+  WiFiClientSecure client;
   String _host;
   uint16_t _port;
   String _db;
@@ -48,6 +51,7 @@ class Influxdb {
   String _org;
   String _token;
   uint16_t _db_v;
+  char *_fingerPrint;
 
   std::list<InfluxData> prepared;
   
