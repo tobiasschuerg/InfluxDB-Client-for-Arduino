@@ -96,12 +96,10 @@ void Influxdb::begin() {
     if (_port == 443) {
         if (_fingerPrint)
           client.setFingerprint(_fingerPrint);
-        http.begin(client, _host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket,
-                   true);
+        http.begin(client, _host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket, true);
     } else {
         http.begin(_host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket);
     }
-    http.addHeader("Authorization", "Token " + _token);
   } else {
     if (_user && _pass) {
       http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db);
