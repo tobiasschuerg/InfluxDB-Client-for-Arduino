@@ -81,6 +81,7 @@ void Influxdb::setVersion(uint16_t version){
   begin();
 }
 
+#if defined(ESP8266)
 /**
  * Set servers finger print for HTTPS v2 Influx proto
  * @param version accepts 1 for version 1.x or 2 for version 2.x
@@ -89,15 +90,20 @@ void Influxdb::setFingerPrint(char *fingerPrint){
   _fingerPrint = fingerPrint;
   begin();
 }
+#endif
 
 void Influxdb::begin() {
   // TODO: recreate HttpClient on db change?
   if(_db_v == 2){
+#if defined(ESP8266)
     if (_port == 443) {
         if (_fingerPrint)
           client.setFingerprint(_fingerPrint);
         http.begin(client, _host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket, true);
-    } else {
+    }
+    else
+#endif
+    {
         http.begin(_host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket);
     }
   } else {

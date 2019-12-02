@@ -31,7 +31,9 @@ class Influxdb {
   void setOrg(String org);
   void setToken(String token);
   void setPort(uint16_t port);
+#if defined(ESP8266)
   void setFingerPrint(char *fingerPrint);
+#endif
 
   void prepare(InfluxData data);
   boolean write();
@@ -41,7 +43,9 @@ class Influxdb {
 
  private:
   HTTPClient http;
+#if defined(ESP8266)
   WiFiClientSecure client;
+#endif
   String _host;
   uint16_t _port;
   String _db;
@@ -51,7 +55,9 @@ class Influxdb {
   String _org;
   String _token;
   uint16_t _db_v;
+#if defined(ESP8266)
   char *_fingerPrint;
+#endif
 
   std::list<InfluxData> prepared;
   
