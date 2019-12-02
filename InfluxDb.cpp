@@ -81,11 +81,31 @@ void Influxdb::setVersion(uint16_t version){
   begin();
 }
 
+#if defined(ESP8266)
+/**
+ * Set servers finger print for HTTPS v2 Influx proto
+ * @param version accepts 1 for version 1.x or 2 for version 2.x
+ */
+void Influxdb::setFingerPrint(char *fingerPrint){
+  _fingerPrint = fingerPrint;
+  begin();
+}
+#endif
+
 void Influxdb::begin() {
   // TODO: recreate HttpClient on db change?
   if(_db_v == 2){
-    http.begin(_host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket);
-    http.addHeader("Authorization", "Token " + _token);
+#if defined(ESP8266)
+    if (_port == 443) {
+        if (_fingerPrint)
+          client.setFingerprint(_fingerPrint);
+        http.begin(client, _host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket, true);
+    }
+    else
+#endif
+    {
+        http.begin(_host, _port, "/api/v2/write?org=" + _org + "&bucket=" + _bucket);
+    }
   } else {
     if (_user && _pass) {
       http.begin(_host, _port, "/write?u=" + _user + "&p=" + _pass + "&db=" + _db);
@@ -137,6 +157,8 @@ boolean Influxdb::write(String data) {
     Serial.print(" --> writing to " + _db + ":\n");
     Serial.println(data);
   }
+  if(_db_v == 2)
+    http.addHeader("Authorization", "Token " + _token);
   int httpResponseCode = http.POST(data);
   Serial.print(" <-- Response: ");
   Serial.print(httpResponseCode);
