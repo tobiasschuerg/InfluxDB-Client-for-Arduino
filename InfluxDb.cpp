@@ -50,7 +50,7 @@ void Influxdb::setBucket(String bucket) {
  * Set the influxDB port. 
  * @param port v1.x uses 8086, v2 uses 9999
  */
-void Influxdb::setPort(uint16 port){
+void Influxdb::setPort(uint16_t port){
   _port = port;
   begin();
 }
