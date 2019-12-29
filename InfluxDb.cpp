@@ -164,6 +164,8 @@ boolean Influxdb::write(String data) {
   Serial.print(httpResponseCode);
 
 #if defined(ESP32)
+  // The ESP32 HTTP Lib seems to hang if you call getString if the server has not
+  // written anything in response.
   if (http.getSize() > 0) {
     String response = http.getString();
     Serial.println(" \"" + response + "\"");
