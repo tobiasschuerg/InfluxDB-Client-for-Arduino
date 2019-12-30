@@ -47,7 +47,7 @@ void Influxdb::setBucket(String bucket) {
 }
 
 /**
- * Set the influxDB port. 
+ * Set the influxDB port.
  * @param port v1.x uses 8086, v2 uses 9999
  */
 void Influxdb::setPort(uint16_t port){
@@ -163,11 +163,23 @@ boolean Influxdb::write(String data) {
   Serial.print(" <-- Response: ");
   Serial.print(httpResponseCode);
 
+#if defined(ESP32)
+  // The ESP32 HTTP Lib seems to hang if you call getString if the server has not
+  // written anything in response.
+  if (http.getSize() > 0) {
+    String response = http.getString();
+    Serial.println(" \"" + response + "\"");
+  }
+  else {
+    Serial.println();
+  }
+#else
   String response = http.getString();
   Serial.println(" \"" + response + "\"");
+#endif
 
   boolean success;
-  if (httpResponseCode == 204) {
+  if (httpResponseCode == HTTP_CODE_NO_CONTENT) {
     success = true;
   } else {
     Serial.println("#####\nPOST FAILED\n#####");
