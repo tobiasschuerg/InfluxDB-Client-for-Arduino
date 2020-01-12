@@ -14,9 +14,9 @@ class InfluxData {
   InfluxData(String measurement) : _measurement(measurement) {}
 
   void addTag(String key, String value) { _tags += "," + key + "=" + value; }
-  void addValue(String key, float value) {
+  void addValue(String key, float value, int decimals = 2) {
     _values = (_values == "") ? (" ") : (_values += ",");
-    _values += key + "=" + String(value);
+    _values += key + "=" + String(value, decimals);
   }
   void addValueString(String key, String value) {
     _values = (_values == "") ? (" ") : (_values += ",");
