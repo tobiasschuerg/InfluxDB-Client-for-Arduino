@@ -1,26 +1,42 @@
-#######################################
-# Syntax Coloring Map For ESP8266_Influx_DB
-#######################################
+# Syntax Coloring Map For InfluxDBClient library
 
-#######################################
 # Datatypes (KEYWORD1)
-#######################################
+WritePrecision   KEYWORD1
+Point		     KEYWORD1
+InfluxDBClient 	 KEYWORD1
+InfluxData	     KEYWORD1
+Influxdb	     KEYWORD1
 
-InfluxData	KEYWORD1
-Influxdb	KEYWORD1
-
-#######################################
 # Methods and Functions (KEYWORD2)
-#######################################
+addTag 	                KEYWORD2
+addField                KEYWORD2
+setTime	 	            KEYWORD2
+clearFields	            KEYWORD2
+clearTags	            KEYWORD2
+hasFields	            KEYWORD2
+hasTags	                KEYWORD2
+hasTime                 KEYWORD2
+toLineProtocol          KEYWORD2
+setWriteOptions         KEYWORD2
+validateConnection      KEYWORD2
+writeRecord             KEYWORD2
+writePoint              KEYWORD2
+query                   KEYWORD2
+flushBuffer             KEYWORD2
+isBufferFull            KEYWORD2
+isBufferEmpty           KEYWORD2
+checkBuffer             KEYWORD2
+getLastStatusCode       KEYWORD2
+resetBuffer             KEYWORD2
+getLastErrorMessage     KEYWORD2
+getServerUrl            KEYWORD2
+setDb	                KEYWORD2
+prepare	                KEYWORD2
+write	                KEYWORD2
 
-setDb	KEYWORD2
-prepare	KEYWORD2
-write	KEYWORD2
-
-#######################################
-# Instances (KEYWORD2)
-#######################################
-
-#######################################
 # Constants (LITERAL1)
-#######################################
+NoTime  LITERAL1
+S       LITERAL1
+MS      LITERAL1
+US      LITERAL1
+NS      LITERAL1
