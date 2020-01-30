@@ -59,7 +59,7 @@ void setup() {
   Serial.println();
 
   // Set InfluxDB 1 authentication params
-  //client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_USER, INFLUXDB_PASSWORD);
+  //client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DB_NAME, INFLUXDB_USER, INFLUXDB_PASSWORD);
 
   // Add constant tags - only once
   sensor.addTag("device", DEVICE);
