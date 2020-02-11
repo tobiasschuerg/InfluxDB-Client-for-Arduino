@@ -361,7 +361,7 @@ If you couldn't solve a problem by yourself, please, post an issue including the
 ### Initialization
 ```cpp
  #define INFLUXDB_HOST "192.168.0.32"
- #define INFLUXDB_PORT "1337"
+ #define INFLUXDB_PORT 1337
  #define INFLUXDB_DATABASE "test"
  //if used with authentication
  #define INFLUXDB_USER "user"
