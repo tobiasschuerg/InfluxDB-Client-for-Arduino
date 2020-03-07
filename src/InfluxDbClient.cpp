@@ -453,7 +453,7 @@ bool InfluxDBClient::validateConnection() {
         _lastErrorResponse = FPSTR(UnitialisedMessage);
         return false;
     }
-    // on version 1.x /ping will by default return status code 200
+    // on version 1.x /ping will by default return status code 204, without verbose
     String url = _serverUrl + (_dbVersion==2?"/ready":"/ping?verbose=true");
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
