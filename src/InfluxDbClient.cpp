@@ -453,7 +453,8 @@ bool InfluxDBClient::validateConnection() {
         _lastErrorResponse = FPSTR(UnitialisedMessage);
         return false;
     }
-    String url = _serverUrl + (_dbVersion==2?"/ready":"/ping");
+    // on version 1.x /ping will by default return status code 200
+    String url = _serverUrl + (_dbVersion==2?"/ready":"/ping?verbose=true");
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
     if(!_httpClient.begin(*_wifiClient, url)) {
