@@ -27,6 +27,7 @@
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
 
+#define INFLUXDB_CLIENT_VERSION "3.1.0"
 
 #include "Arduino.h"
 
@@ -105,8 +106,8 @@ class Point {
     void putField(String name, String value);
 };
 /**
- * InfluxDBClient handles connection and basic operations for InfluxDB 2 server
- * It provides write API with ability to write data in batches, retrying failure writes, smart optimization and simple Flux querying
+ * InfluxDBClient handles connection and basic operations for an InfluxDB server.
+ * It provides write API with ability to write data in batches and retrying failed writes.
  * Automaticaly retries failed writes during next write, if server is overloaded.
  */
 class InfluxDBClient {
@@ -141,7 +142,7 @@ class InfluxDBClient {
     //                 Data are written either when number of points in buffer reaches batchSize or time of  
     // preserveConnection - true if HTTP connection should be kept open. Usable for often writes.
     void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true); 
-    // Sets InfluxDBClient connection parameters
+    // Sets connection parameters for InfluxDB 2
     // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into

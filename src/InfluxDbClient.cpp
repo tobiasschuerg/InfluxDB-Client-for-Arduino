@@ -25,6 +25,20 @@
  * SOFTWARE.
 */
 #include "InfluxDbClient.h"
+#include <core_version.h>
+
+#define STRHELPER(x) #x
+#define STR(x) STRHELPER(x) // stringifier
+
+#if defined(ESP8266)
+# define INFLUXDB_CLIENT_PLATFORM "ESP8266"
+# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP8266_GIT_DESC)
+#elif defined(ESP32)
+# define INFLUXDB_CLIENT_PLATFORM "ESP32"
+# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP32_GIT_DESC)
+#endif
+
+static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
 
 // Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG
@@ -206,6 +220,8 @@ bool InfluxDBClient::init() {
         _wifiClient = new WiFiClient;
     }
     _httpClient.setReuse(false);
+
+    _httpClient.setUserAgent(UserAgent);
     return true;
 }
 

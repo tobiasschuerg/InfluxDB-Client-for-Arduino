@@ -19,9 +19,10 @@ String chipId = String(ESP.getChipId());
 String deviceName = "ESP8266";
 #endif
 
-#define INFLUXDB_CLIENT_TESTING_URL "http://192.168.88.36:999"
+#define INFLUXDB_CLIENT_TESTING_URL "http://192.168.88.142:999"
 #define INFLUXDB_CLIENT_TESTING_ORG "my-org"
 #define INFLUXDB_CLIENT_TESTING_BUC "my-bucket"
+#define INFLUXDB_CLIENT_TESTING_DB "my-db"
 #define INFLUXDB_CLIENT_TESTING_TOK "1234567890"
 #define INFLUXDB_CLIENT_TESTING_SSID "SSID"
 #define INFLUXDB_CLIENT_TESTING_PASS "password"
@@ -30,6 +31,7 @@ String deviceName = "ESP8266";
 int failures = 0;
 
 #include "TestSupport.h"
+#include <core_version.h>
 
 void setup() {
     Serial.begin(115200);
@@ -46,8 +48,10 @@ void setup() {
 
     //tests
     testPoint();
-    testInit();
     testBasicFunction();
+    testInit();
+    testV1();
+    testUserAgent();
     testFailedWrites();
     testTimestamp();
     testRetryOnFailedConnection();
@@ -204,6 +208,34 @@ void testInit() {
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+#define STRHELPER(x) #x
+#define STR(x) STRHELPER(x) // stringifier
+
+#if defined(ESP8266)
+# define INFLUXDB_CLIENT_PLATFORM "ESP8266"
+# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP8266_GIT_DESC)
+#elif defined(ESP32)
+# define INFLUXDB_CLIENT_PLATFORM "ESP32"
+# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP32_GIT_DESC)
+#endif
+
+
+void testUserAgent() {
+    TEST_INIT("testUserAgent");
+
+    InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(client.validateConnection());
+    String url = INFLUXDB_CLIENT_TESTING_URL "/test/user-agent";
+    HTTPClient http;
+    TEST_ASSERT(http.begin(url));
+    TEST_ASSERT(http.GET() == 200);
+    String agent = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
+    String data = http.getString();
+    TEST_ASSERTM(data == agent, data);
+    http.end();
+    TEST_END();
 }
 
 void testRetryOnFailedConnection() {
@@ -704,6 +736,41 @@ void testTimestamp() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
+void testV1() {
+
+    TEST_INIT("testV1");
+    InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_DB);
+
+    TEST_ASSERT(client.validateConnection());
+    //test with no batching
+    for (int i = 0; i < 20; i++) {
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
+        delete p;
+    }
+    String query = "select";
+    String q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
+    int count;
+    String *lines = getLines(q, count);
+    TEST_ASSERT(count == 21);  
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+    
+    //test with w/ batching 5
+    client.setWriteOptions(WritePrecision::NoTime, 5);
+
+    for (int i = 0; i < 15; i++) {
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
+        delete p;
+    }
+    q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
+    lines = getLines(q, count);
+    TEST_ASSERT(count == 16);  
+    TEST_END();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
 Point *createPoint(String measurement) {
     Point *point = new Point(measurement);
     point->addTag("SSID", WiFi.SSID());

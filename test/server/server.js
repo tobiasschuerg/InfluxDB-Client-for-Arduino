@@ -5,6 +5,7 @@ var os = require('os');
 const app = express();
 const port = 999;
 var pointsdb = []; 
+var lastUserAgent = '';
 
 app.use (function(req, res, next) {
     var data='';
@@ -18,9 +19,21 @@ app.use (function(req, res, next) {
         next();
     });
 });
-
+app.get('/test/user-agent', (req,res) => {
+    res.status(200).send(lastUserAgent);
+})
 app.get('/ready', (req,res) => {
+    lastUserAgent = req.get('User-Agent');
     res.status(200).send("<html><body><h1>OK</h1></body></html>");
+})
+
+app.get('/ping', (req,res) => {
+    lastUserAgent = req.get('User-Agent');
+    if(req.query['verbose'] == 'true') {
+        res.status(200).send("<html><body><h1>OK</h1></body></html>");
+    } else {
+        res.status(204).end();
+    }
 })
 
 app.post('/api/v2/write', (req,res) => {
@@ -45,6 +58,44 @@ app.post('/api/v2/write', (req,res) => {
                         console.log('Return');
                         res.status(503).send("Server overloaded"); 
                         break;
+                    case 'delete-all':
+                        pointsdb = [];
+                        res.status(204).end(); 
+                        break; 
+                    case '400':
+                        points = [];
+                        res.status(400).send("bad request");
+                        break;
+                    case '500':
+                        points = [];
+                        res.status(500).send("internal server error");
+                        break;
+                }
+                points.shift();
+            }
+            console.log("write " + points.length + ' points');
+            points.forEach((item, index) => {
+                pointsdb.push(item);
+            })
+            if(res.statusCode < 299) {
+                res.status(204).end();  
+            }
+        } else {
+            res.status(204).end();
+        }
+    }
+    if(res.statusCode != 204) {
+        console.log('Responded with ' + res.statusCode);
+    }
+})
+
+app.post('/write', (req,res) => {
+    if(checkWriteParamsV1(req, res) ) {
+        var points = req.body;
+        if(Array.isArray(points) && points.length > 0) {
+            var point = points[0];
+            if(point.tags.hasOwnProperty('direction')) {
+                switch(point.tags.direction) {
                     case 'delete-all':
                         pointsdb = [];
                         res.status(204).end(); 
@@ -188,6 +239,16 @@ function checkWriteParams(req, res) {
         return false;
     } else if(bucket != 'my-bucket') {
         res.status(404).send(`{"code":"not found","message":"bucket \"${bucket}\" not found"}`);
+        return false;
+    } else {
+        return true;
+    }
+}
+
+function checkWriteParamsV1(req, res) {
+    var db = req.query['db'];
+    if(db != 'my-db') {
+        res.status(404).send(`{"code":"not found","message":"database \"${db}\" not found"}`);
         return false;
     } else {
         return true;
