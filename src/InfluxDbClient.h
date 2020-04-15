@@ -98,9 +98,9 @@ class Point {
     // Creates line protocol
     String toLineProtocol() const;
   protected:
+    String _measurement;
     String _tags;
     String _fields;
-    String _measurement;
     String _timestamp;    
     // method for formating field into line protocol
     void putField(String name, String value);
