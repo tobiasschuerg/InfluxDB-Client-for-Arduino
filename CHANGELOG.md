@@ -1,7 +1,13 @@
 # Changelog
+## Version 3.x.x
+ - [FIX] Compilation error on fields order (#43)
+ - [FIX] Invalid precision constant for microseconds (#49)
+
+## Version 3.1.1
+- [Updated] CA Certificate for SSL (#38)
 
 ## Version 3.1.0
- - [NEW] user-agent header added
+ - [NEW] Added User-agent header
  - [FIX] status code check when pinging an InfluxDB version 1.x instance
 
 ## Version 3.0.0

@@ -176,6 +176,15 @@ void testBasicFunction() {
     String q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
     TEST_ASSERT(countLines(q) == 6);  //5 points+header
 
+    // test precision
+    for (int i = (int)WritePrecision::NoTime; i <= (int)WritePrecision::NS; i++) {
+        client.setWriteOptions((WritePrecision)i, 1);
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
+        delete p;
+    }
+
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
@@ -768,6 +777,15 @@ void testV1() {
     q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
     lines = getLines(q, count);
     TEST_ASSERT(count == 16);  
+
+    // test precision
+    for (int i = (int)WritePrecision::NoTime; i <= (int)WritePrecision::NS; i++) {
+        client.setWriteOptions((WritePrecision)i, 1);
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
+        delete p;
+    }
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }

@@ -57,10 +57,10 @@ static String escapeKey(String key);
 static String escapeValue(const char *value);
 static String escapeJSONString(String &value);
 
-static String precisionToString(WritePrecision precision) {
+static String precisionToString(WritePrecision precision, uint8_t version = 2) {
     switch(precision) {
         case WritePrecision::US:
-            return "us";
+            return version==1?"u":"us";
         case WritePrecision::MS:
             return "ms";
         case WritePrecision::NS:
@@ -266,7 +266,7 @@ void InfluxDBClient::setUrls() {
         }
     }
     if(_writePrecision != WritePrecision::NoTime) {
-        _writeUrl += String("&precision=") + precisionToString(_writePrecision);
+        _writeUrl += String("&precision=") + precisionToString(_writePrecision, _dbVersion);
     }
     
 }
