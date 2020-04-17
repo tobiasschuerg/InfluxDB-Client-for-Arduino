@@ -2,6 +2,7 @@
 ## Version 3.x.x
  - [FIX] Compilation error on fields order (#43)
  - [FIX] Invalid precision constant for microseconds (#49)
+ - [FIX] Write error in case point has no tags (#50)
 
 ## Version 3.1.1
 - [Updated] CA Certificate for SSL (#38)
