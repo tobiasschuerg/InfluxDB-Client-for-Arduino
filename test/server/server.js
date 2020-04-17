@@ -231,26 +231,36 @@ function handleAuthentication(req, res) {
     }
 }
 
+const AllowedPrecisions = ['ns','us','ms','s'];
 function checkWriteParams(req, res) {
     var org = req.query['org'];
     var bucket = req.query['bucket'];
+    var precision = req.query['precision'];
     if(org != 'my-org') {
         res.status(404).send(`{"code":"not found","message":"organization name \"${org}\" not found"}`);
         return false;
     } else if(bucket != 'my-bucket') {
         res.status(404).send(`{"code":"not found","message":"bucket \"${bucket}\" not found"}`);
         return false;
+    } else if(typeof precision !== 'undefined' && AllowedPrecisions.indexOf(precision)==-1) {
+        res.status(400).send(`{"code":"bad request ","message":"precision \"${precision}\" is not valid"}`);
+        return false;
     } else {
         return true;
     }
 }
 
+const AllowedPrecisionsV1 = ['ns','u','ms','s'];
 function checkWriteParamsV1(req, res) {
     var db = req.query['db'];
+    var precision = req.query['precision'];
     if(db != 'my-db') {
         res.status(404).send(`{"code":"not found","message":"database \"${db}\" not found"}`);
         return false;
-    } else {
+    } else if(typeof precision !== 'undefined' && AllowedPrecisionsV1.indexOf(precision)==-1) {
+        res.status(400).send(`{"code":"bad request ","message":"precision \"${precision}\" is not valid"}`);
+        return false;
+    }else {
         return true;
     }
 }
