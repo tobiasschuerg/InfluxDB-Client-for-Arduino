@@ -104,8 +104,14 @@ void Point::putField(String name, String value) {
 }
 
 String Point::toLineProtocol() const {
-    String line =  _measurement + "," + _tags + " " + _fields;
-    if(_timestamp != "") {
+    String line =  _measurement;
+    if(hasTags()) {
+        line += "," + _tags;
+    }
+    if(hasFields()) {
+        line += " " + _fields;
+    }
+    if(hasTime()) {
         line += " " + _timestamp;
     }
     return line;
