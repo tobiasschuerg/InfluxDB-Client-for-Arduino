@@ -1,5 +1,7 @@
 # Changelog
-
+## Version 3.1.x
+ - [FIX] SecureWrite crash (#54)
+ 
 ## Version 3.1.2 (2020-04-18)
  - [FIX] Compilation error on fields order (#43)
  - [FIX] Invalid precision constant for microseconds (#49)
