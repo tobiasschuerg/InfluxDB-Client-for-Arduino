@@ -1,5 +1,6 @@
 # Changelog
-## Version 3.1.x
+
+## Version 3.1.3 (2020-04-27)
  - [FIX] SecureWrite crash (#54)
  
 ## Version 3.1.2 (2020-04-18)
