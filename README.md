@@ -169,7 +169,7 @@ Values for some timezones:
 - Japanesse: `JST-9`
 - Pacific Time: `PST8PDT`
 
-We could set the timezone info (DST and UTC offset) also in the first two parameters of the `configTime` method, but there is a [bug on ESP8266](https://github.com/esp8266/Arduino/issues/6921) which causes a time behaves as it is in UTC, even UTC offset was specified.
+We can also set the timezone info (DST and UTC offset) in the first two parameters of the `configTime` method.
 
 There is also a method, which allows to set timezone string and NTP servers at the same time. It has a different name for ESP8266 and ESP32. It's declaration is following:
 ```cpp
