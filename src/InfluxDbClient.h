@@ -243,7 +243,7 @@ class InfluxDBClient {
   BearSSL::X509List *_cert = nullptr;   
 #endif
     // Store retry timeout suggested by server after last request
-    int _lastRetryAfter;
+    int _lastRetryAfter = 0;
     // Sends POST request with data in body
     int postData(const char *data);
     // Prepares batch from data in buffer`
