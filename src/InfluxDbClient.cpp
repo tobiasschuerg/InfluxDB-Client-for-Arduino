@@ -264,11 +264,14 @@ void InfluxDBClient::clean() {
 void InfluxDBClient::setUrls() {
     if(_dbVersion == 2) {
         _writeUrl = _serverUrl + "/api/v2/write?org=" + _org + "&bucket=" + _bucket;
+        _queryUrl = _serverUrl + "/api/v2/query?org=" + _org;
     } else {
         _writeUrl = _serverUrl + "/write?db=" + _bucket;
+        _queryUrl = _serverUrl + "/api/v2/query?db=" + _bucket;
         if(_user.length() > 0 && _password.length() > 0) {
             String auth =  "&u=" + _user + "&p=" + _password;
             _writeUrl += auth;
+            _queryUrl += auth;
         }
     }
     if(_writePrecision != WritePrecision::NoTime) {
@@ -530,6 +533,42 @@ int InfluxDBClient::postData(const char *data) {
         _httpClient.end();
     } 
     return _lastStatusCode;
+}
+
+String InfluxDBClient::query(String &fluxQuery) {
+    if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
+        // retry after period didn't run out yet
+        return "";
+    }
+    if(!_wifiClient && !init()) {
+        _lastStatusCode = 0;
+        _lastErrorResponse = FPSTR(UnitialisedMessage);
+        return "";
+    }
+    INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
+    if(!_httpClient.begin(*_wifiClient, _queryUrl)) {
+        INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
+        return "";
+    }
+    _httpClient.addHeader(F("Content-Type"), F("application/vnd.flux"));
+    
+    INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
+    
+    preRequest();
+
+    _lastStatusCode = _httpClient.POST(fluxQuery);
+    
+    postRequest(200);
+    String queryResult;
+    if(_lastStatusCode == 200) {
+        queryResult = _httpClient.getString();
+        queryResult.trim();
+        INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", queryResult.c_str());
+    }
+
+    _httpClient.end();
+
+    return queryResult;
 }
 
 void InfluxDBClient::postRequest(int expectedStatusCode) {

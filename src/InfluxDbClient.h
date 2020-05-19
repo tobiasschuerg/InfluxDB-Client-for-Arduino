@@ -165,6 +165,9 @@ class InfluxDBClient {
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
+    // Sends Flux query and returns raw JSON formatted response
+    // Return raw query response in the form of CSV table. Empty string can mean that query hasn't found anything or an error. Check getLastStatusCode() for 200 
+    String query(String &fluxQuery);
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();
@@ -183,6 +186,8 @@ class InfluxDBClient {
     String getLastErrorMessage() const { return _lastErrorResponse; }
     // Returns server url
     String getServerUrl() const { return _serverUrl; }
+    // Returns true if last query request has succeeded. Handy for distingushing empty result and error
+    bool wasLastQuerySuccessful() { return _lastStatusCode == 200; }
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
@@ -205,6 +210,8 @@ class InfluxDBClient {
     String _password;
     // Cached full write url
     String _writeUrl;
+    // Cached full query url
+    String _queryUrl;
     // Points timestamp precision. 
     WritePrecision _writePrecision = WritePrecision::NoTime;
     // Number of points that will be written to the databases at once. 
