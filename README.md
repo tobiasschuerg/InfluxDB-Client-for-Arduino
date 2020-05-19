@@ -344,6 +344,43 @@ void setup() {
 }
 ```
 
+## Querying
+InfluxDB uses [Flux](https://www.influxdata.com/products/flux/) to process and query data. InfluxDB client for Arduino offers a simple way how to query data with `query` function:
+```cpp
+// Construct a Flux query
+// Query will find RSSI for last 24 hours for each connected WiFi network with this device computed by given selector function
+String query = "from(bucket: \"" INFLUXDB_BUCKET "\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"wifi_status\" and r._field == \"rssi\"";
+query += "and r.device == \"" DEVICE "\")";
+query += "|> " + selectorFunction + "()";
+
+String resultSet = client.query(query);
+// Check empty response
+if (resultSet == "") {
+    // It can mean empty query result
+    if (client.wasLastQuerySuccessful()) {
+        Serial.println("Empty results set");
+    } else {
+        // or an error
+        Serial.print("InfluxDB query failed: ");
+        Serial.println(client.getLastErrorMessage());
+    }
+} else {
+    Serial.println(resultSet);
+}
+``` 
+
+InfluxDB query result set is returned in the CSV format, where the first line contains column names:
+```CSV
+,result,table,_start,_stop,_time,_value,SSID,_field,_measurement,device
+,_result,0,2019-12-11T12:39:49.632459453Z,2019-12-12T12:39:49.632459453Z,2019-12-12T12:26:25Z,-68,666G,rssi,wifi_status,ESP8266
+```
+This library also provides a couple of helper methods for parsing such a result set.
+
+If the query results in an empty result set, the server returns an empty response. As the empty result returned from the `query` function indicates an error,
+use `wasLastQuerySuccessful()` method to determine final status.
+
+Complete source code is available in [Query example](examples/Query/Query.ino).
+
 ## Troubleshooting
 All db methods return status. Value `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
 
