@@ -1,6 +1,6 @@
 # InfluxDB Arduino Client
 
-Simple Arduino client for writing data to [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
+Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
 
 It also allows setting data in various formats, automatically escapes special characters and offers specifying timestamp in various precisions. 
 
