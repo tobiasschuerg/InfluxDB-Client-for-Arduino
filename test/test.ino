@@ -780,7 +780,7 @@ void testV1() {
         delete p;
     }
     String query = "select";
-    String q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
+    String q = client.query(query);
     int count;
     String *lines = getLines(q, count);
     TEST_ASSERT(count == 21);  
@@ -795,7 +795,7 @@ void testV1() {
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
         delete p;
     }
-    q = queryFlux(client.getServerUrl(),INFLUXDB_CLIENT_TESTING_TOK, INFLUXDB_CLIENT_TESTING_ORG, query);
+    q = q = client.query(query);
     lines = getLines(q, count);
     TEST_ASSERT(count == 16);  
 
