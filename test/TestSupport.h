@@ -6,12 +6,32 @@
 #define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) break
 #define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) break
 
+#include "query/FluxParser.h"
+
+int failures = 0;
+
+void printFreeHeap() {
+  Serial.print("Free heap: ");  
+  Serial.println(ESP.getFreeHeap());
+}
+
 bool deleteAll(String url) {
   String deleteUrl = url + "/api/v2/delete";
   HTTPClient http;
   int code = 0;
   if(http.begin(deleteUrl)) {
     code = http.POST("");
+    http.end();
+  }
+  return code == 204;
+}
+
+bool serverLog(String url,String mess) {
+  String logUrl = url + "/log";
+  HTTPClient http;
+  int code = 0;
+  if(http.begin(logUrl)) {
+    code = http.POST(mess);
     http.end();
   }
   return code == 204;
@@ -47,12 +67,29 @@ String *getParts(String &str, char separator, int &count) {
   return ret;
 }
 
-int countLines(String &str) {
-  return countParts(str, '\n');
+int countLines(FluxQueryResult flux) {
+  int lines = 0;
+  while(flux.next()) {
+    lines++;
+  }
+  flux.close();
+  return lines;
 }
 
-String *getLines(String &str, int &count) {
-  return getParts(str, '\n', count);
+std::vector<String> getLines(FluxQueryResult flux) {
+  std::vector<String> lines;
+  while(flux.next()) {
+    String line;
+    int i=0;
+    for(auto &val: flux.getValues()) {
+      if(i>0) line += ",";
+      line += val.getRawValue();
+      i++;
+    }
+    lines.push_back(line);
+  }
+  flux.close();
+  return lines;
 }
 
 
@@ -79,5 +116,11 @@ bool waitServer(InfluxDBClient &client, bool state) {
   }
   return res == state;
 }
+
+bool compareTm(tm &tm1, tm &tm2) {
+    time_t t1 = mktime(&tm1);
+    time_t t2 = mktime(&tm2);
+    return difftime(t1, t2) == 0;
+} 
 
 #endif //_TEST_SUPPORT_H_

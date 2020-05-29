@@ -1,4 +1,6 @@
 # Changelog
+## Version 3.2 (in-production)
+- [NEW] Added possibility to read data from InfluxDB using Flux queries 
 
 ## Version 3.1.3 (2020-04-27)
  - [FIX] SecureWrite crash (#54)

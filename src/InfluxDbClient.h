@@ -29,7 +29,9 @@
 
 #define INFLUXDB_CLIENT_VERSION "3.1.3"
 
-#include "Arduino.h"
+#include <Arduino.h>
+#include "query/FluxParser.h"
+#include "util/helpers.h"
 
 #if defined(ESP8266)
 # include <WiFiClientSecureBearSSL.h>
@@ -165,9 +167,10 @@ class InfluxDBClient {
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
-    // Sends Flux query and returns raw JSON formatted response
-    // Return raw query response in the form of CSV table. Empty string can mean that query hasn't found anything or an error. Check getLastStatusCode() for 200 
-    String query(String &fluxQuery);
+    // Sends Flux query and returns FluxQueryResult object for subsequentialy reading flux query response.
+    // Use FluxQueryResult::next() method to iterate over lines of the query result.
+    // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
+    FluxQueryResult query(String fluxQuery);
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();
@@ -186,8 +189,6 @@ class InfluxDBClient {
     String getLastErrorMessage() const { return _lastErrorResponse; }
     // Returns server url
     String getServerUrl() const { return _serverUrl; }
-    // Returns true if last query request has succeeded. Handy for distingushing empty result and error
-    bool wasLastQuerySuccessful() { return _lastStatusCode == 200; }
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
@@ -250,7 +251,7 @@ class InfluxDBClient {
   BearSSL::X509List *_cert = nullptr;   
 #endif
     // Store retry timeout suggested by server after last request
-    int _lastRetryAfter;
+    int _lastRetryAfter = 0;
     // Sends POST request with data in body
     int postData(const char *data);
     // Prepares batch from data in buffer`

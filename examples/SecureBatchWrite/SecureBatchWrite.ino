@@ -57,29 +57,6 @@ Point sensorStatus("wifi_status");
 // Number for loops to sync time using NTP
 int iterations = 0;
 
-void timeSync() {
-  // Synchronize UTC time with NTP servers
-  // Accurate time is necessary for certificate validaton and writing in batches
-  configTime(0, 0, "pool.ntp.org", "time.nis.gov");
-  // Set timezone
-  setenv("TZ", TZ_INFO, 1);
-
-  // Wait till time is synced
-  Serial.print("Syncing time");
-  int i = 0;
-  while (time(nullptr) < 1000000000ul && i < 100) {
-    Serial.print(".");
-    delay(100);
-    i++;
-  }
-  Serial.println();
-
-  // Show time
-  time_t tnow = time(nullptr);
-  Serial.print("Synchronized time: ");
-  Serial.println(String(ctime(&tnow)));
-}
-
 void setup() {
   Serial.begin(115200);
 
@@ -98,8 +75,10 @@ void setup() {
   sensorStatus.addTag("device", DEVICE);
   sensorStatus.addTag("SSID", WiFi.SSID());
 
-  // Sync time for certificate validation
-  timeSync();
+  // Accurate time is necessary for certificate validation and writing in batches
+  // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+  // Syncing progress and the time will be printed to Serial.
+  timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
 
   // Check server connection
   if (client.validateConnection()) {
