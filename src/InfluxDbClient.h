@@ -134,6 +134,8 @@ class InfluxDBClient {
     InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo);
     // Clears instance.
     ~InfluxDBClient();
+    // Allows insecure connection
+    void setInsecure(bool value);
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
     // bufferSize - maximum size of Points buffer. Buffer contains new data that will be written to the database
@@ -242,6 +244,8 @@ class InfluxDBClient {
 #ifdef  ESP8266
   BearSSL::X509List *_cert = nullptr;   
 #endif
+    // if true - allow insecure connection
+    int _insecure = 0;
     // Store retry timeout suggested by server after last request
     int _lastRetryAfter = 0;
     // Sends POST request with data in body
