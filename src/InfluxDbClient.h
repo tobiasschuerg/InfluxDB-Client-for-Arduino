@@ -39,11 +39,11 @@
 #elif defined(ESP32)
 # include <HTTPClient.h>
 #else
-# error “This library currently supports only ESP8266 and ESP32.”
+# error "This library currently supports only ESP8266 and ESP32."
 #endif
 
 #ifdef USING_AXTLS
-#error AxTLS doesn't work
+#error AxTLS does not work
 #endif
 
 // Enum WritePrecision defines constants for specifying InfluxDB write prcecision

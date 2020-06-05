@@ -186,7 +186,7 @@ Values for some timezones:
 - Japanesse: `JST-9`
 - Pacific Time: `PST8PDT`
 
-There is also another function for syncing time, which takes timezone and DST offset. As DST info is set via static offset it will create local time problem when DST change will occur. 
+There is also another function for syncing the time, which takes timezone and DST offset. As DST info is set via static offset it will create local time problem when DST change will occur. 
 It's declaration is following:
 ```cpp
 configTime(long gmtOffset_sec, int daylightOffset_sec, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr);
