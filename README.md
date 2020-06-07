@@ -1,12 +1,33 @@
 # InfluxDB Arduino Client
 
-Simple Arduino client for writing data to [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
+Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
 
 It also allows setting data in various formats, automatically escapes special characters and offers specifying timestamp in various precisions. 
 
 Library support both [InfluxDB 2](#basic-code-for-influxdb-2) and [InfluxDB 1](#basic-code-for-influxdb-2).
 
 This is a new implementation and API, [original API](#original-api) is still supported. 
+
+Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
+
+- [Basic code for InfluxDB 2](#basic-code-for-influxdb-2)
+- [Basic code for InfluxDB 1](#basic-code-for-influxdb-1)
+- [Connecting to InfluxDB Cloud 2](#connecting-to-influxdb-cloud-2)
+- [Writing in Batches](#writing-in-batches)
+  - [Timestamp](#timestamp)
+  - [Configure Timel](#configure-time)
+  - [Batch Size](#batch-size)
+- [Buffer Handling and Retrying](#buffer-handling-and-retrying)
+- [Write Options](#write-options)
+- [Secure Connection](#secure-connection)
+    - [InfluxDb 2](#influxdb-2)
+    - [InfluxDb 1](#influxdb-1)
+- [Querying](#querying)
+- [Original API](#original-api)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
 
 ## Basic code for InfluxDB 2
 Using client is very easy. After [seting up InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
@@ -48,7 +69,7 @@ Data can be seen in the InfluxDB UI immediately. Use [Data Explorer](https://v2.
 
 ## Basic code for InfluxDB 1
 Using InfluxDB Arduino client for InfluxDB 1 is almost the same as for InfluxDB 2. The only difference is that InfluxDB 1 uses _database_ as classic name for data storage instead of bucket and the server is unsecured by default.
-There is just different `InfluxDBClient contructor` and  `setConnectionParametersV1` method for setting also security params. Everything else remains the same.
+There is just different `InfluxDBClient contructor` and  `setConnectionParametersV1` function for setting also security params. Everything else remains the same.
 
 ```cpp
 // InfluxDB server url, e.g. http://192.168.1.48:8086 (don't use localhost, always server name or ip address)
@@ -102,11 +123,10 @@ Read more about [secure connection](#secure-connection).
 
 Additionally, time needs to be synced:
 ```cpp
-// Synchronize UTC time with NTP servers
+// Synchronize time with NTP servers and set timezone
 // Accurate time is necessary for certificate validaton and writing in batches
-configTime(0, 0, "pool.ntp.org", "time.nis.gov");
-// Set timezone
-setenv("TZ", TZ_INFO, 1);
+// For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+configTzTime(TZ_INFO "pool.ntp.org", "time.nis.gov");
 ```
 Read more about time synchronization in [Configure Time](#configure-time).
 
@@ -135,7 +155,7 @@ If points have no timestamp assigned, InfluxDB assigns timestamp at the time of 
 
 InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino.
 
-The client has to be configured with time precision. The default settings is not using the timestamp. The `setWriteOptions` methods allow setting various parameters and one of them is __write precision__:
+The client has to be configured with time precision. The default settings is not using the timestamp. The `setWriteOptions` functions allow setting various parameters and one of them is __write precision__:
 ``` cpp
 // Set write precision to milliseconds. Leave other parameters default.
 client.setWriteOptions(WritePrecision::MS);
@@ -149,43 +169,46 @@ If you want to manage timestamp on your own, there are several ways how to set t
 
 
 ### Configure Time
-Dealing with timestamps requires the device has correctly set time. This can be done with just a few lines of code:
+Dealing with timestamps, and also validating server or CA certificate, requires the device has correctly set time. This can be done with just one line of code:
 ```cpp
-// Synchronize UTC time with NTP servers
+// Synchronize time with NTP servers and set timezone
 // Accurate time is necessary for certificate validaton and writing in batches
-configTime(0, 0, "pool.ntp.org", "time.nis.gov");
-// Set timezone
-setenv("TZ", "PST8PDT", 1);
+// For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+configTzTime("PST8PDT", "pool.ntp.org", "time.nis.gov");
 ```
-The `configTime` method starts the time synchronization with NTP servers. The first two parameters specify DST and timezone offset, but we keep them zero and configure timezone info later.
+The `configTzTime` function starts the time synchronization with NTP servers. The first parameter specifies timezone information, which is important for distinguishing UTC and a local timezone and for daylight saving changes.
 The last two string parameters are the internet addresses of NTP servers. Check [pool.ntp.org](https://www.pool.ntp.org/zone) for address of some local NTP servers.
 
-Using the `setenv` method with `TZ` param ensures a device has the correct timezone. This is critical for distinguishing UTC and a local timezone because timestamps of points must be set in the UTC timezone.
-The second parameter is timezone information, which is described at [https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html](https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html). 
-
+Timezone string details are described at [https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html](https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html).
 Values for some timezones:
 - Central Europe: `CET-1CEST,M3.5.0,M10.5.0/3`
 - Eastern: `EST5EDT`
 - Japanesse: `JST-9`
 - Pacific Time: `PST8PDT`
 
-We can also set the timezone info (DST and UTC offset) in the first two parameters of the `configTime` method.
-
-There is also a method, which allows to set timezone string and NTP servers at the same time. It has a different name for ESP8266 and ESP32. It's declaration is following:
+There is also another function for syncing the time, which takes timezone and DST offset. As DST info is set via static offset it will create local time problem when DST change will occur. 
+It's declaration is following:
 ```cpp
-// For ESP8266
-void configTime(const char* tz, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr);
-
-// For ESP32
-void configTzTime(const char* tz, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr); 
+configTime(long gmtOffset_sec, int daylightOffset_sec, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr);
 ```
-In the example code it would be (for ESP8266):
+
+In the example code it would be:
 ```cpp
-// Synchronize UTC time with NTP servers
+// Synchronize time with NTP servers
 // Accurate time is necessary for certificate validaton and writing in batches
-configTime("PST8PDT", "pool.ntp.org", "time.nis.gov");
+configTime(3600, 3600, "pool.ntp.org", "time.nis.gov");
 ```
-The way how the time synchronisation is shown in the library examples is chosen to have the most similar code for both currently supported devices.
+
+Both `configTzTime` and `configTime` functions are asynchronous. This means that calling the functions just starts the time synchronization. Time is often not synchronized yet upon returning from call.
+
+There is a helper function `timeSync` provided with the this library. The function starts time synchronization by calling the `configTzTime` and waits maximum 20 seconds for time is synchronized. It prints progress info and final local time to the `Serial`. 
+`timeSync` has the same signature and `configTzTime` and it is included with the main header file `InfluxDbClient.h`:
+```cpp
+// Synchronize time with NTP servers and waits for completition. Prints waiting progress and final synchronized time to the Serial.
+// Accurate time is necessary for certificate validion and writing points in batch
+// For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2 = nullptr, const char* ntpServer3 = nullptr);
+```
 
 ### Batch Size
 Setting batch size depends on data gathering and DB updating strategy.
@@ -195,7 +218,7 @@ For example, if you would like to see updates (on the dashboard or in processing
 
 In case that data should be written in longer periods and gathered data consists of several points batch size should be set to an expected number of points.
 
-To set batch size we use [setWriteOptions](#write-options) method, where second parameter controls batch size:
+To set batch size we use [setWriteOptions](#write-options) function, where second parameter controls batch size:
 ```cpp
 // Enable messages batching
 client.setWriteOptions(WritePrecision::MS, 10);
@@ -216,27 +239,27 @@ if(!client.writePoint(point10)) {
 }
 ```
 
-In case of a number of points is not always the same, set batch size to the maximum number of points and use the `flushBuffer()` method to force writing to DB. See [Buffer Handling](#buffer-handling-and-retrying) for more details.
+In case of a number of points is not always the same, set batch size to the maximum number of points and use the `flushBuffer()` function to force writing to DB. See [Buffer Handling](#buffer-handling-and-retrying) for more details.
 
 ## Buffer Handling and Retrying
 InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server backpressure and connection failure.
 
-Its size is controled by the 3rd parameter of [setWriteOptions](#write-options) method:
+Its size is controled by the 3rd parameter of [setWriteOptions](#write-options) function:
 ```cpp
 // Enable messages batching
 client.setWriteOptions(WritePrecision::MS, 10, 30);
 ```
 The third parameter specifies the buffer size. The recommended size is at least 2 x batch size. 
 
-State of the buffer can be determined via two methods:
+State of the buffer can be determined via two functions:
  - `isBufferEmpty()` - Returns true if buffer is empty
  - `isBufferFull()` - Returns true if buffer is full
  
  Full buffer can occur when there is a problem with an internet connection or the InfluxDB server is overloaded. In such cases, points to write remains in buffer. When more points are added and connection problem remains, the buffer will reach the top and new points will overwrite older points.
 
- Each attempt to write a point will try to send older points in the buffer. So, the `isBufferFull()` method can be used to skip low priority points.
+ Each attempt to write a point will try to send older points in the buffer. So, the `isBufferFull()` function can be used to skip low priority points.
 
-The `flushBuffer()` method can be used to force writing, even the number of points in the buffer is lower than the batch size. With the help of the `isBufferEmpty()` method a check can be made before a device goes to sleep:
+The `flushBuffer()` function can be used to force writing, even the number of points in the buffer is lower than the batch size. With the help of the `isBufferEmpty()` function a check can be made before a device goes to sleep:
 
  ```cpp
   // Check whether buffer in not empty
@@ -246,14 +269,14 @@ The `flushBuffer()` method can be used to force writing, even the number of poin
   }
 ```
 
-Other methods for dealing with buffer:
- - `checkBuffer()` - Checks point buffer status and flushes if the number of points reaches batch size or flush interval runs out. This main method for controlling buffer and it is used internally.
+Other functions for dealing with buffer:
+ - `checkBuffer()` - Checks point buffer status and flushes if the number of points reaches batch size or flush interval runs out. This main function for controlling buffer and it is used internally.
  - `resetBuffer()` - Clears the buffer.
 
 Check [SecureBatchWrite example](examples/SecureBatchWrite/SecureBatchWrite.ino) for example code of buffer handling functions.
 
 ## Write Options
-Writing points can be controlled via several parameters in `setWriteOptions` method:
+Writing points can be controlled via several parameters in `setWriteOptions` function:
 
 | Parameter | Default Value | Meaning |
 |-----------|---------------|---------| 
@@ -321,7 +344,7 @@ There are two ways to set certificate or fingerprint to trust a server:
 // InfluxDB client instance with preconfigured InfluxCloud certificate
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 ```
-- Use `setConnectionParams` method:
+- Use `setConnectionParams` function:
 ```cpp
 // InfluxDB client instance 
 InfluxDBClient client;
@@ -333,7 +356,7 @@ void setup() {
 ```
 ### InfluxDb 1
 
-Use `setConnectionParamsV1` method:
+Use `setConnectionParamsV1` function:
 ```cpp
 // InfluxDB client instance 
 InfluxDBClient client;
@@ -343,18 +366,94 @@ void setup() {
     client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, InfluxDbCloud2CACert);
 }
 ```
+Another important prerequisity to sucessfully validate server or CA certificate is to have properly synchronized time. More on this in [Configure Timel](#configure-time).
 
-## Troubleshooting
-All db methods return status. Value `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
+Note: Time synchronization is not required for validating server certificate via SHA1 fingerprint.
 
-When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/InfluxDBClient.cpp` uncomment line 30:
-```cpp
-// Uncomment bellow in case of a problem and rebuild sketch
-#define INFLUXDB_CLIENT_DEBUG
+## Querying
+InfluxDB 2 and InfluxDB 1.7+ (with [enabled flux](https://docs.influxdata.com/influxdb/latest/administration/config/#flux-enabled-false)) uses [Flux](https://www.influxdata.com/products/flux/) to process and query data. InfluxDB client for Arduino offers a simple, but powerful, way how to query data with `query` function. It parses response line by line, so it can read a huge responses (thousands data lines), without consuming a lot device memory.
+
+The `query` returns `FluxQueryResult` object, which parses response and provides useful getters for accessing values from result set. 
+
+InfluxDB flux query result set is returned in the CSV format. In the example bellow, the first line contains type information and the second columns name and the rest is data:
+```CSV
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string,string
+,result,table,_start,_stop,_time,_value,SSID,_field,_measurement,device
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:07:13Z,-55,667G,rssi,wifi_status,ESP32
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:07:27Z,-54,667G,rssi,wifi_status,ESP32
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:07:40Z,-54,667G,rssi,wifi_status,ESP32
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:07:54Z,-54,667G,rssi,wifi_status,ESP32
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:08:07Z,-55,667G,rssi,wifi_status,ESP32
+,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:08:20Z,-56,667G,rssi,wifi_status,ESP32
 ```
-Then upload your sketch again and see the debug output in the Serial Monitor.
 
-If you couldn't solve a problem by yourself, please, post an issue including the debug output.
+Accessing data using `FluxQueryResult` requires knowing the query result structure, especially the name and the type of the column. The best practise is to tune query
+in the `InfluxDB Data Explorer` and use the final query with this library.
+
+ Browsing thought the result set is done by repeatedly calling the `next()` method, until it returns false. Unsuccesful reading is distinqushed by non empty value from the `getError()` method.
+ As a flux query result can contain several tables, differing by grouping key, use the `hasTableChanged()` method to know when there is a new table.
+ Single values are returned using the `getValueByIndex()` or `getValueByName()` methods.
+ All row values at once are retreived by the `getValues()` method.
+  Always call the `close()` method at the of reading.
+
+A value in the flux query result column, retrieved by the `getValueByIndex()` or `getValueByName()` methods, is represented by the `FluxValue` object.
+It provides getter methods for supported flux types:
+
+| Flux type | Getter | C type |
+| ----- | ------ |  --- |
+| long | getLong() | long |
+| unsignedLong | getUnsignedLong() | unsingned long |
+| dateTime:RFC3339, dateTime:RFC3339Nano | getDateTime() |  [FluxDateTime](src/query/FluxTypes.h#L100) |
+| bool | getBool() | bool |
+| double | bool | double |
+| string, base64binary, duration | getString() | String |
+
+Calling improper type getter will result in a zero (empty) value. 
+
+Check for null (missing) value usig the `isNull()` method.  
+
+Use the `getRawValue()` method for getting original string form.
+
+```cpp
+// Construct a Flux query
+// Query will find RSSI for last 24 hours for each connected WiFi network with this device computed by given selector function
+String query = "from(bucket: \"my-bucket\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"wifi_status\" and r._field == \"rssi\"";
+query += "and r.device == \"ESP32\")";
+query += "|> max()";
+
+// Send query to the server and get result
+FluxQueryResult result = client.query(query);
+
+// Iterate over rows. Even there is just one row, next() must be called at least once.
+while (result.next()) {
+  // Get typed value for flux result column 'SSID'
+  String ssid = result.getValueByName("SSID").getString();
+  Serial.print("SSID '");
+  Serial.print(ssid);
+
+  Serial.print("' with RSSI ");
+
+  // Get converted value for flux result column '_value' where there is RSSI value
+  long value = result.getValueByName("_value").getLong();
+  Serial.print(value);
+
+  // Format date-time for printing
+  // Format string according to http://www.cplusplus.com/reference/ctime/strftime/
+  String timeStr = time.format("%F %T");
+
+  Serial.print(" at ");
+  Serial.print(timeStr);
+  
+  Serial.println();
+}
+
+// Check if there was an error
+if(result.getError() != "") {
+  Serial.print("Query result error: ");
+  Serial.println(result.getError());
+}
+``` 
+Complete source code is available in [QueryAggregated example](examples/QueryAggregated/QueryAggregated.ino).
 
 ## Original API
 
@@ -420,3 +519,23 @@ influx.prepare(measurement3)
 // writes all prepared measurements with a single request into db.
 boolean success = influx.write();
 ```
+
+## Troubleshooting
+All db methods return status. Value `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
+
+When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/InfluxDBClient.cpp` uncomment line 44:
+```cpp
+// Uncomment bellow in case of a problem and rebuild sketch
+#define INFLUXDB_CLIENT_DEBUG
+```
+Then upload your sketch again and see the debug output in the Serial Monitor.
+
+If you couldn't solve a problem by yourself, please, post an issue including the debug output.
+
+## Contributing
+
+If you would like to contribute code you can do through GitHub by forking the repository and sending a pull request into the `master` branch.
+
+## License
+
+The InfluxDB Arduino Client is released under the [MIT License](https://opensource.org/licenses/MIT).

@@ -1,6 +1,6 @@
 # InfluxDB 2 mock server
 
-Mock server which simulates InfluxDB 2 write and query API.
+Mock server which simulates InfluxDB 1 and 2 write and query API.
 
 First time, run: `npm install` to download dependencies.
 

@@ -6,6 +6,9 @@ Point		     KEYWORD1
 InfluxDBClient 	 KEYWORD1
 InfluxData	     KEYWORD1
 Influxdb	     KEYWORD1
+FluxValue	     KEYWORD1
+FluxQueryResult  KEYWORD1
+FluxDateTime     KEYWORD1
 
 # Methods and Functions (KEYWORD2)
 addTag 	                KEYWORD2

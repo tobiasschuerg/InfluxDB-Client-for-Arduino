@@ -24,8 +24,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
-#include "InfluxDbClient.h"
 #include <core_version.h>
+#include "InfluxDbClient.h"
 
 #define STRHELPER(x) #x
 #define STR(x) STRHELPER(x) // stringifier
@@ -43,15 +43,12 @@ static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIE
 // Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG
 
-#ifdef INFLUXDB_CLIENT_DEBUG
-# define INFLUXDB_CLIENT_DEBUG(fmt, ...) Serial.printf_P( (PGM_P)PSTR(fmt), ## __VA_ARGS__ )
-#else
-# define INFLUXDB_CLIENT_DEBUG(fmt, ...)
-#endif
+#include "util/debug.h"
 
 static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance"; 
-// This cannot be put to PROGMEM due to the way how it used
+// This cannot be put to PROGMEM due to the way how it is used
 static const char RetryAfter[] = "Retry-After";
+static const char TransferEnconding[] = "Transfer-Encoding";
 
 static String escapeKey(String key);
 static String escapeValue(const char *value);
@@ -195,6 +192,12 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
 }
 
 bool InfluxDBClient::init() {
+    INFLUXDB_CLIENT_DEBUG(F("Init\n"));
+    INFLUXDB_CLIENT_DEBUG(F("  Server url: %s\n"), _serverUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG(F("  Org: %s\n"), _org.c_str());
+    INFLUXDB_CLIENT_DEBUG(F("  Bucket: %s\n"), _bucket.c_str());
+    INFLUXDB_CLIENT_DEBUG(F("  Token: %s\n"), _authToken.c_str());
+    INFLUXDB_CLIENT_DEBUG(F("  DB version: %d\n"), _dbVersion);
     if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
          INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
         return false;
@@ -262,17 +265,39 @@ void InfluxDBClient::clean() {
 }
 
 void InfluxDBClient::setUrls() {
+    INFLUXDB_CLIENT_DEBUG(F("setUrls\n"));
     if(_dbVersion == 2) {
-        _writeUrl = _serverUrl + "/api/v2/write?org=" + _org + "&bucket=" + _bucket;
+        _writeUrl = _serverUrl;
+        _writeUrl += "/api/v2/write?org=";
+        _writeUrl +=  _org ;
+        _writeUrl += "&bucket=";
+        _writeUrl += _bucket;
+        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
+        _queryUrl = _serverUrl;
+        _queryUrl += "/api/v2/query?org=";
+        _queryUrl +=  _org;
+        INFLUXDB_CLIENT_DEBUG(F("  queryUrl: %s\n"), _queryUrl.c_str());
     } else {
-        _writeUrl = _serverUrl + "/write?db=" + _bucket;
+        _writeUrl = _serverUrl;
+        _writeUrl += "/write?db=";
+        _writeUrl += _bucket;
+        _queryUrl = _serverUrl;
+        _queryUrl += "/api/v2/query";
         if(_user.length() > 0 && _password.length() > 0) {
-            String auth =  "&u=" + _user + "&p=" + _password;
-            _writeUrl += auth;
+            String auth = "&u=";
+            auth += _user;
+            auth += "&p=";
+            auth += _password;
+            _writeUrl += auth;  
+            _queryUrl += auth;
         }
+        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG(F("  queryUrl: %s\n"), _queryUrl.c_str());
     }
     if(_writePrecision != WritePrecision::NoTime) {
-        _writeUrl += String("&precision=") + precisionToString(_writePrecision, _dbVersion);
+        _writeUrl += "&precision=";
+        _writeUrl += precisionToString(_writePrecision, _dbVersion);
+        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
     }
     
 }
@@ -500,8 +525,8 @@ void InfluxDBClient::preRequest() {
     if(_authToken.length() > 0) {
         _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
     }
-    const char * headerKeys[] = {RetryAfter} ;
-    _httpClient.collectHeaders(headerKeys, 1);
+    const char * headerKeys[] = {RetryAfter, TransferEnconding} ;
+    _httpClient.collectHeaders(headerKeys, 2);
 }
 
 int InfluxDBClient::postData(const char *data) {
@@ -530,6 +555,64 @@ int InfluxDBClient::postData(const char *data) {
         _httpClient.end();
     } 
     return _lastStatusCode;
+}
+
+
+
+static const char QueryDialect[] PROGMEM = "\
+\"dialect\": {\
+\"annotations\": [\
+\"datatype\"\
+],\
+\"dateTimeFormat\": \"RFC3339\",\
+\"header\": true,\
+\"delimiter\": \",\",\
+\"commentPrefix\": \"#\"\
+}}";
+
+FluxQueryResult InfluxDBClient::query(String fluxQuery) {
+    if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
+        // retry after period didn't run out yet
+        return FluxQueryResult("Too early");
+    }
+    if(!_wifiClient && !init()) {
+        _lastStatusCode = 0;
+        _lastErrorResponse = FPSTR(UnitialisedMessage);
+        return FluxQueryResult(_lastErrorResponse);
+    }
+    INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
+    if(!_httpClient.begin(*_wifiClient, _queryUrl)) {
+        INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
+        return FluxQueryResult("");;
+    }
+    _httpClient.addHeader(F("Content-Type"), F("application/json"));
+    
+    preRequest();
+
+    INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
+
+    String body = F("{\"type\":\"flux\",\"query\":\"");
+    body += escapeJSONString(fluxQuery) + "\",";
+    body += FPSTR(QueryDialect);
+
+    _lastStatusCode = _httpClient.POST(body);
+    
+    postRequest(200);
+    if(_lastStatusCode == 200) {
+        bool chunked = false;
+        if(_httpClient.hasHeader(TransferEnconding)) {
+            String header = _httpClient.header(TransferEnconding);
+            chunked = header.equalsIgnoreCase("chunked");
+        }
+        INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", chunked?"true":"false");
+        HttpStreamScanner *scanner = new HttpStreamScanner(&_httpClient, chunked);
+        CsvReader *reader = new CsvReader(scanner);
+        
+        return FluxQueryResult(reader);
+    } else {
+        _httpClient.end();
+        return FluxQueryResult(_lastErrorResponse);
+    }
 }
 
 void InfluxDBClient::postRequest(int expectedStatusCode) {
@@ -615,6 +698,43 @@ static String escapeTagValue(const char *value) {
         }
 
         ret += value[i];
+    }
+    return ret;
+}
+
+static String escapeJSONString(String &value) {
+    String ret;
+    int d = 0;
+    int i,from = 0;
+    while((i = value.indexOf('"',from)) > -1) {
+        d++;
+        if(i == value.length()-1) {
+            break;
+        }
+        from = i+1;
+    }
+    ret.reserve(value.length()+d); //most probably we will escape just double quotes
+    for (char c: value)
+    {
+        switch (c)
+        {
+            case '"': ret += "\\\""; break;
+            case '\\': ret += "\\\\"; break;
+            case '\b': ret += "\\b"; break;
+            case '\f': ret += "\\f"; break;
+            case '\n': ret += "\\n"; break;
+            case '\r': ret += "\\r"; break;
+            case '\t': ret += "\\t"; break;
+            default:
+                if ('\x00' <= c && c <= '\x1f') {
+                    ret += "\\u";
+                    char buf[3 + 8 * sizeof(unsigned int)];
+                    sprintf(buf,  "\\u%04u", c);
+                    ret += buf;
+                } else {
+                    ret += c;
+                }
+        }
     }
     return ret;
 }

@@ -29,7 +29,9 @@
 
 #define INFLUXDB_CLIENT_VERSION "3.1.3"
 
-#include "Arduino.h"
+#include <Arduino.h>
+#include "query/FluxParser.h"
+#include "util/helpers.h"
 
 #if defined(ESP8266)
 # include <WiFiClientSecureBearSSL.h>
@@ -165,6 +167,10 @@ class InfluxDBClient {
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
+    // Sends Flux query and returns FluxQueryResult object for subsequentialy reading flux query response.
+    // Use FluxQueryResult::next() method to iterate over lines of the query result.
+    // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
+    FluxQueryResult query(String fluxQuery);
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();
@@ -205,6 +211,8 @@ class InfluxDBClient {
     String _password;
     // Cached full write url
     String _writeUrl;
+    // Cached full query url
+    String _queryUrl;
     // Points timestamp precision. 
     WritePrecision _writePrecision = WritePrecision::NoTime;
     // Number of points that will be written to the databases at once. 
