@@ -15,7 +15,7 @@ Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
 - [Connecting to InfluxDB Cloud 2](#connecting-to-influxdb-cloud-2)
 - [Writing in Batches](#writing-in-batches)
   - [Timestamp](#timestamp)
-  - [Configure Timel](#configure-time)
+  - [Configure Time](#configure-time)
   - [Batch Size](#batch-size)
 - [Buffer Handling and Retrying](#buffer-handling-and-retrying)
 - [Write Options](#write-options)
