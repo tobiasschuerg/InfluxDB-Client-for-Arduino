@@ -366,7 +366,7 @@ void setup() {
     client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, InfluxDbCloud2CACert);
 }
 ```
-Another important prerequisity to sucessfully validate server or CA certificate is to have properly synchronized time. More on this in [Configure Timel](#configure-time).
+Another important prerequisity to sucessfully validate server or CA certificate is to have properly synchronized time. More on this in [Configure Time](#configure-time).
 
 Note: Time synchronization is not required for validating server certificate via SHA1 fingerprint.
 
