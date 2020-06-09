@@ -1,6 +1,10 @@
 # Changelog
 ## Version 3.2.0 (2020-06-09)
-- [NEW] Added possibility to read data from InfluxDB using Flux queries 
+- [NEW] Added possibility to read data from InfluxDB using Flux queries
+- [NEW] `timeSync` utility function for synchronous time synchronization using NTP 
+- [FIX] Properly initialize member variable (#59)
+- [FIX] ASCII chars & compilation warning fix (#60)
+- [Update] ESP8266 SDK 2.7+ required
 
 ## Version 3.1.3 (2020-04-27)
  - [FIX] SecureWrite crash (#54)
