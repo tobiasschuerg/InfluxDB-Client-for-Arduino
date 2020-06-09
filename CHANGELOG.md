@@ -1,5 +1,5 @@
 # Changelog
-## Version 3.2 (in-production)
+## Version 3.2.0 (2020-06-09)
 - [NEW] Added possibility to read data from InfluxDB using Flux queries 
 
 ## Version 3.1.3 (2020-04-27)

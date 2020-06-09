@@ -27,7 +27,7 @@
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
 
-#define INFLUXDB_CLIENT_VERSION "3.1.3"
+#define INFLUXDB_CLIENT_VERSION "3.2.0"
 
 #include <Arduino.h>
 #include "query/FluxParser.h"
