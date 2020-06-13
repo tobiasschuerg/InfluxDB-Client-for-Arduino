@@ -218,15 +218,15 @@ bool InfluxDBClient::init() {
             } else {
                 wifiClientSec->setFingerprint(_certInfo);
             }
-         }
+        }
+        if (_insecure)
+            wifiClientSec->setInsecure();
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
         if(_certInfo && strlen_P(_certInfo) > 0) { 
               wifiClientSec->setCACert(_certInfo);
          }
 #endif    
-        if (_insecure)
-            wifiClientSec->setInsecure();
         _wifiClient = wifiClientSec;
     } else {
         _wifiClient = new WiFiClient;

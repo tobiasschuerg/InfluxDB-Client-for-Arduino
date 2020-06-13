@@ -135,6 +135,7 @@ class InfluxDBClient {
     // Clears instance.
     ~InfluxDBClient();
     // Allows insecure connection
+    // Works only on ESP8266. No-op for ESP32
     void setInsecure(bool value);
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
@@ -245,7 +246,7 @@ class InfluxDBClient {
   BearSSL::X509List *_cert = nullptr;   
 #endif
     // if true - allow insecure connection
-    int _insecure = 0;
+    bool _insecure = 0;
     // Store retry timeout suggested by server after last request
     int _lastRetryAfter = 0;
     // Sends POST request with data in body
