@@ -27,7 +27,8 @@
 #ifndef _INFLUXDB_CLIENT_DEBUG_H
 #define _INFLUXDB_CLIENT_DEBUG_H
 
-#include <arduino.h>
+// captilised the A of Arduino - kdriver
+#include <Arduino.h>
 
 #ifdef INFLUXDB_CLIENT_DEBUG
 # define INFLUXDB_CLIENT_DEBUG(fmt, ...) Serial.printf_P( (PGM_P)PSTR(fmt), ## __VA_ARGS__ )
