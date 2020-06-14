@@ -171,6 +171,10 @@ InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const cha
     setConnectionParams(serverUrl, org, bucket, authToken, serverCert);
 }
 
+void InfluxDBClient::setInsecure(bool value){
+  _insecure = value;
+}
+
 void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
     clean();
     _serverUrl = serverUrl;
@@ -217,7 +221,9 @@ bool InfluxDBClient::init() {
             } else {
                 wifiClientSec->setFingerprint(_certInfo);
             }
-         }
+        }
+        if (_insecure)
+            wifiClientSec->setInsecure();
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
         if(_certInfo && strlen_P(_certInfo) > 0) { 
