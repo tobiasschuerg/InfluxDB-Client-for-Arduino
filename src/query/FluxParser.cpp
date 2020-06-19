@@ -27,7 +27,7 @@
 
 #include "FluxParser.h"
 // Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG
+//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 FluxQueryResult::FluxQueryResult(CsvReader *reader) {
@@ -123,12 +123,12 @@ readRow:
     if(!stat) {
         if(_data->_reader->getError()< 0) {
             _data->_error = HTTPClient::errorToString(_data->_reader->getError());
-            INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+            INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
         }
         return false;
     }
     std::vector<String> vals = _data->_reader->getRow();
-    INFLUXDB_CLIENT_DEBUG(F("[D] FluxQueryResult: vals.size %d\n"), vals.size());
+    INFLUXDB_CLIENT_DEBUG("[D] FluxQueryResult: vals.size %d\n", vals.size());
     if(vals.size() < 2) {
         goto readRow;
     }
@@ -145,7 +145,7 @@ readRow:
 				reference = "," + vals[2];
 			}
 			_data->_error =  message + reference;
-            INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+            INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			return false;
 		} else if (parsingState == ParsingStateNameRow) {
 			if (vals[1] == "error") {
@@ -153,7 +153,7 @@ readRow:
 			} else {
                 if (vals.size()-1 != _data->_columnDatatypes.size()) {
                    _data->_error = String(F("Parsing error, header has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnDatatypes.size());
-                   INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+                   INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			       return false;
                 } else {
                     for(int i=1;i < vals.size(); i++) {
@@ -166,12 +166,12 @@ readRow:
 		}
 		if(_data->_columnDatatypes.size() == 0) {
 			_data->_error = F("Parsing error, datatype annotation not found");
-            INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+            INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			return false;
 		}
 		if (vals.size()-1 != _data->_columnNames.size()) {
 			_data->_error = String(F("Parsing error, row has different number of columns than table: ")) + String(vals.size()-1) + " vs " + String(_data->_columnNames.size());
-            INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+            INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			return false;
 		}
 		for(int i=1;i < vals.size(); i++) {
@@ -180,7 +180,7 @@ readRow:
                 v = convertValue(vals[i], _data->_columnDatatypes[i-1]);
                 if(!v) {
                     _data->_error = String(F("Unsupported datatype: ")) + _data->_columnDatatypes[i-1];
-                    INFLUXDB_CLIENT_DEBUG(F("Error '%s'\n"), _data->_error.c_str());
+                    INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
                     return false;
                 }
             }  

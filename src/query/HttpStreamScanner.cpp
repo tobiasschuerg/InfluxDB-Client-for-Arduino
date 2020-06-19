@@ -27,7 +27,7 @@
 #include "HttpStreamScanner.h"
 
 // Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG
+//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 HttpStreamScanner::HttpStreamScanner(HTTPClient *client, bool chunked)
@@ -37,13 +37,13 @@ HttpStreamScanner::HttpStreamScanner(HTTPClient *client, bool chunked)
     _chunked = chunked;
     _chunkHeader = chunked;
     _len = client->getSize();
-    INFLUXDB_CLIENT_DEBUG(F("[D] HttpStreamScanner: chunked: %s, size: %d\n"), _chunked?"true":"false", _len);
+    INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: chunked: %s, size: %d\n", _chunked?"true":"false", _len);
 }
 
 bool HttpStreamScanner::next() {
     while(_client->connected() && (_len > 0 || _len == -1)) {
         _line = _stream->readStringUntil('\n');
-        INFLUXDB_CLIENT_DEBUG(F("[D] HttpStreamScanner: line: %s\n"), _line.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: line: %s\n", _line.c_str());
         ++_linesNum;
         int lineLen = _line.length();
         if(lineLen == 0) {
@@ -68,7 +68,7 @@ bool HttpStreamScanner::next() {
         }
         if(_chunkHeader){
             _chunkLen = (int) strtol((const char *) _line.c_str(), NULL, 16);
-            INFLUXDB_CLIENT_DEBUG(F("[D] HttpStreamScanner chunk len: %d\n"), _chunkLen);
+            INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner chunk len: %d\n", _chunkLen);
             _chunkHeader = false;
             _read = 0;
             if(_chunkLen == 0) { //last chunk
@@ -86,13 +86,13 @@ bool HttpStreamScanner::next() {
         
         if(_len > 0) {
             _len -= r;
-            INFLUXDB_CLIENT_DEBUG(F("[D] HttpStreamScanner new len: %d\n"), _len);
+            INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner new len: %d\n", _len);
         }
         return true;
     }
     if(!_client->connected() && ( (_chunked && _chunkLen > 0) || (!_chunked && _len > 0))) { //report error only if we didn't went to 
         _error = HTTPC_ERROR_CONNECTION_LOST;
-        INFLUXDB_CLIENT_DEBUG(F("HttpStreamScanner connection lost\n"));
+        INFLUXDB_CLIENT_DEBUG("HttpStreamScanner connection lost\n");
     } 
     return false;
 }

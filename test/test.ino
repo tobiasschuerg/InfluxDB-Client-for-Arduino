@@ -68,11 +68,11 @@ void loop() {
     testUserAgent();
     testFailedWrites();
     testTimestamp();
-    // testRetryOnFailedConnection();
-    // testBufferOverwriteBatchsize1();
-    // testBufferOverwriteBatchsize5();
-    // testServerTempDownBatchsize5();
-    // testRetriesOnServerOverload();
+    testRetryOnFailedConnection();
+    testBufferOverwriteBatchsize1();
+    testBufferOverwriteBatchsize5();
+    testServerTempDownBatchsize5();
+    testRetriesOnServerOverload();
 
     Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
     while(1) delay(1000);
