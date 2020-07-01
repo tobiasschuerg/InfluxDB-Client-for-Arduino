@@ -1,4 +1,10 @@
 # Changelog
+## Version 3.3.0 (in progress)
+ - [NEW] Added possibility skip server certification validation (`setInsecure()` method)
+ - [NEW] Added possibility to query flux on InfuxDB 1.8 using V1 approach
+ - [FIX] Debug compilation error
+ - [FIX] SecureBatchWrite compile error
+ 
 ## Version 3.2.0 (2020-06-09)
 - [NEW] Added possibility to read data from InfluxDB using Flux queries
 - [NEW] `timeSync` utility function for synchronous time synchronization using NTP 
