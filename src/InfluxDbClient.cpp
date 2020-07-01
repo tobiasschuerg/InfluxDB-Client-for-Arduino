@@ -295,6 +295,7 @@ void InfluxDBClient::setUrls() {
             auth += "&p=";
             auth += _password;
             _writeUrl += auth;  
+            _queryUrl += "?";
             _queryUrl += auth;
         }
         INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());

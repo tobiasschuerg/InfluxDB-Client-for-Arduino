@@ -789,7 +789,6 @@ void testV1() {
 
     TEST_INIT("testV1");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_DB);
-    InfluxDBClient queryClient(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
 
     TEST_ASSERTM(client.validateConnection(), client.getLastErrorMessage());
     //test with no batching
@@ -800,7 +799,7 @@ void testV1() {
         delete p;
     }
     String query = "select";
-    FluxQueryResult q = queryClient.query(query);
+    FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERTM(lines.size() == 20, String(lines.size()) + " vs 20");
@@ -815,7 +814,7 @@ void testV1() {
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i + client.getLastErrorMessage());
         delete p;
     }
-    q = queryClient.query(query);
+    q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERT(lines.size() == 15);  

@@ -338,7 +338,7 @@ function parsePoints(data) {
 const AuthToken = "Token 1234567890";
 function handleAuthentication(req, res) {
     var auth = req.get('Authorization');
-    if(auth != AuthToken) {
+    if(auth && auth != AuthToken) {
         res.status(401).send(`{"code":"unauthorized","message":"unauthorized access"}`);
         return false;
     } else {
@@ -382,7 +382,7 @@ function checkWriteParamsV1(req, res) {
 
 function checkQueryParams(req, res) {
     var org = req.query['org'];
-    if(org != 'my-org') {
+    if(org && org !== 'my-org') {
         res.status(404).send(`{"code":"not found","message":"organization name \"${org}\" not found"}`);
         return false;
     } else {
