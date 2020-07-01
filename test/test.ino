@@ -48,7 +48,7 @@ void setup() {
 }
 
 void loop() {
-    //tests
+    // Basic tests
     testPoint();
     testFluxTypes();
     testFluxParserEmpty();
@@ -66,6 +66,7 @@ void loop() {
     testInit();
     testV1();
     testUserAgent();
+    // Advanced tests
     testFailedWrites();
     testTimestamp();
     testRetryOnFailedConnection();

@@ -27,6 +27,10 @@ app.get('/ready', (req,res) => {
     lastUserAgent = req.get('User-Agent');
     res.status(200).send("<html><body><h1>OK</h1></body></html>");
 })
+app.get('/health', (req,res) => {
+    lastUserAgent = req.get('User-Agent');
+    res.status(200).send("<html><body><h1>OK</h1></body></html>");
+})
 
 app.get('/ping', (req,res) => {
     lastUserAgent = req.get('User-Agent');
