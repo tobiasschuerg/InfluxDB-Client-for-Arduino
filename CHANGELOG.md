@@ -1,4 +1,8 @@
 # Changelog
+
+## Version 3.3.0 (in progress)
+- [FIX] More precice default timestamp generating, up to microseconds
+
 ## Version 3.2.0 (2020-06-09)
 - [NEW] Added possibility to read data from InfluxDB using Flux queries
 - [NEW] `timeSync` utility function for synchronous time synchronization using NTP 

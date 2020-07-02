@@ -48,11 +48,10 @@ void setup() {
 }
 
 void loop() {
-    //tests
+    // tests
     testPoint();
     testFluxTypes();
     testFluxParserEmpty();
-    
     testFluxParserSingleTable();
     testFluxParserNilValue();
     testFluxParserMultiTables(false);
@@ -68,11 +67,11 @@ void loop() {
     testUserAgent();
     testFailedWrites();
     testTimestamp();
-    // testRetryOnFailedConnection();
-    // testBufferOverwriteBatchsize1();
-    // testBufferOverwriteBatchsize5();
-    // testServerTempDownBatchsize5();
-    // testRetriesOnServerOverload();
+    testRetryOnFailedConnection();
+    testBufferOverwriteBatchsize1();
+    testBufferOverwriteBatchsize5();
+    testServerTempDownBatchsize5();
+    testRetriesOnServerOverload();
 
     Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
     while(1) delay(1000);
@@ -115,15 +114,22 @@ void testPoint() {
 
     TEST_ASSERT(!p.hasTime());
     time_t now = time(nullptr);
+    String snow(now);
     p.setTime(now);
-    String testLineTime = testLine + " " + now;
+    String testLineTime = testLine + " " + snow;
+    line = p.toLineProtocol();
+    TEST_ASSERTM(line == testLineTime, line);
+    
+    unsigned long long ts = now*1000000000LL+123456789;
+    p.setTime(ts);
+    testLineTime = testLine + " " + snow + "123456789";
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
 
     now += 10;
-    String nowStr(now);
-    p.setTime(nowStr);
-    testLineTime = testLine + " " + nowStr;
+    snow = now;
+    p.setTime(snow);
+    testLineTime = testLine + " " + snow;
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
 
@@ -132,7 +138,7 @@ void testPoint() {
     int partsCount;
     String *parts = getParts(line, ' ', partsCount);
     TEST_ASSERTM(partsCount == 3, String("3 != ") + partsCount);
-    TEST_ASSERT(parts[2].length() == nowStr.length());
+    TEST_ASSERT(parts[2].length() == snow.length());
     delete[] parts;
 
     p.setTime(WritePrecision::MS);
@@ -140,21 +146,21 @@ void testPoint() {
     line = p.toLineProtocol();
     parts = getParts(line, ' ', partsCount);
     TEST_ASSERT(partsCount == 3);
-    TEST_ASSERT(parts[2].length() == nowStr.length() + 3);
+    TEST_ASSERT(parts[2].length() == snow.length() + 3);
     delete[] parts;
 
     p.setTime(WritePrecision::US);
     line = p.toLineProtocol();
     parts = getParts(line, ' ', partsCount);
     TEST_ASSERT(partsCount == 3);
-    TEST_ASSERT(parts[2].length() == nowStr.length() + 6);
+    TEST_ASSERT(parts[2].length() == snow.length() + 6);
     delete[] parts;
 
     p.setTime(WritePrecision::NS);
     line = p.toLineProtocol();
     parts = getParts(line, ' ', partsCount);
     TEST_ASSERT(partsCount == 3);
-    TEST_ASSERT(parts[2].length() == nowStr.length() + 9);
+    TEST_ASSERT(parts[2].length() == snow.length() + 9);
     delete[] parts;
 
     p.clearFields();
@@ -719,6 +725,31 @@ void testFailedWrites() {
 
 void testTimestamp() {
     TEST_INIT("testTimestamp");
+
+    struct timeval tv;
+    tv.tv_usec = 1234;
+    tv.tv_sec = 5678;
+    unsigned long long ts = getTimeStamp(&tv, 0);
+    TEST_ASSERTM( ts == 5678, timeStampToString(ts));
+    ts = getTimeStamp(&tv, 3);
+    TEST_ASSERTM( ts == 5678001, timeStampToString(ts));
+    ts = getTimeStamp(&tv, 6);
+    TEST_ASSERTM( ts == 5678001234, timeStampToString(ts));
+    ts = getTimeStamp(&tv, 9);
+    TEST_ASSERTM( ts == 5678001234000, timeStampToString(ts));
+
+    // Test increasing timestamp
+    String prev = "";
+    for(int i = 0;i<2000;i++) {
+        Point p("test");
+        p.setTime(WritePrecision::US);
+        String act = p.getTime();
+        TEST_ASSERTM( i == 0 || prev < act, String(i) + ": " + prev + " vs " + act);
+        prev = act;
+        delayMicroseconds(100);
+    }
+
+
     serverLog(INFLUXDB_CLIENT_TESTING_URL, "testTimestamp");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     client.setWriteOptions(WritePrecision::S, 1, 5);
@@ -977,6 +1008,7 @@ bool testFluxDateTimeValue(FluxQueryResult flux, int columnIndex,  const char *c
         TEST_ASSERTM(dt.microseconds == us,  String(dt.microseconds) + " vs " + String(us));
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -987,6 +1019,7 @@ bool testStringValue(FluxQueryResult flux, int columnIndex,  const char *columnN
         TEST_ASSERTM(flux.getValueByName(columnName).getRawValue() == rawValue, flux.getValueByName(columnName).getRawValue());
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -997,12 +1030,12 @@ bool testStringVector(std::vector<String> vect, const char *values[], int size) 
             if(vect[i] != values[i]) {
                 Serial.print("assert failure: ");
                 Serial.println(vect[i]);
-                goto fail;
+                goto end;
             }
         }
         return true;
     } while(0);
-fail:
+end:
     return false;
 }
 
@@ -1013,6 +1046,7 @@ bool testDoubleValue(FluxQueryResult flux, int columnIndex,  const char *columnN
         TEST_ASSERTM(flux.getValueByName(columnName).getRawValue() == rawValue, flux.getValueByName(columnName).getRawValue());
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -1023,6 +1057,7 @@ bool testLongValue(FluxQueryResult flux, int columnIndex,  const char *columnNam
         TEST_ASSERTM(flux.getValueByName(columnName).getRawValue() == rawValue, flux.getValueByName(columnName).getRawValue());
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -1033,6 +1068,7 @@ bool testUnsignedLongValue(FluxQueryResult flux, int columnIndex,  const char *c
         TEST_ASSERTM(flux.getValueByName(columnName).getRawValue() == rawValue, flux.getValueByName(columnName).getRawValue());
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -1046,6 +1082,7 @@ bool testTableColumns(FluxQueryResult flux,  const char *columns[], int columnsC
         TEST_ASSERTM(flux.getColumnIndex("x") == -1, "flux.getColumnIndex(\"x\")");
         return true;
     } while(0);
+end:
     return false;
 }
 
@@ -1460,7 +1497,7 @@ void initInet() {
     } else {
         Serial.printf("Connected to: %s (%d)\n", WiFi.SSID().c_str(), WiFi.RSSI());
 
-        timeSync("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "0.cz.pool.ntp.org", "1.cz.pool.ntp.org");
+        timeSync("CET-1CEST,M3.5.0,M10.5.0/3", "0.cz.pool.ntp.org", "1.cz.pool.ntp.org", "pool.ntp.org");
 
         deleteAll(INFLUXDB_CLIENT_TESTING_URL);
     }

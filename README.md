@@ -153,7 +153,7 @@ InfluxDB client for Arduino can write data in batches. A batch is simply a set o
 If using batch writes, the timestamp should be employed. Timestamp specifies the time where data was gathered and it is used in the form of a number of seconds (milliseconds, etc) from epoch (1.1.1970) UTC.
 If points have no timestamp assigned, InfluxDB assigns timestamp at the time of writing, which could happen much later than the data has been obtained, because final batch write will happen when the batch is full (or when [flush buffer](#buffer-handling-and-retrying) is forced).
 
-InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino.
+InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino. Maximum avavailable precision is microseconds. Setting to nanosecond will just add zeroes for microseconds fraction.
 
 The client has to be configured with time precision. The default settings is not using the timestamp. The `setWriteOptions` functions allow setting various parameters and one of them is __write precision__:
 ``` cpp
@@ -164,8 +164,10 @@ When a write precision is configured, the client will automatically assign curre
 
 If you want to manage timestamp on your own, there are several ways how to set timestamp explicitly.
 - `setTime(WritePrecision writePrecision)` - Sets timestamp to actual time in desired precision
-- `setTime(unsigned long seconds)` -  Sets timestamp in seconds since epoch. Write precision must be set to `S` 
-- `setTime(String timestamp)` - Set custom timestamp in precision specified in InfluxDBClient. 
+- `setTime(unsigned long long timestamp)` -  Sets timestamp in an offset since epoch. Correct precision must be set InfluxDBClient::setWriteOptions.
+- `setTime(String timestamp)` - Sets timestamp in an offset since epoch. Correct precision must be set InfluxDBClient::setWriteOptions.
+
+The `getTime()` method allows copying timestamp between points.
 
 
 ### Configure Time
