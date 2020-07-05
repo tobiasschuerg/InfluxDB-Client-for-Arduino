@@ -34,4 +34,10 @@
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2 = nullptr, const char* ntpServer3 = nullptr);
 
+// Escape invalid chars in measurement, tag key, tag value and field key
+String escapeKey(String key, bool escapeEqual = true);
+// Escape invalid chars in field value
+String escapeValue(const char *value);
+
+
 #endif //_INFLUXDB_CLIENT_HELPERS_H
