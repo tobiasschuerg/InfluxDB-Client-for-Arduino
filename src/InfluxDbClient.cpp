@@ -49,8 +49,6 @@ static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance";
 static const char RetryAfter[] = "Retry-After";
 static const char TransferEnconding[] = "Transfer-Encoding";
 
-static String escapeKey(String key);
-static String escapeValue(const char *value);
 static String escapeJSONString(String &value);
 
 static String precisionToString(WritePrecision precision, uint8_t version = 2) {
@@ -69,7 +67,7 @@ static String precisionToString(WritePrecision precision, uint8_t version = 2) {
 }
 
 Point::Point(String measurement):
-    _measurement(measurement),
+    _measurement(escapeKey(measurement, false)),
     _tags(""),
     _fields(""),
     _timestamp("")
@@ -650,63 +648,6 @@ void InfluxDBClient::postRequest(int expectedStatusCode) {
             INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _lastErrorResponse.c_str());
         }
     }
-}
-
-static String escapeKey(String key) {
-    String ret;
-    ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
-    
-    for (char c: key)
-    {
-        switch (c)
-        {
-            case ' ':
-            case ',':
-            case '=':
-                ret += '\\';
-                break;
-        }
-
-        ret += c;
-    }
-    return ret;
-}
-
-static String escapeValue(const char *value) {
-    String ret;
-    int len = strlen_P(value);
-    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
-    for(int i=0;i<len;i++)
-    {
-        switch (value[i])
-        {
-            case '\\':
-            case '\"':
-                ret += '\\';
-                break;
-        }
-
-        ret += value[i];
-    }
-    return ret;
-}
-static String escapeTagValue(const char *value) {
-    String ret;
-    int len = strlen_P(value);
-    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
-    for(int i=0;i<len;i++)
-    {
-        switch (value[i])
-        {
-            case '\\':
-            case '\"':
-                ret += '\\';
-                break;
-        }
-
-        ret += value[i];
-    }
-    return ret;
 }
 
 static String escapeJSONString(String &value) {
