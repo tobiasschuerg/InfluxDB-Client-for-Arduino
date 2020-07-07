@@ -84,9 +84,9 @@ class Point {
     void addField(String name, const char *value);
     // Set timestamp to `now()` and store it in specified precision, nanoseconds by default. Date and time must be already set. See `configTime` in the device API
     void setTime(WritePrecision writePrecision = WritePrecision::NS);
-    // Set timestamp in seconds since epoch (1.1.1970). Precision should be set to `S` 
-    void setTime(unsigned long seconds);
-    // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
+    // Set timestamp in offset since epoch (1.1.1970). Correct precision must be set InfluxDBClient::setWriteOptions.
+    void setTime(unsigned long long timestamp);
+    // Set timestamp in offset since epoch (1.1.1970 00:00:00). Correct precision must be set InfluxDBClient::setWriteOptions.
     void setTime(String timestamp);
     // Clear all fields. Usefull for reusing point  
     void clearFields();
@@ -96,10 +96,12 @@ class Point {
     bool hasFields() const { return _fields.length() > 0; }
     // True if a point contains at least one tag
     bool hasTags() const   { return _tags.length() > 0; }
-     // True if a point contains timestamp
+    // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol
     String toLineProtocol() const;
+    // returns current timestamp
+    String getTime() const { return _timestamp; } 
   protected:
     String _measurement;
     String _tags;

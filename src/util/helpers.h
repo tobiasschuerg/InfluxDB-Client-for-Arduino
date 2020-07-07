@@ -28,14 +28,22 @@
 #define _INFLUXDB_CLIENT_HELPERS_H
 
 #include <Arduino.h>
+#include <sys/time.h>  
 
 // Synchronize time with NTP servers and waits for completition. Prints waiting progress and final synchronized time to the serial.
 // Accurate time is necessary for certificate validion and writing points in batch
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2 = nullptr, const char* ntpServer3 = nullptr);
 
+// Create timestamp in offset from epoch. secFracDigits specify resulution. 0 - seconds, 3 - milliseconds, etc. Maximum and default is 9 - nanoseconds.
+unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits = 3);
+
+// Converts unsigned long long timestamp to String
+String timeStampToString(unsigned long long timestamp);
+
 // Escape invalid chars in measurement, tag key, tag value and field key
 String escapeKey(String key, bool escapeEqual = true);
+
 // Escape invalid chars in field value
 String escapeValue(const char *value);
 

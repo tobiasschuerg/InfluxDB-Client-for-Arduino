@@ -112,32 +112,30 @@ String Point::toLineProtocol() const {
 }
 
 void  Point::setTime(WritePrecision precision) {
-    static char buff[10];
-    time_t now = time(nullptr);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    
     switch(precision) {
         case WritePrecision::NS:
-             sprintf(buff, "%06d000",  micros()%1000000uL);
-            _timestamp = String(now) + buff;
+            setTime(getTimeStamp(&tv,9));
             break;
         case WritePrecision::US:
-             sprintf(buff, "%06d",  micros()%1000000uL);
-            _timestamp = String(now) + buff;
+            setTime(getTimeStamp(&tv,6));
             break;
-        case WritePrecision::MS:
-             sprintf(buff, "%03d",  millis()%1000u);
-            _timestamp = String(now) + buff;
+        case WritePrecision::MS: 
+            setTime(getTimeStamp(&tv,3));
+            break;
+        case WritePrecision::S:
+            setTime(getTimeStamp(&tv,0));
             break;
         case WritePrecision::NoTime:
             _timestamp = "";
             break;
-        case WritePrecision::S:
-             _timestamp = String(now);
-             break;
     }
 }
 
-void  Point::setTime(unsigned long timestamp) {
-    _timestamp = String(timestamp);
+void  Point::setTime(unsigned long long timestamp) {
+    _timestamp = timeStampToString(timestamp);
 }
 
 void  Point::setTime(String timestamp) {

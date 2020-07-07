@@ -47,6 +47,33 @@ void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2
   Serial.println(ctime(&tnow));
 }
 
+unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits) {
+    unsigned long long tsVal = 0;
+    switch(secFracDigits) {
+        case 0: 
+            tsVal = tv->tv_sec;
+            break;
+        case 6: 
+            tsVal = tv->tv_sec * 1000000LL + tv->tv_usec;
+            break;
+        case 9:
+            tsVal = tv->tv_sec * 1000000000LL + tv->tv_usec * 1000LL;
+            break;
+        case 3: 
+        default:
+            tsVal = tv->tv_sec * 1000LL + tv->tv_usec / 1000LL;
+            break;
+
+    }
+    return tsVal;
+}
+
+String timeStampToString(unsigned long long timestamp) {
+    static char buff[50];
+    snprintf(buff, 50, "%llu", timestamp);
+    return String(buff);
+}
+
 String escapeKey(String key, bool escapeEqual) {
     String ret;
     ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,

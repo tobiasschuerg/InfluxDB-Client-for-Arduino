@@ -1,10 +1,14 @@
 #ifndef _TEST_SUPPORT_H_
 #define _TEST_SUPPORT_H_
 
-#define TEST_INIT(name) int temp = failures; const char *testName = name; do { Serial.println(testName)
-#define TEST_END()  } while(0); Serial.printf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
-#define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) break
-#define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) break
+#define TEST_INIT(name)  int temp = failures;\
+ const char *testName = name; \
+  do { \
+  Serial.println(testName)
+#define TEST_END()  } while(0); \
+ end: Serial.printf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
+#define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) goto end
+#define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) goto end
 
 #include "query/FluxParser.h"
 
