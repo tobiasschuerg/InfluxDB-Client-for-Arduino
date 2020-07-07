@@ -25,9 +25,6 @@
  * SOFTWARE.
 */
 #include "CsvReader.h"
-// Uncomment bellow in case of a problem and rebuild sketch
-#define INFLUXDB_CLIENT_DEBUG
-#include "util/debug.h"
 
 CsvReader::CsvReader(HttpStreamScanner *scanner) {
     _scanner = scanner;

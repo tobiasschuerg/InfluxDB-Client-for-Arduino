@@ -24,8 +24,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
-#include <core_version.h>
 #include "InfluxDbClient.h"
+#include <core_version.h>
 
 #define STRHELPER(x) #x
 #define STR(x) STRHELPER(x) // stringifier
@@ -41,8 +41,7 @@
 static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
 
 // Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG
-
+//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance"; 
@@ -194,12 +193,12 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
 }
 
 bool InfluxDBClient::init() {
-    INFLUXDB_CLIENT_DEBUG(F("Init\n"));
-    INFLUXDB_CLIENT_DEBUG(F("  Server url: %s\n"), _serverUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG(F("  Org: %s\n"), _org.c_str());
-    INFLUXDB_CLIENT_DEBUG(F("  Bucket: %s\n"), _bucket.c_str());
-    INFLUXDB_CLIENT_DEBUG(F("  Token: %s\n"), _authToken.c_str());
-    INFLUXDB_CLIENT_DEBUG(F("  DB version: %d\n"), _dbVersion);
+    INFLUXDB_CLIENT_DEBUG("Init\n");
+    INFLUXDB_CLIENT_DEBUG("  Server url: %s\n", _serverUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("  Org: %s\n", _org.c_str());
+    INFLUXDB_CLIENT_DEBUG("  Bucket: %s\n", _bucket.c_str());
+    INFLUXDB_CLIENT_DEBUG("  Token: %s\n", _authToken.c_str());
+    INFLUXDB_CLIENT_DEBUG("  DB version: %d\n", _dbVersion);
     if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
          INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
         return false;
@@ -220,8 +219,9 @@ bool InfluxDBClient::init() {
                 wifiClientSec->setFingerprint(_certInfo);
             }
         }
-        if (_insecure)
+        if (_insecure) {
             wifiClientSec->setInsecure();
+        }
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
         if(_certInfo && strlen_P(_certInfo) > 0) { 
@@ -269,18 +269,18 @@ void InfluxDBClient::clean() {
 }
 
 void InfluxDBClient::setUrls() {
-    INFLUXDB_CLIENT_DEBUG(F("setUrls\n"));
+    INFLUXDB_CLIENT_DEBUG("setUrls\n");
     if(_dbVersion == 2) {
         _writeUrl = _serverUrl;
         _writeUrl += "/api/v2/write?org=";
         _writeUrl +=  _org ;
         _writeUrl += "&bucket=";
         _writeUrl += _bucket;
-        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
         _queryUrl = _serverUrl;
         _queryUrl += "/api/v2/query?org=";
         _queryUrl +=  _org;
-        INFLUXDB_CLIENT_DEBUG(F("  queryUrl: %s\n"), _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
     } else {
         _writeUrl = _serverUrl;
         _writeUrl += "/write?db=";
@@ -293,15 +293,16 @@ void InfluxDBClient::setUrls() {
             auth += "&p=";
             auth += _password;
             _writeUrl += auth;  
+            _queryUrl += "?";
             _queryUrl += auth;
         }
-        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
-        INFLUXDB_CLIENT_DEBUG(F("  queryUrl: %s\n"), _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
     }
     if(_writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
         _writeUrl += precisionToString(_writePrecision, _dbVersion);
-        INFLUXDB_CLIENT_DEBUG(F("  writeUrl: %s\n"), _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
     }
     
 }
@@ -505,7 +506,7 @@ bool InfluxDBClient::validateConnection() {
         return false;
     }
     // on version 1.x /ping will by default return status code 204, without verbose
-    String url = _serverUrl + (_dbVersion==2?"/ready":"/ping?verbose=true");
+    String url = _serverUrl + (_dbVersion==2?"/health":"/ping?verbose=true");
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
     if(!_httpClient.begin(*_wifiClient, url)) {

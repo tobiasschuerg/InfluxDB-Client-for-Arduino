@@ -30,9 +30,6 @@
 #define INFLUXDB_CLIENT_VERSION "3.2.0"
 
 #include <Arduino.h>
-#include "query/FluxParser.h"
-#include "util/helpers.h"
-
 #if defined(ESP8266)
 # include <WiFiClientSecureBearSSL.h>
 # include <ESP8266HTTPClient.h>
@@ -41,6 +38,10 @@
 #else
 # error "This library currently supports only ESP8266 and ESP32."
 #endif
+
+#include "query/FluxParser.h"
+#include "util/helpers.h"
+
 
 #ifdef USING_AXTLS
 #error AxTLS does not work
