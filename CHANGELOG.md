@@ -1,6 +1,6 @@
 # Changelog
 
-## Version 3.3.0 (in progress)
+## Version 3.3.0 (2020-07-07)
  - [NEW] Added possibility skip server certification validation (`setInsecure()` method)
  - [NEW] Added possibility to query flux on secured InfuxDB 1.8 using V1 approach
  - [NEW] `validateConnection()` can be used also for the [forward compatibility](https://docs.influxdata.com/influxdb/latest/tools/api/#influxdb-2-0-api-compatibility-endpoints) connection to InfluxDB 1.8
