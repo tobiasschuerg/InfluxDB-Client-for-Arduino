@@ -22,7 +22,7 @@ ESP8266WiFiMulti wifiMulti;
 #define WIFI_AUTH_OPEN ENC_TYPE_NONE
 #endif
 
-#include <InfluxDbClient.h
+#include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 
 // WiFi AP SSID
@@ -44,6 +44,10 @@ ESP8266WiFiMulti wifiMulti;
 //  Japanesse:      "JST-9"
 //  Central Europe: "CET-1CEST,M3.5.0,M10.5.0/3"
 #define TZ_INFO "CET-1CEST,M3.5.0,M10.5.0/3"
+// NTP servers the for time syncronozation.
+// For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
+#define NTP_SERVER1  "pool.ntp.org"
+#define NTP_SERVER2  "time.nis.gov"
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 10
 #define WRITE_BUFFER_SIZE 30
@@ -76,9 +80,8 @@ void setup() {
   sensorStatus.addTag("SSID", WiFi.SSID());
 
   // Accurate time is necessary for certificate validation and writing in batches
-  // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
   // Syncing progress and the time will be printed to Serial.
-  timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
+  timeSync(TZ_INFO, NTP_SERVER1, NTP_SERVER2);
 
   // Check server connection
   if (client.validateConnection()) {
@@ -89,22 +92,22 @@ void setup() {
     Serial.println(client.getLastErrorMessage());
   }
 
-  //Enable messages batching and retry buffer
+  // Enable messages batching and retry buffer
   client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
 }
 
 void loop() {
   // Sync time for batching once per hour
   if (iterations++ >= 360) {
-    timeSync();
+    timeSync(TZ_INFO, NTP_SERVER1, NTP_SERVER2);
     iterations = 0;
   }
 
-  //Report networks (low priority data) just in case we successfully wrote the previous batch
+  // Report networks (low priority data) just in case we successfully wrote the previous batch
   if (client.isBufferEmpty()) {
     // Report all the detected wifi networks
     int networks = WiFi.scanNetworks();
-    //Set identical time for the whole network scan
+    // Set identical time for the whole network scan
     time_t tnow = time(nullptr);
     for (int i = 0; i < networks; i++) {
       Point sensorNetworks("wifi_networks");
@@ -152,7 +155,7 @@ void loop() {
     Serial.println(client.isBufferFull() ? "Yes" : "No");
   }
 
-  //Wait 10s
+  // Wait 10s
   Serial.println("Wait 10s");
   delay(10000);
 }

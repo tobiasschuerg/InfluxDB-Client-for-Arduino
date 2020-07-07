@@ -45,10 +45,13 @@ void setup() {
     Serial.println();
 
     initInet();
+
+    Serial.printf("Using server: %s\n", INFLUXDB_CLIENT_TESTING_URL);
 }
 
 void loop() {
-    // tests
+    // Basic tests
+    testEcaping();
     testPoint();
     testFluxTypes();
     testFluxParserEmpty();
@@ -65,6 +68,7 @@ void loop() {
     testInit();
     testV1();
     testUserAgent();
+    // Advanced tests
     testFailedWrites();
     testTimestamp();
     testRetryOnFailedConnection();
@@ -76,6 +80,32 @@ void loop() {
     Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
     while(1) delay(1000);
 }
+
+void testEcaping() {
+    TEST_INIT("testEcaping");
+
+    Point p("t\re=s\nt\t_t e\"s,t");
+    p.addTag("ta=g","val=ue");
+    p.addTag("ta\tg","val\tue");
+    p.addTag("ta\rg","val\rue");
+    p.addTag("ta\ng","val\nue");
+    p.addTag("ta g","valu e");
+    p.addTag("ta,g","valu,e");
+    p.addTag("tag","value");
+    p.addTag("ta\"g","val\"ue");
+    p.addField("fie=ld", "val=ue");
+    p.addField("fie\tld", "val\tue");
+    p.addField("fie\rld", "val\rue");
+    p.addField("fie\nld", "val\nue");
+    p.addField("fie ld", "val ue");
+    p.addField("fie,ld", "val,ue");
+    p.addField("fie\"ld", "val\"ue");
+    
+    String line = p.toLineProtocol();
+    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);//
+    TEST_END();
+}
+
 
 void testPoint() {
     TEST_INIT("testPoint");
@@ -820,7 +850,6 @@ void testV1() {
 
     TEST_INIT("testV1");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_DB);
-    InfluxDBClient queryClient(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
 
     TEST_ASSERTM(client.validateConnection(), client.getLastErrorMessage());
     //test with no batching
@@ -831,7 +860,7 @@ void testV1() {
         delete p;
     }
     String query = "select";
-    FluxQueryResult q = queryClient.query(query);
+    FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERTM(lines.size() == 20, String(lines.size()) + " vs 20");
@@ -846,7 +875,7 @@ void testV1() {
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i + client.getLastErrorMessage());
         delete p;
     }
-    q = queryClient.query(query);
+    q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERT(lines.size() == 15);  
@@ -964,7 +993,7 @@ void testFluxTypes() {
 }
 
 void testFluxParserEmpty() {
-    TEST_INIT("testFluxParser");
+    TEST_INIT("testFluxParserEmpty");
     FluxQueryResult flux("Error sss");
     TEST_ASSERTM(!flux.next(),"!flux.next()");
     TEST_ASSERTM(flux.getError() == "Error sss","flux.getError");
@@ -987,6 +1016,7 @@ void testFluxParserEmpty() {
 
     //test empty results set
     InfluxDBClient client2(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client2, true));
     flux = client2.query("testquery-empty");
     
     TEST_ASSERTM(!flux.next(),"flux.next()");
@@ -1089,6 +1119,7 @@ end:
 void testFluxParserSingleTable() {
     TEST_INIT("testFluxParserSingleTable");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-singleTable");
     TEST_ASSERTM(flux.next(),"flux.next()");
     TEST_ASSERTM(flux.hasTableChanged(),"flux.hasTableChanged()");
@@ -1145,6 +1176,7 @@ void testFluxParserSingleTable() {
 void testFluxParserNilValue() {
     TEST_INIT("testFluxParserNilValue");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-nil-value");
     TEST_ASSERTM(flux.next(),"flux.next()");
     TEST_ASSERTM(flux.hasTableChanged(),"flux.hasTableChanged()");
@@ -1195,6 +1227,7 @@ void testFluxParserNilValue() {
 void testFluxParserMultiTables(bool chunked) {
     TEST_INIT("testFluxParserMultiTables");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     if(chunked) {
         String record = "a,direction=chunked a=1";
         client.writeRecord(record);
@@ -1381,6 +1414,7 @@ void testFluxParserMultiTables(bool chunked) {
 void testFluxParserErrorDiffentColumnsNum() {
     TEST_INIT("testFluxParserErrorDiffentColumnsNum");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-diffNum-data");
 
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1401,6 +1435,7 @@ void testFluxParserErrorDiffentColumnsNum() {
 void testFluxParserFluxError() {
     TEST_INIT("testFluxParserFluxError");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-flux-error");
 
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1414,6 +1449,7 @@ void testFluxParserFluxError() {
 void testFluxParserInvalidDatatype() {
     TEST_INIT("testFluxParserInvalidDatatype");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-invalid-datatype");
 
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1427,6 +1463,7 @@ void testFluxParserInvalidDatatype() {
 void testFluxParserMissingDatatype() {
     TEST_INIT("testFluxParserMissingDatatype");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-missing-datatype");
 
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1440,6 +1477,7 @@ void testFluxParserMissingDatatype() {
 void testFluxParserErrorInRow() {
     TEST_INIT("testFluxParserErrorInRow");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    TEST_ASSERT(waitServer(client, true));
     FluxQueryResult flux = client.query("testquery-error-it-row-full");
 
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1496,6 +1534,8 @@ void initInet() {
         while (1) delay(100);
     } else {
         Serial.printf("Connected to: %s (%d)\n", WiFi.SSID().c_str(), WiFi.RSSI());
+        Serial.print("Ip: ");
+        Serial.println(WiFi.localIP());
 
         timeSync("CET-1CEST,M3.5.0,M10.5.0/3", "0.cz.pool.ntp.org", "1.cz.pool.ntp.org", "pool.ntp.org");
 

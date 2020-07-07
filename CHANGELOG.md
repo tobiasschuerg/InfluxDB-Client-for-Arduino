@@ -1,8 +1,13 @@
 # Changelog
 
 ## Version 3.3.0 (in progress)
-- [FIX] More precice default timestamp generating, up to microseconds
-
+ - [NEW] Added possibility skip server certification validation (`setInsecure()` method)
+ - [NEW] Added possibility to query flux on secured InfuxDB 1.8 using V1 approach
+ - [NEW] `validateConnection()` can be used also for the [forward compatibility](https://docs.influxdata.com/influxdb/latest/tools/api/#influxdb-2-0-api-compatibility-endpoints) connection to InfluxDB 1.8
+ - [FIX] More precice default timestamp generating, up to microseconds
+ - [FIX] Debug compilation error
+ - [FIX] SecureBatchWrite compile error
+ 
 ## Version 3.2.0 (2020-06-09)
 - [NEW] Added possibility to read data from InfluxDB using Flux queries
 - [NEW] `timeSync` utility function for synchronous time synchronization using NTP 

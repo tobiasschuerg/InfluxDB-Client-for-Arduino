@@ -73,3 +73,48 @@ String timeStampToString(unsigned long long timestamp) {
     snprintf(buff, 50, "%llu", timestamp);
     return String(buff);
 }
+
+String escapeKey(String key, bool escapeEqual) {
+    String ret;
+    ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
+    
+    for (char c: key)
+    {
+        switch (c)
+        {
+            case '\r':
+            case '\n':
+            case '\t':
+            case ' ':
+            case ',':
+                ret += '\\';
+                break;
+            case '=':
+                if(escapeEqual) {
+                    ret += '\\';
+                }
+                break;
+        }
+        ret += c;
+    }
+    return ret;
+}
+
+String escapeValue(const char *value) {
+    String ret;
+    int len = strlen_P(value);
+    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
+    for(int i=0;i<len;i++)
+    {
+        switch (value[i])
+        {
+            case '\\':
+            case '\"':
+                ret += '\\';
+                break;
+        }
+
+        ret += value[i];
+    }
+    return ret;
+}
