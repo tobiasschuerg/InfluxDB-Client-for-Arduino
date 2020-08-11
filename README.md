@@ -103,7 +103,7 @@ InfluxDBCloud uses secure communication (https) and we need to tell the client t
 Connection parameters are almost the same as above, the only difference is that server URL now points to the InfluxDB Cloud 2, where you've got after you've finished creating InfluxDB Cloud 2 subscription. You will find correct server URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
 ```cpp
 //Include also InfluxClould 2 CA certificate
-#include <InfluxCloud.h>
+#include <InfluxDbCloud.h>
 // InfluxDB 2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
