@@ -50,7 +50,9 @@ static const char RetryAfter[] = "Retry-After";
 static const char TransferEnconding[] = "Transfer-Encoding";
 
 static String escapeJSONString(String &value);
-
+#if defined(ESP8266)  
+bool checkMFLN(BearSSL::WiFiClientSecure *client, String url);
+#endif
 static String precisionToString(WritePrecision precision, uint8_t version = 2) {
     switch(precision) {
         case WritePrecision::US:
@@ -220,6 +222,7 @@ bool InfluxDBClient::init() {
         if (_insecure) {
             wifiClientSec->setInsecure();
         }
+        checkMFLN(wifiClientSec, _serverUrl);
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
         if(_certInfo && strlen_P(_certInfo) > 0) { 
@@ -236,6 +239,52 @@ bool InfluxDBClient::init() {
     return true;
 }
 
+// parse URL for host and port and call probeMaxFragmentLength
+#if defined(ESP8266)         
+bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url) {
+    int index = url.indexOf(':');
+     if(index < 0) {
+        return false;
+    }
+    String protocol = url.substring(0, index);
+    int port = -1;
+    url.remove(0, (index + 3)); // remove http:// or https://
+
+    if (protocol == "http") {
+        // set default port for 'http'
+        port = 80;
+    } else if (protocol == "https") {
+        // set default port for 'https'
+        port = 443;
+    } else {
+        return false;
+    }
+    index = url.indexOf('/');
+    String host = url.substring(0, index);
+    url.remove(0, index); // remove host 
+    // check Authorization
+    index = host.indexOf('@');
+    if(index >= 0) {
+        host.remove(0, index + 1); // remove auth part including @
+    }
+    // get port
+    index = host.indexOf(':');
+    if(index >= 0) {
+        String portS = host;
+        host = host.substring(0, index); // hostname
+        portS.remove(0, (index + 1)); // remove hostname + :
+        port = portS.toInt(); // get port
+    }
+    INFLUXDB_CLIENT_DEBUG("probeMaxFragmentLength to %s:%d\n", host.c_str(), port);
+    bool mfln = client->probeMaxFragmentLength(host, port, 1024);
+    INFLUXDB_CLIENT_DEBUG("  MFLN:%s\n", mfln ? "yes" : "no");
+    if (mfln) {
+        client->setBufferSizes(1024, 1024);
+    } 
+    return mfln;
+}
+#endif //ESP8266
+
 InfluxDBClient::~InfluxDBClient() {
      if(_pointsBuffer) {
         delete [] _pointsBuffer;
@@ -248,10 +297,6 @@ InfluxDBClient::~InfluxDBClient() {
 }
 
 void InfluxDBClient::clean() {
-    // if(_wifiClient) {
-    //     delete _wifiClient;
-    //     _wifiClient = nullptr;
-    // }
      _wifiClient = nullptr;
 #if defined(ESP8266)     
     if(_cert) {
