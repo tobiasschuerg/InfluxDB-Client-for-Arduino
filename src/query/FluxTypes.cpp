@@ -29,7 +29,7 @@
 
 const char	*FluxDatatypeString     = "string";
 const char	*FluxDatatypeDouble     = "double";
-const char	*FluxDatatypeBool       = "bool";
+const char	*FluxDatatypeBool       = "boolean";
 const char	*FluxDatatypeLong       = "long";
 const char	*FluxDatatypeUnsignedLong   = "unsignedLong";
 const char	*FluxDatatypeDuration       = "duration";

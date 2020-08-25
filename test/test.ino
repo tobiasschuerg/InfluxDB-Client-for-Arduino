@@ -1316,12 +1316,12 @@ void testFluxParserMultiTables(bool chunked) {
     TEST_ASSERT(testStringValue(flux, 9, "b", "adsfasdf"));
 
 
-    TEST_ASSERTM(flux.next(),"flux.next()");
-    TEST_ASSERTM(flux.hasTableChanged(),"flux.hasTableChanged()");
+    TEST_ASSERTM(flux.next(),flux.getError());
+    TEST_ASSERTM(flux.hasTableChanged(),flux.getError());
     TEST_ASSERTM(flux.getError() == "",flux.getError());
 
      // ===== table 3 =================
-    const char *types3[] = {"string","long", "dateTime:RFC3339",  "dateTime:RFC3339",  "dateTime:RFC3339", "bool", "string","string","string","string"};
+    const char *types3[] = {"string","long", "dateTime:RFC3339",  "dateTime:RFC3339",  "dateTime:RFC3339", "boolean", "string","string","string","string"};
     TEST_ASSERT(testStringVector(flux.getColumnsDatatype(), types3, 10));
     TEST_ASSERT(testTableColumns(flux, columns, 10));
     // ========== row 1 ================

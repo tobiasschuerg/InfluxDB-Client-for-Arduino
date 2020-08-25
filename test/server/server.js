@@ -174,7 +174,7 @@ var queryRes = {
 ,_result1,1,2020-02-16T22:19:49.747562847Z,2020-02-17T22:19:49.747562847Z,2020-02-17T10:34:08.135814545Z,-4,i,test,1,adsfasdf
 ,_result1,1,2020-02-16T22:19:49.747562847Z,2020-02-17T22:19:49.747562847Z,2020-02-16T22:08:44.850214724Z,-1,i,test,1,adsfasdf
 \r
-#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,bool,string,string,string,string
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,boolean,string,string,string,string
 ,result,table,_start,_stop,_time,_value,_field,_measurement,a,b
 ,_result2,2,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T10:34:08.135814545Z,false,b,test,0,brtfgh
 ,_result2,2,2020-02-17T22:19:49.747562847Z,2020-02-18T22:19:49.747562847Z,2020-02-18T22:08:44.969100374Z,true,b,test,0,brtfgh
