@@ -39,77 +39,19 @@
 # error "This library currently supports only ESP8266 and ESP32."
 #endif
 
+#include "Point.h"
+#include "WritePrecision.h"
 #include "query/FluxParser.h"
 #include "util/helpers.h"
+#include "Options.h"
 
 
 #ifdef USING_AXTLS
 #error AxTLS does not work
 #endif
 
-// Enum WritePrecision defines constants for specifying InfluxDB write prcecision
-enum class WritePrecision  {
-  // Specifyies that points has no timestamp (default) 
-  NoTime = 0,
-  // Seconds
-  S,
-  // Milli-seconds 
-  MS,
-  // Micro-seconds 
-  US,
-  // Nano-seconds
-  NS
-};
+class Test;
 
-/**
- * Class Point represents InfluxDB point in line protocol.
- * It defines data to be written to InfluxDB.
- */
-class Point {
-  public:
-    Point(String measurement);
-    // Adds string tag 
-    void addTag(String name, String value);
-    // Add field with various types
-    void addField(String name, float value, int decimalPlaces = 2)         { if(!isnan(value)) putField(name, String(value, decimalPlaces)); }
-    void addField(String name, double value)        { if(!isnan(value)) putField(name, String(value)); }
-    void addField(String name, char value)          { addField(name, String(value).c_str()); }
-    void addField(String name, unsigned char value) { putField(name, String(value)+"i"); }
-    void addField(String name, int value)           { putField(name, String(value)+"i"); }
-    void addField(String name, unsigned int value)  { putField(name, String(value)+"i"); }
-    void addField(String name, long value)          { putField(name, String(value)+"i"); }
-    void addField(String name, unsigned long value) { putField(name, String(value)+"i"); }
-    void addField(String name, bool value)          { putField(name,value?"true":"false"); }
-    void addField(String name, String value)        { addField(name, value.c_str()); }
-    void addField(String name, const char *value);
-    // Set timestamp to `now()` and store it in specified precision, nanoseconds by default. Date and time must be already set. See `configTime` in the device API
-    void setTime(WritePrecision writePrecision = WritePrecision::NS);
-    // Set timestamp in offset since epoch (1.1.1970). Correct precision must be set InfluxDBClient::setWriteOptions.
-    void setTime(unsigned long long timestamp);
-    // Set timestamp in offset since epoch (1.1.1970 00:00:00). Correct precision must be set InfluxDBClient::setWriteOptions.
-    void setTime(String timestamp);
-    // Clear all fields. Usefull for reusing point  
-    void clearFields();
-    // Clear tags
-    void clearTags();
-    // True if a point contains at least one field. Points without a field cannot be written to db
-    bool hasFields() const { return _fields.length() > 0; }
-    // True if a point contains at least one tag
-    bool hasTags() const   { return _tags.length() > 0; }
-    // True if a point contains timestamp
-    bool hasTime() const   { return _timestamp.length() > 0; }
-    // Creates line protocol
-    String toLineProtocol() const;
-    // returns current timestamp
-    String getTime() const { return _timestamp; } 
-  protected:
-    String _measurement;
-    String _tags;
-    String _fields;
-    String _timestamp;    
-    // method for formating field into line protocol
-    void putField(String name, String value);
-};
 /**
  * InfluxDBClient handles connection and basic operations for an InfluxDB server.
  * It provides write API with ability to write data in batches and retrying failed writes.
@@ -139,8 +81,8 @@ class InfluxDBClient {
     InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo);
     // Clears instance.
     ~InfluxDBClient();
-    // Allows insecure connection
-    // Works only on ESP8266. No-op for ESP32
+    // Allows insecure connection. setInsecure must be called before calling any method initiating a connection to server.
+    // Works only on ESP8266. ESP32 allows unsecured connections by default (status for latest 1.0.4 ESP32 Arduino SDK).
     void setInsecure(bool value);
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
@@ -148,8 +90,19 @@ class InfluxDBClient {
     //             and also data that failed to be written due to network failure or server overloading
     // flushInterval - maximum number of seconds data will be held in buffer before are written to the db. 
     //                 Data are written either when number of points in buffer reaches batchSize or time of  
-    // preserveConnection - true if HTTP connection should be kept open. Usable for often writes.
+    // preserveConnection - true if HTTP connection should be kept open. Usable for frequent writes.
+    [[deprecated("Use setWriteOptions(const WriteOptions &writeOptions)")]]
     void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true); 
+    // Sets custom write options. See WriteOptions doc for more info. 
+    // Must be called before calling any method initiating a connection to server.
+    // Example: 
+    //    client.setWriteOptions(WriteOptions().batchSize(10).bufferSize(50)).
+    void setWriteOptions(const WriteOptions &writeOptions);
+    // Sets custom HTTP options. See HTTPOptions doc for more info. 
+    // Must be called before calling any method initiating a connection to server.
+    // Example: 
+    //    client.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
+    void setHTTPOptions(const HTTPOptions &httpOptions);
     // Sets connection parameters for InfluxDB 2
     // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
     // org - name of the organization, which bucket belongs to 
@@ -167,7 +120,7 @@ class InfluxDBClient {
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
     bool validateConnection();
-    // Writes record in InfluxDB line protocol format to buffer
+    // Writes record in InfluxDB line protocol format to write buffer
     // Returns true if successful, false in case of any error 
     bool writeRecord(String &record);
     // Writes record represented by Point to buffer
@@ -181,11 +134,11 @@ class InfluxDBClient {
     // Returns true if successful, false in case of any error 
     bool flushBuffer();
     // Returns true if points buffer is full. Usefull when server is overloaded and we may want increase period of write points or decrease number of points
-    bool isBufferFull() const  { return _bufferCeiling == _bufferSize; };
+    bool isBufferFull() const  { return _bufferCeiling == _writeOptions._bufferSize; };
     // Returns true if buffer is empty. Usefull when going to sleep and check if there is sth in write buffer (it can happens when batch size if bigger than 1). Call flushBuffer() then.
     bool isBufferEmpty() const { return _bufferCeiling == 0; };
-    // Checks points buffer status and flushes if number of points reached batch size or flush interval runs out
-    // Returns true if successful, false in case of any error 
+    // Checks points buffer status and flushes if number of points reached batch size or flush interval runs out.
+    // Returns true if successful, false in case of any error
     bool checkBuffer();
     // Wipes out buffered points
     void resetBuffer();
@@ -206,31 +159,26 @@ class InfluxDBClient {
     // Cleans instances
     void clean();
   protected:
+  friend class Test;
     // Connection info
     String _serverUrl;
     String _bucket;
     String _org;
     // token authetication
     String _authToken;
-    // user authetication
+    // V1 user authetication
     String _user;
     String _password;
     // Cached full write url
     String _writeUrl;
     // Cached full query url
     String _queryUrl;
-    // Points timestamp precision. 
-    WritePrecision _writePrecision = WritePrecision::NoTime;
-    // Number of points that will be written to the databases at once. 
-    // Default 1 (immediate write, no batching)
-    uint16_t _batchSize = 1;
     // Points buffer
     String *_pointsBuffer = nullptr;
-    // Rewrites buffer size - maximum number of record to keep.
-    // When max size is reached, oldest records are overwritten
-    uint16_t _bufferSize = 5;
-    // maximum number of seconds data will be held in buffer before are written to the db. 
-    uint16_t _flushInterval = 60;
+    // Write options
+    WriteOptions _writeOptions;
+    // HTTP options
+    HTTPOptions _httpOptions;
     // Index to buffer where to store new line
     uint16_t _bufferPointer = 0;
     // Actual count of lines in buffer 
@@ -247,7 +195,7 @@ class InfluxDBClient {
     String _lastErrorResponse;
     // Underlying HTTPClient instance 
     HTTPClient _httpClient;
-    // Underlying conenction object 
+    // Underlying connenction object 
     WiFiClient *_wifiClient = nullptr;
     // Certificate info
     const char *_certInfo = nullptr;
@@ -264,18 +212,10 @@ class InfluxDBClient {
     int postData(const char *data);
     // Prepares batch from data in buffer`
     char *prepareBatch(int &size);
-    // 
+    // Sets cached InfluxDB server API URLs
     void setUrls();
     // Ensures buffer has required size
     void reserveBuffer(int size);
-#ifdef INFLUXDB_CLIENT_TESTING
-public:
-    String *getBuffer() { return _pointsBuffer; }
-    void setServerUrl(const char *serverUrl) {
-      _serverUrl = serverUrl;
-      setUrls();
-    }
-#endif         
 };
 
 

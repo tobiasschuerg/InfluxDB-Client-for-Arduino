@@ -68,93 +68,8 @@ static String precisionToString(WritePrecision precision, uint8_t version = 2) {
     }
 }
 
-Point::Point(String measurement):
-    _measurement(escapeKey(measurement, false)),
-    _tags(""),
-    _fields(""),
-    _timestamp("")
-{
-
-}
-
-void Point::addTag(String name, String value) {
-    if(_tags.length() > 0) {
-        _tags += ',';
-    }
-    _tags += escapeKey(name);
-    _tags += '=';
-    _tags += escapeKey(value);
-}
-
-void Point::addField(String name, const char *value) { 
-    putField(name, "\"" + escapeValue(value) + "\""); 
-}
-
-void Point::putField(String name, String value) {
-    if(_fields.length() > 0) {
-        _fields += ',';
-    }
-    _fields += escapeKey(name);
-    _fields += '=';
-    _fields += value;
-}
-
-String Point::toLineProtocol() const {
-    String line =  _measurement;
-    if(hasTags()) {
-        line += "," + _tags;
-    }
-    if(hasFields()) {
-        line += " " + _fields;
-    }
-    if(hasTime()) {
-        line += " " + _timestamp;
-    }
-    return line;
-}
-
-void  Point::setTime(WritePrecision precision) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    
-    switch(precision) {
-        case WritePrecision::NS:
-            setTime(getTimeStamp(&tv,9));
-            break;
-        case WritePrecision::US:
-            setTime(getTimeStamp(&tv,6));
-            break;
-        case WritePrecision::MS: 
-            setTime(getTimeStamp(&tv,3));
-            break;
-        case WritePrecision::S:
-            setTime(getTimeStamp(&tv,0));
-            break;
-        case WritePrecision::NoTime:
-            _timestamp = "";
-            break;
-    }
-}
-
-void  Point::setTime(unsigned long long timestamp) {
-    _timestamp = timeStampToString(timestamp);
-}
-
-void  Point::setTime(String timestamp) {
-    _timestamp = timestamp;
-}
-
-void  Point::clearFields() {
-    _fields = "";
-    _timestamp = "";
-}
-
-void Point:: clearTags() {
-    _tags = "";
-}
-
 InfluxDBClient::InfluxDBClient() { 
-    _pointsBuffer = new String[_bufferSize];
+    _pointsBuffer = new String[_writeOptions._bufferSize];
 }
 
 InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *db):InfluxDBClient() {
@@ -233,7 +148,7 @@ bool InfluxDBClient::init() {
     } else {
         _wifiClient = new WiFiClient;
     }
-    _httpClient.setReuse(false);
+    _httpClient.setReuse(_httpOptions._connectionReuse);
 
     _httpClient.setUserAgent(FPSTR(UserAgent));
     return true;
@@ -342,66 +257,72 @@ void InfluxDBClient::setUrls() {
         INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
         INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
     }
-    if(_writePrecision != WritePrecision::NoTime) {
+    if(_writeOptions._writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
-        _writeUrl += precisionToString(_writePrecision, _dbVersion);
+        _writeUrl += precisionToString(_writeOptions._writePrecision, _dbVersion);
         INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
     }
     
 }
 
 void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSize, uint16_t bufferSize, uint16_t flushInterval, bool preserveConnection) {
-    if(_writePrecision != precision) {
-        _writePrecision = precision;
+    setWriteOptions(WriteOptions().writePrecision(precision).batchSize(batchSize).bufferSize(bufferSize).flushIntervalSec(flushInterval));
+    setHTTPOptions(_httpOptions.connectionReuse(preserveConnection));
+}
+
+void InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
+    if(_writeOptions._writePrecision != writeOptions._writePrecision) {
+        _writeOptions._writePrecision = writeOptions._writePrecision;
         setUrls();
     }
-    if(batchSize > 0) {
-        _batchSize = batchSize;
+    if(writeOptions._batchSize > 0) {
+        _writeOptions._batchSize = writeOptions._batchSize;
     }
-    if(bufferSize < batchSize) {
-        bufferSize = 2*batchSize;
-        INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", bufferSize);
-    }
-    if(_bufferSize > 0 && bufferSize > 0 && _bufferSize != bufferSize) {
-        _bufferSize = bufferSize;
-        if(_bufferSize <  _batchSize) {
-            _bufferSize = 2*_batchSize;
-            INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _bufferSize);
+    if(_writeOptions._bufferSize > 0 && writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
+        _writeOptions._bufferSize = writeOptions._bufferSize;
+        if(_writeOptions._bufferSize <  _writeOptions._batchSize) {
+            _writeOptions._bufferSize = 2*_writeOptions._batchSize;
+            INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
         }
         resetBuffer();
     }
-    _flushInterval = flushInterval;
-    _httpClient.setReuse(preserveConnection);
+    _writeOptions._flushInterval = writeOptions._flushInterval;
+}
+
+void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
+    _httpOptions = httpOptions;
+    _httpClient.setReuse(_httpOptions._connectionReuse);
+    _httpClient.setTimeout(_httpOptions._httpReadTimeout);
 }
 
 void InfluxDBClient::resetBuffer() {
     if(_pointsBuffer) {
         delete [] _pointsBuffer;
     }
-    _pointsBuffer = new String[_bufferSize];
+    _pointsBuffer = new String[_writeOptions._bufferSize];
     _bufferPointer = 0;
     _batchPointer = 0;
     _bufferCeiling = 0;
 }
 
 void InfluxDBClient::reserveBuffer(int size) {
-    if(size > _bufferSize) {
+    if(size > _writeOptions._bufferSize) {
         String *newBuffer = new String[size];
-        INFLUXDB_CLIENT_DEBUG("Resising buffer from %d to %d\n", _bufferSize, size);
+        INFLUXDB_CLIENT_DEBUG("Resizing buffer from %d to %d\n", _writeOptions._bufferSize, size);
         for(int i=0;i<_bufferCeiling; i++) {
             newBuffer[i] = _pointsBuffer[i];
         }
         
         delete [] _pointsBuffer;
         _pointsBuffer = newBuffer;
-        _bufferSize = size;
+        _writeOptions._bufferSize = size;
     }
 }
 
 bool InfluxDBClient::writePoint(Point & point) {
     if (point.hasFields()) {
-        if(_writePrecision != WritePrecision::NoTime && !point.hasTime()) {
-            point.setTime(_writePrecision);
+        if(_writeOptions._writePrecision != WritePrecision::NoTime && !point.hasTime()) {
+            point.setTime(_writeOptions._writePrecision);
         }
         String line = point.toLineProtocol();
         return writeRecord(line);
@@ -412,7 +333,7 @@ bool InfluxDBClient::writePoint(Point & point) {
 bool InfluxDBClient::writeRecord(String &record) {
     _pointsBuffer[_bufferPointer] = record;
     _bufferPointer++;
-    if(_bufferPointer == _bufferSize) {
+    if(_bufferPointer == _writeOptions._bufferSize) {
         _bufferPointer = 0;
         INFLUXDB_CLIENT_DEBUG("[W] Reached buffer size, old points will be overwritten\n");
         if(isBufferFull()) {
@@ -420,7 +341,7 @@ bool InfluxDBClient::writeRecord(String &record) {
             _batchPointer = 0;
         }
     } 
-    if(_bufferCeiling < _bufferSize) {
+    if(_bufferCeiling < _writeOptions._bufferSize) {
         _bufferCeiling++;
     }
     if(isBufferFull() && _batchPointer < _bufferPointer) {
@@ -432,9 +353,9 @@ bool InfluxDBClient::writeRecord(String &record) {
 
 bool InfluxDBClient::checkBuffer() {
     // in case we (over)reach batchSize with non full buffer
-    bool bufferReachedBatchsize = !isBufferFull() && _bufferPointer - _batchPointer >= _batchSize;
+    bool bufferReachedBatchsize = !isBufferFull() && _bufferPointer - _batchPointer >= _writeOptions._batchSize;
     // or flush interval timed out
-    bool flushTimeout = _flushInterval > 0 && _lastFlushed > 0 && (millis()/1000 - _lastFlushed) > _flushInterval; 
+    bool flushTimeout = _writeOptions._flushInterval > 0 && _lastFlushed > 0 && (millis()/1000 - _lastFlushed) > _writeOptions._flushInterval; 
 
     if(bufferReachedBatchsize || flushTimeout || isBufferFull() ) {
         INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", bufferReachedBatchsize?"true":"false",flushTimeout?"true":"false", isBufferFull()?"true":"false");
@@ -464,9 +385,9 @@ bool InfluxDBClient::flushBuffer() {
             _lastFlushed = millis()/1000;
             _batchPointer += size;
             //did we got over top?
-            if(_batchPointer >= _bufferSize) {
+            if(_batchPointer >= _writeOptions._bufferSize) {
                 // restart _batchPointer in ring buffer from start
-                _batchPointer = _batchPointer - _bufferSize;
+                _batchPointer = _batchPointer - _writeOptions._bufferSize;
                 // we reached buffer size, that means buffer was full and now lower ceiling 
                 _bufferCeiling = _bufferPointer;
             }
@@ -493,7 +414,7 @@ char *InfluxDBClient::prepareBatch(int &size) {
     size = 0;
     int length = 0;
     char *buff = nullptr;
-    uint16_t top = _batchPointer+_batchSize;
+    uint16_t top = _batchPointer+_writeOptions._batchSize;
     INFLUXDB_CLIENT_DEBUG("[D] Prepare batch: bufferPointer: %d, batchPointer: %d, ceiling %d\n", _bufferPointer, _batchPointer, _bufferCeiling);
     if(top > _bufferCeiling ) {
         // are we returning to the begining?
@@ -510,14 +431,14 @@ char *InfluxDBClient::prepareBatch(int &size) {
     if(top > _batchPointer) { 
         size = top - _batchPointer;
     } else if(top < _batchPointer) {
-        size = _bufferSize - (_batchPointer - top);
+        size = _writeOptions._bufferSize - (_batchPointer - top);
     }
     INFLUXDB_CLIENT_DEBUG("[D] Prepare batch size %d\n", size);
     if(size) {
         int i = _batchPointer;
         for(int c=0; c < size; c++) {
             length += _pointsBuffer[i++].length();
-            if(i == _bufferSize) {
+            if(i == _writeOptions._bufferSize) {
                 i = 0;
             }
             yield();
@@ -530,7 +451,7 @@ char *InfluxDBClient::prepareBatch(int &size) {
             for(int c=0; c < size; c++) {
                 strcat(buff+strlen(buff), _pointsBuffer[i++].c_str());
                 strcat(buff+strlen(buff), "\n");
-                if(i == _bufferSize) {
+                if(i == _writeOptions._bufferSize) {
                     i = 0;
                 }
                 yield();

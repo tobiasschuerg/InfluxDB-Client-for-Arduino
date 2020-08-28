@@ -7,6 +7,7 @@ const port = 999;
 var pointsdb = []; 
 var lastUserAgent = '';
 var chunked = false;
+var delay = 0;
 
 app.use (function(req, res, next) {
     var data='';
@@ -86,6 +87,11 @@ app.post('/api/v2/write', (req,res) => {
                         break;
                     case 'chunked':
                         chunked = true;
+                        console.log("Set chunked = true");
+                        break;
+                    case 'timeout':
+                        delay = parseInt(point.tags.timeout)*1000;
+                        console.log("Set delay: " + delay);
                         break;
                 }
                 points.shift();
@@ -225,6 +231,14 @@ var queryRes = {
 "empty":``
 };
 
+function sleep(milliseconds) {
+    const date = Date.now();
+    let currentDate = null;
+    do {
+      currentDate = Date.now();
+    } while (currentDate - date < milliseconds);
+  }
+
 app.post('/api/v2/query', (req,res) => {
     //console.log("Query with: " + req.body);
     if(checkQueryParams(req, res) && handleAuthentication(req, res)) {
@@ -243,6 +257,10 @@ app.post('/api/v2/query', (req,res) => {
             data = convertToCSV(pointsdb);
         }
         if(data.length > 0) {
+            if(delay) {
+                sleep(delay);
+                delay = 0;
+            }
             //console.log(data);
 
             if(chunked) {

@@ -93,7 +93,7 @@ void setup() {
   }
 
   // Enable messages batching and retry buffer
-  client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
+  client.setWriteOptions(WriteOptions().writePrecision(WRITE_PRECISION).batchSize(MAX_BATCH_SIZE).bufferSize(WRITE_BUFFER_SIZE));
 }
 
 void loop() {

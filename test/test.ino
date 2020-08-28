@@ -49,8 +49,47 @@ void setup() {
     Serial.printf("Using server: %s\n", INFLUXDB_CLIENT_TESTING_URL);
 }
 
+class Test {
+public:
+    static void run();
+private:
+    static void testOptions();
+    static void testEcaping();
+    static void testPoint();
+    static void testFluxTypes();
+    static void testFluxParserEmpty();
+    static void testFluxParserSingleTable();
+    static void testFluxParserNilValue();
+    static void testFluxParserMultiTables(bool chunked);
+    static void testFluxParserErrorDiffentColumnsNum();
+    static void testFluxParserFluxError();
+    static void testFluxParserInvalidDatatype();
+    static void testFluxParserMissingDatatype();
+    static void testFluxParserErrorInRow();
+    static void testBasicFunction();
+    static void testInit();
+    static void testV1();
+    static void testUserAgent();
+    static void testFailedWrites();
+    static void testTimestamp();
+    static void testHTTPReadTimeout();
+    static void testRetryOnFailedConnection();
+    static void testBufferOverwriteBatchsize1();
+    static void testBufferOverwriteBatchsize5();
+    static void testServerTempDownBatchsize5();
+    static void testRetriesOnServerOverload();
+
+};
+
 void loop() {
+    Test::run();
+    Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
+    while(1) delay(1000);
+}
+
+void Test::run() {
     // Basic tests
+    testOptions();
     testEcaping();
     testPoint();
     testFluxTypes();
@@ -68,6 +107,7 @@ void loop() {
     testInit();
     testV1();
     testUserAgent();
+    testHTTPReadTimeout();
     // Advanced tests
     testFailedWrites();
     testTimestamp();
@@ -76,12 +116,60 @@ void loop() {
     testBufferOverwriteBatchsize5();
     testServerTempDownBatchsize5();
     testRetriesOnServerOverload();
-
-    Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
-    while(1) delay(1000);
 }
 
-void testEcaping() {
+void Test::testOptions() {
+        TEST_INIT("testOptions");
+        WriteOptions defWO;
+        TEST_ASSERT(defWO._writePrecision == WritePrecision::NoTime);
+        TEST_ASSERT(defWO._batchSize == 1);
+        TEST_ASSERT(defWO._bufferSize == 5);
+        TEST_ASSERT(defWO._flushInterval == 60);
+
+        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushIntervalSec(120);
+        TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
+        TEST_ASSERT(defWO._batchSize == 10);
+        TEST_ASSERT(defWO._bufferSize == 20);
+        TEST_ASSERT(defWO._flushInterval == 120);
+
+        HTTPOptions defHO;
+        TEST_ASSERT(!defHO._connectionReuse);
+        TEST_ASSERT(defHO._httpReadTimeout == 5000);
+
+        defHO = HTTPOptions().connectionReuse(true).httpReadTimeout(20000);
+        TEST_ASSERT(defHO._connectionReuse);
+        TEST_ASSERT(defHO._httpReadTimeout == 20000);
+
+        InfluxDBClient c;
+        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NoTime);
+        TEST_ASSERT(c._writeOptions._batchSize == 1);
+        TEST_ASSERT(c._writeOptions._bufferSize == 5);
+        TEST_ASSERT(c._writeOptions._flushInterval == 60);
+        TEST_ASSERT(!c._httpOptions._connectionReuse);
+        TEST_ASSERT(c._httpOptions._httpReadTimeout == 5000);
+
+        c.setWriteOptions(defWO);
+        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
+        TEST_ASSERT(c._writeOptions._batchSize == 10);
+        TEST_ASSERT(c._writeOptions._bufferSize == 20);
+        TEST_ASSERT(c._writeOptions._flushInterval == 120);
+        c.setHTTPOptions(defHO);
+        TEST_ASSERT(c._httpOptions._connectionReuse);
+        TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+
+        c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
+        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
+        TEST_ASSERT(c._writeOptions._batchSize == 15);
+        TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
+        TEST_ASSERT(c._writeOptions._flushInterval == 70);
+        TEST_ASSERT(!c._httpOptions._connectionReuse);
+        TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+
+        TEST_END();
+    }
+
+
+void Test::testEcaping() {
     TEST_INIT("testEcaping");
 
     Point p("t\re=s\nt\t_t e\"s,t");
@@ -107,7 +195,7 @@ void testEcaping() {
 }
 
 
-void testPoint() {
+void Test::testPoint() {
     TEST_INIT("testPoint");
 
     Point p("test");
@@ -208,7 +296,7 @@ void testPoint() {
     TEST_END();
 }
 
-void testBasicFunction() {
+void Test::testBasicFunction() {
     TEST_INIT("testBasicFunction");
 
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_BAD_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
@@ -255,7 +343,7 @@ void testBasicFunction() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testInit() {
+void Test::testInit() {
     TEST_INIT("testInit");
     {
         InfluxDBClient client;
@@ -304,10 +392,11 @@ void testInit() {
 #endif
 
 
-void testUserAgent() {
+void Test::testUserAgent() {
     TEST_INIT("testUserAgent");
 
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    waitServer(client, true);
     TEST_ASSERT(client.validateConnection());
     String url = INFLUXDB_CLIENT_TESTING_URL "/test/user-agent";
     HTTPClient http;
@@ -320,7 +409,36 @@ void testUserAgent() {
     TEST_END();
 }
 
-void testRetryOnFailedConnection() {
+void Test::testHTTPReadTimeout() {
+    TEST_INIT("testHTTPReadTimeout");
+    InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    waitServer(client, true);
+    TEST_ASSERT(client.validateConnection());
+    //set server delay for 6s (client has default timeout 5s)
+    String rec = "a,direction=timeout,timeout=6 a=1";
+    TEST_ASSERT(client.writeRecord(rec));
+    rec = "a,tag=a, a=1i";
+    TEST_ASSERT(client.writeRecord(rec));
+
+    String query = "select";
+    FluxQueryResult q = client.query(query);
+    // should timeout
+    TEST_ASSERT(!q.next());
+    TEST_ASSERTM(q.getError() == "read Timeout", q.getError());
+    q.close();
+    rec = "a,direction=timeout,timeout=4 a=1";
+    TEST_ASSERT(client.writeRecord(rec));
+    q = client.query(query);
+    // should be ok
+    TEST_ASSERT(q.next());
+    TEST_ASSERT(!q.next());
+    TEST_ASSERTM(q.getError() == "", q.getError());
+    q.close();
+    TEST_END();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void Test::testRetryOnFailedConnection() {
     TEST_INIT("testRetryOnFailedConnection");
 
     InfluxDBClient clientOk(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
@@ -351,7 +469,7 @@ void testRetryOnFailedConnection() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testBufferOverwriteBatchsize1() {
+void Test::testBufferOverwriteBatchsize1() {
     TEST_INIT("testBufferOverwriteBatchsize1");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_BAD_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     client.setWriteOptions(WritePrecision::NoTime, 1, 5);
@@ -364,9 +482,10 @@ void testBufferOverwriteBatchsize1() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERT(client.getBuffer()[0].indexOf("index=10i") > 0);
+    TEST_ASSERT(client._pointsBuffer[0].indexOf("index=10i") > 0);
 
-    client.setServerUrl(INFLUXDB_CLIENT_TESTING_URL);
+    client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
+    client.setUrls();
     waitServer(client, true);
 
     Point *p = createPoint("test1");
@@ -389,7 +508,7 @@ void testBufferOverwriteBatchsize1() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testBufferOverwriteBatchsize5() {
+void Test::testBufferOverwriteBatchsize5() {
     TEST_INIT("testBufferOverwriteBatchsize5");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_BAD_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     client.setWriteOptions(WritePrecision::NoTime, 5, 12);
@@ -403,9 +522,11 @@ void testBufferOverwriteBatchsize5() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERT(client.getBuffer()[0].indexOf("index=24i") > 0);
+    TEST_ASSERT(client._pointsBuffer[0].indexOf("index=24i") > 0);
 
-    client.setServerUrl(INFLUXDB_CLIENT_TESTING_URL);
+    client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
+    client.setUrls();
+
     waitServer(client, true);
 
     Point *p = createPoint("test1");
@@ -458,7 +579,7 @@ void testBufferOverwriteBatchsize5() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testServerTempDownBatchsize5() {
+void Test::testServerTempDownBatchsize5() {
     TEST_INIT("testServerTempDownBatchsize5");
     InfluxDBClient client;
     client.setConnectionParams(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
@@ -536,7 +657,7 @@ void testServerTempDownBatchsize5() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testRetriesOnServerOverload() {
+void Test::testRetriesOnServerOverload() {
     TEST_INIT("testRetriesOnServerOverload");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     client.setWriteOptions(WritePrecision::NoTime, 5, 20, 60, false);
@@ -699,7 +820,7 @@ void testRetriesOnServerOverload() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testFailedWrites() {
+void Test::testFailedWrites() {
     TEST_INIT("testFailedWrites");
 
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
@@ -753,7 +874,7 @@ void testFailedWrites() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testTimestamp() {
+void Test::testTimestamp() {
     TEST_INIT("testTimestamp");
 
     struct timeval tv;
@@ -846,7 +967,7 @@ void testTimestamp() {
     serverLog(INFLUXDB_CLIENT_TESTING_URL, "testTimestamp end");
 }
 
-void testV1() {
+void Test::testV1() {
 
     TEST_INIT("testV1");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_DB);
@@ -892,7 +1013,7 @@ void testV1() {
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
-void testFluxTypes() {
+void Test::testFluxTypes() {
     TEST_INIT("testFluxTypes");
     FluxValue val1;
     TEST_ASSERTM(val1.isNull(),"val1.isNull");
@@ -992,7 +1113,7 @@ void testFluxTypes() {
     TEST_END();
 }
 
-void testFluxParserEmpty() {
+void Test::testFluxParserEmpty() {
     TEST_INIT("testFluxParserEmpty");
     FluxQueryResult flux("Error sss");
     TEST_ASSERTM(!flux.next(),"!flux.next()");
@@ -1116,7 +1237,7 @@ end:
     return false;
 }
 
-void testFluxParserSingleTable() {
+void Test::testFluxParserSingleTable() {
     TEST_INIT("testFluxParserSingleTable");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1173,7 +1294,7 @@ void testFluxParserSingleTable() {
     TEST_END();
 }
 
-void testFluxParserNilValue() {
+void Test::testFluxParserNilValue() {
     TEST_INIT("testFluxParserNilValue");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1224,7 +1345,7 @@ void testFluxParserNilValue() {
     TEST_END();
 }
 
-void testFluxParserMultiTables(bool chunked) {
+void Test::testFluxParserMultiTables(bool chunked) {
     TEST_INIT("testFluxParserMultiTables");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1411,7 +1532,7 @@ void testFluxParserMultiTables(bool chunked) {
     TEST_END();
 }
 
-void testFluxParserErrorDiffentColumnsNum() {
+void Test::testFluxParserErrorDiffentColumnsNum() {
     TEST_INIT("testFluxParserErrorDiffentColumnsNum");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1432,7 +1553,7 @@ void testFluxParserErrorDiffentColumnsNum() {
     TEST_END();
 }
 
-void testFluxParserFluxError() {
+void Test::testFluxParserFluxError() {
     TEST_INIT("testFluxParserFluxError");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1446,7 +1567,7 @@ void testFluxParserFluxError() {
     TEST_END();
 }
 
-void testFluxParserInvalidDatatype() {
+void Test::testFluxParserInvalidDatatype() {
     TEST_INIT("testFluxParserInvalidDatatype");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1460,7 +1581,7 @@ void testFluxParserInvalidDatatype() {
     TEST_END();
 }
 
-void testFluxParserMissingDatatype() {
+void Test::testFluxParserMissingDatatype() {
     TEST_INIT("testFluxParserMissingDatatype");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
@@ -1474,7 +1595,7 @@ void testFluxParserMissingDatatype() {
     TEST_END();
 }
 
-void testFluxParserErrorInRow() {
+void Test::testFluxParserErrorInRow() {
     TEST_INIT("testFluxParserErrorInRow");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     TEST_ASSERT(waitServer(client, true));
