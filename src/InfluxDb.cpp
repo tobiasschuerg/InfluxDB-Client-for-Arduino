@@ -122,10 +122,10 @@ void Influxdb::begin() {
  */
 void Influxdb::prepare(InfluxData data) { 
   ++_preparedPoints;
-  if(_batchSize <= _preparedPoints) {
+  if(_writeOptions._batchSize <= _preparedPoints) {
     // for preparation, batchsize must be greater than number of prepared points, or it will send data right away
-    _batchSize = _preparedPoints+1;
-    reserveBuffer(2*_batchSize);
+    _writeOptions._batchSize = _preparedPoints+1;
+    reserveBuffer(2*_writeOptions._batchSize);
   }
   write(data);
 }

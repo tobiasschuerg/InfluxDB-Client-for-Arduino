@@ -155,10 +155,10 @@ If points have no timestamp assigned, InfluxDB assigns timestamp at the time of 
 
 InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino. Maximum avavailable precision is microseconds. Setting to nanosecond will just add zeroes for microseconds fraction.
 
-The client has to be configured with time precision. The default settings is not using the timestamp. The `setWriteOptions` functions allow setting various parameters and one of them is __write precision__:
+The client has to be configured with a time precision. The default settings is not using the timestamp, which means server will assign timestamp. The `setWriteOptions` functions allow setting custom `WriteOptions` params and one of them is __write precision__:
 ``` cpp
 // Set write precision to milliseconds. Leave other parameters default.
-client.setWriteOptions(WritePrecision::MS);
+client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::MS));
 ```
 When a write precision is configured, the client will automatically assign current time to the timestamp of each written point, which doesn't have a timestamp assigned. 
 
@@ -220,21 +220,22 @@ For example, if you would like to see updates (on the dashboard or in processing
 
 In case that data should be written in longer periods and gathered data consists of several points batch size should be set to an expected number of points.
 
-To set batch size we use [setWriteOptions](#write-options) function, where second parameter controls batch size:
+To set batch size we use `WriteOptions` object and  [setWriteOptions](#write-options) function:
 ```cpp
 // Enable messages batching
-client.setWriteOptions(WritePrecision::MS, 10);
+client.setWriteOptions(WriteOptions().batchSize(10));
 ```
 Writing point will add a point to the underlying buffer until the batch size is reached:
 ```cpp
 // Write first point to the buffer
+// Buffered write always returns `true`
 client.writePoint(point1);
 // Write second point to the buffer
 client.writePoint(point2);
 ..
-// Write nineth point to the buffer, returns 
+// Write nineth point to the buffer
 client.writePoint(point9);
-// Writing tenth point will cause flushing buffer
+// Writing tenth point will cause flushing buffer and returns actual write result.
 if(!client.writePoint(point10)) {
     Serial.print("InfluxDB write failed: ");
     Serial.println(client.getLastErrorMessage());
@@ -246,12 +247,12 @@ In case of a number of points is not always the same, set batch size to the maxi
 ## Buffer Handling and Retrying
 InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server backpressure and connection failure.
 
-Its size is controled by the 3rd parameter of [setWriteOptions](#write-options) function:
+Its size is controled by the `bufferSize` param of [WriteOptions](#write-options) object:
 ```cpp
-// Enable messages batching
-client.setWriteOptions(WritePrecision::MS, 10, 30);
+// Increase buffer to allow caching of failed writes
+client.setWriteOptions(WriteOptions().bufferSize(50));
 ```
-The third parameter specifies the buffer size. The recommended size is at least 2 x batch size. 
+The recommended size is at least 2 x batch size. 
 
 State of the buffer can be determined via two functions:
  - `isBufferEmpty()` - Returns true if buffer is empty
@@ -278,15 +279,21 @@ Other functions for dealing with buffer:
 Check [SecureBatchWrite example](examples/SecureBatchWrite/SecureBatchWrite.ino) for example code of buffer handling functions.
 
 ## Write Options
-Writing points can be controlled via several parameters in `setWriteOptions` function:
+Writing points can be controlled via `WriteOptions`, which is set in `setWriteOptions` function:
 
 | Parameter | Default Value | Meaning |
 |-----------|---------------|---------| 
-| precision | `WritePrecision::NoTime` | Timestamp precision of written data |
+| writePrecision | `WritePrecision::NoTime` | Timestamp precision of written data |
 | batchSize | `1` | Number of points that will be written to the database at once |
 | bufferSize | `5` | Maximum number of points in buffer. Buffer contains new data that will be written to the database and also data that failed to be written due to network failure or server overloading |
 | flushInterval | `60` | Maximum time(in seconds) data will be held in buffer before are written to the db |
-| preserveConnection | `false` | true if underlying HTTP connection should be kept open |
+
+## HTTP Options
+`HTTPOptions` controls some aspects of HTTP communication and they are set via `setHTTPOptions` function:
+| Parameter | Default Value | Meaning |
+|-----------|---------------|---------| 
+| reuseConnection | `false` | Whether HTTP connection should be kept open after inital communicaton. Usable for frequent writes/queries. |
+| httpReadTimeout | `5000` | Timeout (ms) for reading server response |
 
 ## Secure Connection
 Connecting to a secured server requires configuring client to trust the server. This is achieved by providing client with a server certificate, certificate authority certificate or certificate SHA1 fingerprint. 
