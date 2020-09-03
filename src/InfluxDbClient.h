@@ -130,13 +130,13 @@ class InfluxDBClient {
     // Use FluxQueryResult::next() method to iterate over lines of the query result.
     // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
     FluxQueryResult query(String fluxQuery);
-    // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
+    // Forces writing of all points in buffer, even the batch is not full.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();
     // Returns true if points buffer is full. Usefull when server is overloaded and we may want increase period of write points or decrease number of points
-    bool isBufferFull() const  { return _bufferCeiling == _writeOptions._bufferSize; };
+    bool isBufferFull() const  { return _bufferCeiling == _writeBufferSize; };
     // Returns true if buffer is empty. Usefull when going to sleep and check if there is sth in write buffer (it can happens when batch size if bigger than 1). Call flushBuffer() then.
-    bool isBufferEmpty() const { return _bufferCeiling == 0; };
+    bool isBufferEmpty() const { return _bufferCeiling == 0 && !_writeBuffer[0]; };
     // Checks points buffer status and flushes if number of points reached batch size or flush interval runs out.
     // Returns true if successful, false in case of any error
     bool checkBuffer();
@@ -153,12 +153,27 @@ class InfluxDBClient {
     // Returns true in case of success, otherwise false
     bool init();
     // Sets request params
-    void preRequest();
+    void beforeRequest();
     // Handles response
-    void postRequest(int expectedStatusCode);
+    void afterRequest(int expectedStatusCode);
     // Cleans instances
     void clean();
   protected:
+    class Batch {
+      private:
+        uint8_t _size = 0;
+      public:
+        uint8_t pointer = 0;
+        String *buffer = nullptr;
+        uint8_t retryCount = 0;
+        Batch(int size):_size(size) {  buffer = new String[size]; }
+        ~Batch() { delete [] buffer; }
+        bool append(String &line);
+        char *createData();
+        bool isFull() const {
+          return pointer == _size;
+        }
+    };
   friend class Test;
     // Connection info
     String _serverUrl;
@@ -174,17 +189,19 @@ class InfluxDBClient {
     // Cached full query url
     String _queryUrl;
     // Points buffer
-    String *_pointsBuffer = nullptr;
+    Batch **_writeBuffer = nullptr;
+    // Batch buffer size
+    uint8_t _writeBufferSize;
     // Write options
     WriteOptions _writeOptions;
     // HTTP options
     HTTPOptions _httpOptions;
-    // Index to buffer where to store new line
-    uint16_t _bufferPointer = 0;
-    // Actual count of lines in buffer 
-    uint16_t _bufferCeiling = 0;
-    // Index of start for next write
-    uint16_t _batchPointer = 0;
+    // Index to buffer where to store new batch
+    uint8_t _bufferPointer = 0;
+    // Actual count of batches in buffer 
+    uint8_t _bufferCeiling = 0;
+    // Index of bath start for next write
+    uint8_t _batchPointer = 0;
     // Last time in sec bufer has been sucessfully flushed
     uint32_t _lastFlushed = 0;
     // Last time in ms we made are a request to server
@@ -210,12 +227,16 @@ class InfluxDBClient {
     int _lastRetryAfter = 0;
     // Sends POST request with data in body
     int postData(const char *data);
-    // Prepares batch from data in buffer`
-    char *prepareBatch(int &size);
     // Sets cached InfluxDB server API URLs
     void setUrls();
     // Ensures buffer has required size
     void reserveBuffer(int size);
+    // Drops current batcj and advances batch pointer
+    void dropCurrentBatch();
+    // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
+    //  flashOnlyFull - whether to flush only full batches
+    // Returns true if successful, false in case of any error 
+    bool flushBufferInternal(bool flashOnlyFull);
 };
 
 
