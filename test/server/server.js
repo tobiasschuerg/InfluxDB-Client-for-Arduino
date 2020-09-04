@@ -8,6 +8,7 @@ var pointsdb = [];
 var lastUserAgent = '';
 var chunked = false;
 var delay = 0;
+var permanentError = 0;
 
 app.use (function(req, res, next) {
     var data='';
@@ -52,47 +53,66 @@ app.post('/api/v2/write', (req,res) => {
         //console.log('Write');
         //console.log(req.body);
         var points = parsePoints(req.body);
+        if(permanentError > 0) {
+            console.log('Pernament error ' + permanentError);
+            res.status(permanentError).send("Internal server error"); 
+        }
         if(Array.isArray(points) && points.length > 0) {
             var point = points[0];
             if(point.tags.hasOwnProperty('direction')) {
-                switch(point.tags.direction) {
-                    case '429-1':
-                        res.set("Retry-After","30");
-                        res.status(429).send("Limit exceeded"); 
-                        console.log('Retry-After 30');
-                        break;
-                    case '429-2':
-                         res.status(429).send("Limit exceeded"); 
-                        break;
-                    case '503-1':
-                        res.set("Retry-After","10");
-                        res.status(503).send("Server overloaded"); 
-                        console.log('Retry-After 10');
-                        break;
-                    case '503-2':
-                        console.log('Server overloaded');
-                        res.status(503).send("Server overloaded"); 
-                        break;
-                    case 'delete-all':
-                        pointsdb = [];
-                        res.status(204).end(); 
-                        break; 
-                    case '400':
-                        points = [];
-                        res.status(400).send("bad request");
-                        break;
-                    case '500':
-                        points = [];
-                        res.status(500).send("internal server error");
-                        break;
-                    case 'chunked':
-                        chunked = true;
-                        console.log("Set chunked = true");
-                        break;
-                    case 'timeout':
-                        delay = parseInt(point.tags.timeout)*1000;
-                        console.log("Set delay: " + delay);
-                        break;
+                if(permanentError > 0) {
+                    if(point.tags.direction == 'permanent-unset' ) {
+                        permanentError = 0;
+                    }
+                } else {
+                    switch(point.tags.direction) {
+                        case '429-1':
+                            console.log('Limit exceeded');
+                            res.set("Retry-After","10");
+                            console.log('Retry-After 10');
+                            res.status(429).send("Limit exceeded"); 
+                            break;
+                        case '429-2':
+                            console.log('Limit exceeded');
+                            console.log('Retry-After default');
+                            res.status(429).send("Limit exceeded"); 
+                            break;
+                        case '503-1':
+                            res.set("Retry-After","10");
+                            console.log('Server overloaded');
+                            console.log('Retry-After 10');
+                            res.status(503).send("Server overloaded"); 
+                            break;
+                        case '503-2':
+                            console.log('Server overloaded');
+                            console.log('Retry-After default');
+                            res.status(503).send("Server overloaded"); 
+                            break;
+                        case 'delete-all':
+                            pointsdb = [];
+                            res.status(204).end(); 
+                            break; 
+                        case 'status':
+                            points = [];
+                            const code = parseInt(point.tags['x-code']);
+                            console.log("Set code: " + code);
+                            res.status(code).send("bad request");
+                            break;
+                        case 'chunked':
+                            chunked = true;
+                            console.log("Set chunked = true");
+                            break;
+                        case 'timeout':
+                            delay = parseInt(point.tags.timeout)*1000;
+                            console.log("Set delay: " + delay);
+                            break;
+                        case 'permanent-set':
+                            permanentError = parseInt(point.tags['x-code']);
+                            console.log("Set permanentError: " + permanentError);
+                            res.status(permanentError).send("bad request");
+                            break;
+                    }
+                    
                 }
                 points.shift();
             }

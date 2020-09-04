@@ -8,13 +8,9 @@
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 #if defined(ESP32)
-#include <WiFiMulti.h>
-WiFiMulti wifiMulti;
 String chipId = String((unsigned long)ESP.getEfuseMac());
 String deviceName = "ESP32";
 #elif defined(ESP8266)
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
 String chipId = String(ESP.getChipId());
 String deviceName = "ESP8266";
 #endif
@@ -41,7 +37,7 @@ void setup() {
 
     WiFi.mode(WIFI_STA);
     WiFi.setAutoConnect(true);
-    wifiMulti.addAP(INFLUXDB_CLIENT_TESTING_SSID, INFLUXDB_CLIENT_TESTING_PASS);
+
     Serial.println();
 
     initInet();
@@ -78,12 +74,14 @@ private:
     static void testBufferOverwriteBatchsize5();
     static void testServerTempDownBatchsize5();
     static void testRetriesOnServerOverload();
-
+    static void testRetryInterval();
 };
 
 void loop() {
+    Serial.printf("RAM %d\n", ESP.getFreeHeap());
     Test::run();
     Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
+    Serial.printf("RAM %d\n", ESP.getFreeHeap());
     while(1) delay(1000);
 }
 
@@ -116,6 +114,7 @@ void Test::run() {
     testBufferOverwriteBatchsize5();
     testServerTempDownBatchsize5();
     testRetriesOnServerOverload();
+    testRetryInterval();
 }
 
 void Test::testOptions() {
@@ -125,12 +124,18 @@ void Test::testOptions() {
         TEST_ASSERT(defWO._batchSize == 1);
         TEST_ASSERT(defWO._bufferSize == 5);
         TEST_ASSERT(defWO._flushInterval == 60);
+        TEST_ASSERT(defWO._retryInterval == 5);
+        TEST_ASSERT(defWO._maxRetryInterval == 300);
+        TEST_ASSERT(defWO._maxRetryAttempts == 3);
 
-        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushIntervalSec(120);
+        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5);
         TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
         TEST_ASSERT(defWO._batchSize == 10);
         TEST_ASSERT(defWO._bufferSize == 20);
         TEST_ASSERT(defWO._flushInterval == 120);
+        TEST_ASSERT(defWO._retryInterval == 1);
+        TEST_ASSERT(defWO._maxRetryInterval == 20);
+        TEST_ASSERT(defWO._maxRetryAttempts == 5);
 
         HTTPOptions defHO;
         TEST_ASSERT(!defHO._connectionReuse);
@@ -145,6 +150,9 @@ void Test::testOptions() {
         TEST_ASSERT(c._writeOptions._batchSize == 1);
         TEST_ASSERT(c._writeOptions._bufferSize == 5);
         TEST_ASSERT(c._writeOptions._flushInterval == 60);
+        TEST_ASSERT(c._writeOptions._retryInterval == 5);
+        TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
+        TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
         TEST_ASSERT(!c._httpOptions._connectionReuse);
         TEST_ASSERT(c._httpOptions._httpReadTimeout == 5000);
 
@@ -153,6 +161,10 @@ void Test::testOptions() {
         TEST_ASSERT(c._writeOptions._batchSize == 10);
         TEST_ASSERT(c._writeOptions._bufferSize == 20);
         TEST_ASSERT(c._writeOptions._flushInterval == 120);
+        TEST_ASSERT(c._writeOptions._retryInterval == 1);
+        TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
+        TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
+
         c.setHTTPOptions(defHO);
         TEST_ASSERT(c._httpOptions._connectionReuse);
         TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
@@ -442,7 +454,9 @@ void Test::testRetryOnFailedConnection() {
     TEST_INIT("testRetryOnFailedConnection");
 
     InfluxDBClient clientOk(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    clientOk.setWriteOptions(WritePrecision::NoTime, 1, 5);
+    clientOk.setWriteOptions(WriteOptions().batchSize(1).bufferSize(5));
+    clientOk.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
+
     Serial.println("Stop server!");
     waitServer(clientOk, false);
     TEST_ASSERT(!clientOk.validateConnection());
@@ -455,7 +469,7 @@ void Test::testRetryOnFailedConnection() {
 
     Serial.println("Start server!");
     waitServer(clientOk, true);
-
+    clientOk.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     TEST_ASSERT(clientOk.validateConnection());
     p = createPoint("test1");
     TEST_ASSERT(clientOk.writePoint(*p));
@@ -472,7 +486,8 @@ void Test::testRetryOnFailedConnection() {
 void Test::testBufferOverwriteBatchsize1() {
     TEST_INIT("testBufferOverwriteBatchsize1");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_BAD_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    client.setWriteOptions(WritePrecision::NoTime, 1, 5);
+    client.setWriteOptions(WriteOptions().batchSize(1).bufferSize(5));
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
 
     TEST_ASSERT(!client.validateConnection());
     for (int i = 0; i < 12; i++) {
@@ -482,12 +497,12 @@ void Test::testBufferOverwriteBatchsize1() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERT(client._pointsBuffer[0].indexOf("index=10i") > 0);
+    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=10i") > 0, client._writeBuffer[0]->buffer[0]);
 
     client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
     client.setUrls();
     waitServer(client, true);
-
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
     p->addField("index", 12);
     TEST_ASSERT(client.writePoint(*p));
@@ -498,11 +513,11 @@ void Test::testBufferOverwriteBatchsize1() {
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERTM(lines.size() == 5, String("5 != " + lines.size()));  //5 points
-    TEST_ASSERT(lines[0].indexOf(",8") > 0);
-    TEST_ASSERT(lines[1].indexOf(",9") > 0);
-    TEST_ASSERT(lines[2].indexOf(",10") > 0);
-    TEST_ASSERT(lines[3].indexOf(",11") > 0);
-    TEST_ASSERT(lines[4].indexOf(",12") > 0);
+    TEST_ASSERTM(lines[0].indexOf(",8") > 0, lines[0]);
+    TEST_ASSERTM(lines[1].indexOf(",9") > 0, lines[1]);
+    TEST_ASSERTM(lines[2].indexOf(",10") > 0, lines[2]);
+    TEST_ASSERTM(lines[3].indexOf(",11") > 0, lines[3]);
+    TEST_ASSERTM(lines[4].indexOf(",12") > 0, lines[4]);
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
@@ -511,10 +526,11 @@ void Test::testBufferOverwriteBatchsize1() {
 void Test::testBufferOverwriteBatchsize5() {
     TEST_INIT("testBufferOverwriteBatchsize5");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_BAD_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    client.setWriteOptions(WritePrecision::NoTime, 5, 12);
+    client.setWriteOptions(WriteOptions().batchSize(5).bufferSize(20));
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
 
     TEST_ASSERT(!client.validateConnection());
-    for (int i = 0; i < 27; i++) {
+    for (int i = 0; i < 39; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         //will succeed only first batchsize-1 points
@@ -522,15 +538,15 @@ void Test::testBufferOverwriteBatchsize5() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERT(client._pointsBuffer[0].indexOf("index=24i") > 0);
+    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=20i") > 0, client._writeBuffer[0]->buffer[0]);
 
     client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
     client.setUrls();
 
     waitServer(client, true);
-
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
-    p->addField("index", 27);
+    p->addField("index", 39);
     TEST_ASSERT(client.writePoint(*p));
     TEST_ASSERT(client.isBufferEmpty());
     //flushing of empty buffer is ok
@@ -540,13 +556,13 @@ void Test::testBufferOverwriteBatchsize5() {
     FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 12);  //12 points
-    TEST_ASSERT(lines[0].indexOf(",16") > 0);
-    TEST_ASSERT(lines[1].indexOf(",17") > 0);
-    TEST_ASSERT(lines[2].indexOf(",18") > 0);
-    TEST_ASSERT(lines[3].indexOf(",19") > 0);
-    TEST_ASSERT(lines[4].indexOf(",20") > 0);
-    TEST_ASSERT(lines[11].indexOf(",27") > 0);
+    TEST_ASSERTM(lines.size() == 20,String(lines.size()));  //20 points (4 batches)
+    TEST_ASSERTM(lines[0].indexOf(",20") > 0,lines[0]);
+    TEST_ASSERTM(lines[1].indexOf(",21") > 0,lines[1]);
+    TEST_ASSERTM(lines[2].indexOf(",22") > 0,lines[2]);
+    TEST_ASSERTM(lines[3].indexOf(",23") > 0,lines[3]);
+    TEST_ASSERTM(lines[4].indexOf(",24") > 0,lines[4]);
+    TEST_ASSERTM(lines[19].indexOf(",39") > 0,lines[9]);
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
     // buffer has been emptied, now writes should go according batch size
     for (int i = 0; i < 4; i++) {
@@ -583,8 +599,10 @@ void Test::testServerTempDownBatchsize5() {
     TEST_INIT("testServerTempDownBatchsize5");
     InfluxDBClient client;
     client.setConnectionParams(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    client.setWriteOptions(WritePrecision::NoTime, 5, 20, 60, true);
-
+    client.setWriteOptions(WriteOptions().batchSize(5).bufferSize(20).flushInterval(60));
+    client.setHTTPOptions(HTTPOptions().connectionReuse(true));
+    
+    waitServer(client, true);
     TEST_ASSERT(client.validateConnection());
     for (int i = 0; i < 15; i++) {
         Point *p = createPoint("test1");
@@ -601,7 +619,8 @@ void Test::testServerTempDownBatchsize5() {
 
     Serial.println("Stop server");
     waitServer(client, false);
-    for (int i = 0; i < 15; i++) {
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
+    for (int i = 0; i < 14; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         //will succeed only first batchsize-1 points
@@ -613,19 +632,20 @@ void Test::testServerTempDownBatchsize5() {
     Serial.println("Start server");
     ;
     waitServer(client, true);
-
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
-    p->addField("index", 15);
+    p->addField("index", 14);
     TEST_ASSERT(client.writePoint(*p));
     TEST_ASSERT(client.isBufferEmpty());
     q = client.query(query);
-    TEST_ASSERT(countLines(q) == 16); 
+    TEST_ASSERT(countLines(q) == 15); 
     TEST_ASSERTM(q.getError()=="", q.getError());
 
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
     Serial.println("Stop server");
     waitServer(client, false);
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
 
     for (int i = 0; i < 25; i++) {
         Point *p = createPoint("test1");
@@ -639,7 +659,7 @@ void Test::testServerTempDownBatchsize5() {
     Serial.println("Start server");
     ;
     waitServer(client, true);
-
+    client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     TEST_ASSERT(client.flushBuffer());
     q = client.query(query);
     std::vector<String> lines = getLines(q);
@@ -660,8 +680,9 @@ void Test::testServerTempDownBatchsize5() {
 void Test::testRetriesOnServerOverload() {
     TEST_INIT("testRetriesOnServerOverload");
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    client.setWriteOptions(WritePrecision::NoTime, 5, 20, 60, false);
+    client.setWriteOptions(WriteOptions().batchSize(5).bufferSize(20).flushInterval(60));
 
+    waitServer(client, true);
     TEST_ASSERT(client.validateConnection());
     for (int i = 0; i < 60; i++) {
         Point *p = createPoint("test1");
@@ -682,8 +703,8 @@ void Test::testRetriesOnServerOverload() {
     client.resetBuffer();
 
     uint32_t start = millis();
-    uint32_t retryDelay = 30;
-    for (int i = 0; i < 50; i++) {
+    uint32_t retryDelay = 10;
+    for (int i = 0; i < 52; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         uint32_t dur = (millis() - start) / 1000;
@@ -698,7 +719,7 @@ void Test::testRetriesOnServerOverload() {
             }
         }
         delete p;
-        delay(1000);
+        delay(333);
     }
     TEST_ASSERT(!client.isBufferEmpty());
     TEST_ASSERT(client.flushBuffer());
@@ -706,19 +727,20 @@ void Test::testRetriesOnServerOverload() {
     q = client.query(query);
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 39);  
-    TEST_ASSERT(lines[0].indexOf(",11") > 0);
-    TEST_ASSERT(lines[38].indexOf(",49") > 0);
+    TEST_ASSERT(lines.size() == 37);  
+    TEST_ASSERT(lines[0].indexOf(",15") > 0);
+    TEST_ASSERT(lines[36].indexOf(",51") > 0);
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
+    // default retry
     rec = "a,direction=429-2 a=1";
     TEST_ASSERT(client.writeRecord(rec));
     TEST_ASSERT(!client.flushBuffer());
     client.resetBuffer();
 
-    retryDelay = 60;
+    retryDelay = 5;
     start = millis();
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 52; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         uint32_t dur = (millis() - start) / 1000;
@@ -733,7 +755,7 @@ void Test::testRetriesOnServerOverload() {
             }
         }
         delete p;
-        delay(2000);
+        delay(164);
     }
     TEST_ASSERT(!client.isBufferEmpty());
     TEST_ASSERT(client.flushBuffer());
@@ -741,9 +763,9 @@ void Test::testRetriesOnServerOverload() {
     q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 39);
-    TEST_ASSERT(lines[0].indexOf(",11") > 0);
-    TEST_ASSERT(lines[38].indexOf(",49") > 0);
+    TEST_ASSERT(lines.size() == 37);
+    TEST_ASSERT(lines[0].indexOf(",15") > 0);
+    TEST_ASSERT(lines[36].indexOf(",51") > 0);
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
     rec = "a,direction=503-1 a=1";
@@ -753,7 +775,7 @@ void Test::testRetriesOnServerOverload() {
 
     retryDelay = 10;
     start = millis();
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 52; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         uint32_t dur = (millis() - start) / 1000;
@@ -776,19 +798,20 @@ void Test::testRetriesOnServerOverload() {
     q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 50);
+    TEST_ASSERT(lines.size() == 52);
     TEST_ASSERT(lines[0].indexOf(",0") > 0);
-    TEST_ASSERT(lines[49].indexOf(",49") > 0);
+    TEST_ASSERT(lines[51].indexOf(",51") > 0);
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
+    // default retry
     rec = "a,direction=503-2 a=1";
     TEST_ASSERT(client.writeRecord(rec));
     TEST_ASSERT(!client.flushBuffer());
     client.resetBuffer();
 
-    retryDelay = 60;
+    retryDelay = 5;
     start = millis();
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 52; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
         uint32_t dur = (millis() - start) / 1000;
@@ -803,7 +826,7 @@ void Test::testRetriesOnServerOverload() {
             }
         }
         delete p;
-        delay(2000);
+        delay(162);
     }
     TEST_ASSERT(!client.isBufferEmpty());
     TEST_ASSERT(client.flushBuffer());
@@ -812,9 +835,9 @@ void Test::testRetriesOnServerOverload() {
     q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 39); 
-    TEST_ASSERT(lines[0].indexOf(",11") > 0);
-    TEST_ASSERT(lines[38].indexOf(",49") > 0);
+    TEST_ASSERT(lines.size() == 37); 
+    TEST_ASSERT(lines[0].indexOf(",15") > 0);
+    TEST_ASSERT(lines[36].indexOf(",51") > 0);
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
@@ -824,13 +847,14 @@ void Test::testFailedWrites() {
     TEST_INIT("testFailedWrites");
 
     InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
-    client.setWriteOptions(WritePrecision::NoTime, 1, 5);
+    client.setWriteOptions(WriteOptions().batchSize(1).bufferSize(5));
     //test with no batching
     TEST_ASSERT(client.validateConnection());
     for (int i = 0; i < 20; i++) {
         Point *p = createPoint("test1");
         if (!(i % 5)) {
-            p->addTag("direction", i > 10 ? "500" : "400");
+            p->addTag("direction", "status");
+            p->addTag("x-code", i > 10 ? "404" : "320");
         }
         p->addField("index", i);
         TEST_ASSERTM(client.writePoint(*p) == (i % 5 != 0), String("i=") + i + client.getLastErrorMessage());
@@ -853,7 +877,8 @@ void Test::testFailedWrites() {
     for (int i = 0; i < 30; i++) {
         Point *p = createPoint("test1");
         if (!(i % 10)) {
-            p->addTag("direction", i > 15 ? "500" : "400");
+            p->addTag("direction", "status");
+            p->addTag("x-code", i > 10 ? "404" : "320");
         }
         p->addField("index", i);
         //i == 4,14,24 should fail
@@ -999,7 +1024,7 @@ void Test::testV1() {
     q = client.query(query);
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERT(lines.size() == 15);  
+    TEST_ASSERTM(lines.size() == 15, String(lines.size()));  
 
     // test precision
     for (int i = (int)WritePrecision::NoTime; i <= (int)WritePrecision::NS; i++) {
@@ -1623,9 +1648,53 @@ void Test::testFluxParserErrorInRow() {
     TEST_END();
 }
 
+void Test::testRetryInterval() {
+    TEST_INIT("testRetryInterval");
+    InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    client.setWriteOptions(WriteOptions().retryInterval(2));
 
+    
+    waitServer(client, true);
+    TEST_ASSERT(client.validateConnection());
 
+    String rec = "test1,direction=permanent-set,x-code=502,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=0";
+    TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 1, String(client._writeBuffer[0]->retryCount));
+    delay(2000);
+    rec = "test1,direction=permanent-unset,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=2";
+    TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERTM(client._lastRetryAfter == 4, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 2, String(client._writeBuffer[0]->retryCount));
+    delay(4000);
+    rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=3";
+    TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERTM(client._lastRetryAfter == 8, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 3, String(client._writeBuffer[0]->retryCount));
+    delay(8000);
+    rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=4";
+    TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERT(!client._writeBuffer[0]);
+    TEST_ASSERTM(client._writeBuffer[1]->retryCount == 0, String(client._writeBuffer[1]->retryCount));
 
+    delay(2000);
+    rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=5";
+    TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERT(!client._writeBuffer[0]);
+    TEST_ASSERTM(client._writeBuffer[1]->retryCount == 1, String(client._writeBuffer[1]->retryCount));
+
+    delay(2000);
+    TEST_ASSERTM(client.flushBuffer(), client.getLastErrorMessage());
+    String query = "select";
+    FluxQueryResult q = client.query(query);
+    TEST_ASSERT(countLines(q) == 3); //point with the direction tag is skipped
+    TEST_ASSERTM(q.getError()=="", q.getError()); 
+
+    TEST_END();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
 
 Point *createPoint(String measurement) {
     Point *point = new Point(measurement);
@@ -1641,18 +1710,27 @@ Point *createPoint(String measurement) {
 }
 
 void initInet() {
-    int i = 0;
-    Serial.print("Connecting to wifi ");
-    while ((wifiMulti.run() != WL_CONNECTED) && (i < 100)) {
-        Serial.print(".");
-        delay(300);
-        i++;
+    int i = 0,j = 0;
+    bool wifiOk = false;
+    while(!wifiOk && j<3) {
+        Serial.print("Connecting to wifi ");
+        WiFi.begin(INFLUXDB_CLIENT_TESTING_SSID, INFLUXDB_CLIENT_TESTING_PASS);
+        while ((WiFi.status() != WL_CONNECTED) && (i < 30)) {
+            Serial.print(".");
+            delay(300);
+            i++;
+        }
+        Serial.println();
+        wifiOk = WiFi.status() == WL_CONNECTED;
+        if(!wifiOk) {
+            WiFi.disconnect();
+        }
+        j++;
     }
-    Serial.println();
-    bool wifiOk = WiFi.status() == WL_CONNECTED;
     if (!wifiOk) {
         Serial.println("Wifi connection failed");
-        while (1) delay(100);
+        Serial.println("Restating");
+        ESP.restart();
     } else {
         Serial.printf("Connected to: %s (%d)\n", WiFi.SSID().c_str(), WiFi.RSSI());
         Serial.print("Ip: ");

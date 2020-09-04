@@ -53,17 +53,29 @@ private:
     // Maximum number of seconds points can be held in buffer before are written to the db. 
     // Buffer is flushed when it reaches batch size or when flush interval runs out. 
     uint16_t _flushInterval;
+    // Default retry interval in sec, if not sent by server. Default 5s
+    uint16_t _retryInterval;
+    // Maximum retry interval in sec, default 5min (300s)
+    uint16_t _maxRetryInterval;
+    // Maximum count of retry attempts of failed writes, default 3
+    uint16_t _maxRetryAttempts;
 public:
     WriteOptions():
         _writePrecision(WritePrecision::NoTime),
         _batchSize(1),
         _bufferSize(5),
-        _flushInterval(60) {
+        _flushInterval(60),
+        _retryInterval(5),
+        _maxRetryInterval(300),
+        _maxRetryAttempts(3) {
         }
     WriteOptions& writePrecision(WritePrecision precision) { _writePrecision = precision; return *this; }
     WriteOptions& batchSize(uint16_t batchSize) { _batchSize = batchSize; return *this; }
     WriteOptions& bufferSize(uint16_t bufferSize) { _bufferSize = bufferSize; return *this; }
-    WriteOptions& flushIntervalSec(uint16_t flushIntervalSec) { _flushInterval = flushIntervalSec; return *this; }
+    WriteOptions& flushInterval(uint16_t flushIntervalSec) { _flushInterval = flushIntervalSec; return *this; }
+    WriteOptions& retryInterval(uint16_t retryIntervalSec) { _retryInterval = retryIntervalSec; return *this; }
+    WriteOptions& maxRetryInterval(uint16_t maxRetryIntervalSec) { _maxRetryInterval = maxRetryIntervalSec; return *this; }
+    WriteOptions& maxRetryAttempts(uint16_t maxRetryAttempts) { _maxRetryAttempts = maxRetryAttempts; return *this; }
 };
 
 /**
@@ -77,8 +89,8 @@ private:
     // true if HTTP connection should be kept open. Usable for frequent writes.
     // Default false.
     bool _connectionReuse;
-    // Timeout (ms) for reading server response.
-    // Default 5000ms.s  
+    // Timeout [ms] for reading server response.
+    // Default 5000ms  
     int _httpReadTimeout;
 public:
     HTTPOptions():

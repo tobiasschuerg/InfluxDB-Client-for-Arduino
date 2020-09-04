@@ -45,6 +45,7 @@ static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIE
 #include "util/debug.h"
 
 static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance"; 
+static const char TooEarlyMessage[] PROGMEM = "Too early request";
 // This cannot be put to PROGMEM due to the way how it is used
 static const char RetryAfter[] = "Retry-After";
 static const char TransferEnconding[] = "Transfer-Encoding";
@@ -69,7 +70,7 @@ static String precisionToString(WritePrecision precision, uint8_t version = 2) {
 }
 
 InfluxDBClient::InfluxDBClient() { 
-    _pointsBuffer = new String[_writeOptions._bufferSize];
+   resetBuffer();
 }
 
 InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *db):InfluxDBClient() {
@@ -201,9 +202,9 @@ bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url) {
 #endif //ESP8266
 
 InfluxDBClient::~InfluxDBClient() {
-     if(_pointsBuffer) {
-        delete [] _pointsBuffer;
-        _pointsBuffer = nullptr;
+     if(_writeBuffer) {
+        delete [] _writeBuffer;
+        _writeBuffer = nullptr;
         _bufferPointer = 0;
         _batchPointer = 0;
         _bufferCeiling = 0;
@@ -266,7 +267,7 @@ void InfluxDBClient::setUrls() {
 }
 
 void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSize, uint16_t bufferSize, uint16_t flushInterval, bool preserveConnection) {
-    setWriteOptions(WriteOptions().writePrecision(precision).batchSize(batchSize).bufferSize(bufferSize).flushIntervalSec(flushInterval));
+    setWriteOptions(WriteOptions().writePrecision(precision).batchSize(batchSize).bufferSize(bufferSize).flushInterval(flushInterval));
     setHTTPOptions(_httpOptions.connectionReuse(preserveConnection));
 }
 
@@ -280,13 +281,16 @@ void InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
     }
     if(_writeOptions._bufferSize > 0 && writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
         _writeOptions._bufferSize = writeOptions._bufferSize;
-        if(_writeOptions._bufferSize <  _writeOptions._batchSize) {
+        if(_writeOptions._bufferSize <  2*_writeOptions._batchSize) {
             _writeOptions._bufferSize = 2*_writeOptions._batchSize;
             INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
         }
         resetBuffer();
     }
     _writeOptions._flushInterval = writeOptions._flushInterval;
+    _writeOptions._retryInterval = writeOptions._retryInterval;
+    _writeOptions._maxRetryInterval = writeOptions._maxRetryInterval;
+    _writeOptions._maxRetryAttempts = writeOptions._maxRetryAttempts;
 }
 
 void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
@@ -296,26 +300,37 @@ void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
 }
 
 void InfluxDBClient::resetBuffer() {
-    if(_pointsBuffer) {
-        delete [] _pointsBuffer;
+    if(_writeBuffer) {
+        for(int i=0;i<_writeBufferSize;i++) {
+            delete _writeBuffer[i];
+        }
+        delete [] _writeBuffer;
     }
-    _pointsBuffer = new String[_writeOptions._bufferSize];
+    _writeBufferSize = _writeOptions._bufferSize/_writeOptions._batchSize;
+    if(_writeBufferSize < 2) {
+        _writeBufferSize = 2;
+    }
+    INFLUXDB_CLIENT_DEBUG("Reset buffer: writeBuffSize: %d\n", _writeBufferSize);
+    _writeBuffer = new Batch*[_writeBufferSize];
+    for(int i=0;i<_writeBufferSize;i++) {
+        _writeBuffer[i] = nullptr;
+    }
     _bufferPointer = 0;
     _batchPointer = 0;
     _bufferCeiling = 0;
 }
 
 void InfluxDBClient::reserveBuffer(int size) {
-    if(size > _writeOptions._bufferSize) {
-        String *newBuffer = new String[size];
-        INFLUXDB_CLIENT_DEBUG("Resizing buffer from %d to %d\n", _writeOptions._bufferSize, size);
+    if(size > _writeBufferSize) {
+        Batch **newBuffer = new Batch*[size];
+        INFLUXDB_CLIENT_DEBUG("Resizing buffer from %d to %d\n",_writeBufferSize, size);
         for(int i=0;i<_bufferCeiling; i++) {
-            newBuffer[i] = _pointsBuffer[i];
+            newBuffer[i] = _writeBuffer[i];
         }
         
-        delete [] _pointsBuffer;
-        _pointsBuffer = newBuffer;
-        _writeOptions._bufferSize = size;
+        delete [] _writeBuffer;
+        _writeBuffer = newBuffer;
+        _writeBufferSize = size;
     }
 }
 
@@ -330,77 +345,164 @@ bool InfluxDBClient::writePoint(Point & point) {
     return false;
 }
 
+bool InfluxDBClient::Batch::append(String &line) {
+    if(pointer == _size) {
+        //overwriting, clean buffer
+        for(int i=0;i< _size; i++) {
+            buffer[i] = (const char *)nullptr; 
+        }
+        pointer = 0;
+    } 
+    buffer[pointer] = line;
+    ++pointer;
+    return isFull();
+}
+
+char * InfluxDBClient::Batch::createData() {
+     int length = 0; 
+     char *buff = nullptr;
+     for(int c=0; c < pointer; c++) {
+        length += buffer[c].length();
+        yield();
+    }
+    //create buffer for all lines including new line char and terminating char
+    if(length) {
+        buff = new char[length + pointer + 1];
+        if(buff) {
+            buff[0] = 0;
+            for(int c=0; c < pointer; c++) {
+                strcat(buff+strlen(buff), buffer[c].c_str());
+                strcat(buff+strlen(buff), "\n");
+                yield();
+            }
+        }
+    }
+    return buff;
+}
+
 bool InfluxDBClient::writeRecord(String &record) {
-    _pointsBuffer[_bufferPointer] = record;
-    _bufferPointer++;
-    if(_bufferPointer == _writeOptions._bufferSize) {
-        _bufferPointer = 0;
-        INFLUXDB_CLIENT_DEBUG("[W] Reached buffer size, old points will be overwritten\n");
-        if(isBufferFull()) {
-            //if already isBufferFull
+    if(!_writeBuffer[_bufferPointer]) {
+        _writeBuffer[_bufferPointer] = new Batch(_writeOptions._batchSize);
+    }
+    if(isBufferFull() && _batchPointer <= _bufferPointer) {
+        // When we are overwriting buffer and nothing is written, batchPointer must point to the oldest point
+        _batchPointer = _bufferPointer+1;
+        if(_batchPointer == _writeBufferSize) {
             _batchPointer = 0;
         }
+    }
+    INFLUXDB_CLIENT_DEBUG("[D] writeRecord: bufferPointer: %d, batchPointer: %d\n", _bufferPointer, _batchPointer);
+    if(_writeBuffer[_bufferPointer]->append(record)) { //we reached batch size
+        _bufferPointer++;
+        if(_bufferPointer == _writeBufferSize) { // writeBuffer is full
+            _bufferPointer = 0;
+            INFLUXDB_CLIENT_DEBUG("[W] Reached write buffer size, old points will be overwritten\n");
+            // if(isBufferFull()) {
+            //     //if already isBufferFull
+            //     _batchPointer = 0;
+            // }
+        } 
+
+        if(_bufferCeiling < _writeBufferSize) {
+            _bufferCeiling++;
+        }
     } 
-    if(_bufferCeiling < _writeOptions._bufferSize) {
-        _bufferCeiling++;
-    }
-    if(isBufferFull() && _batchPointer < _bufferPointer) {
-        // When we are overwriting buffer and nothing is written, batchPointer must point to the oldest point
-        _batchPointer = _bufferPointer;
-    }
+    
     return checkBuffer();
 }
 
 bool InfluxDBClient::checkBuffer() {
     // in case we (over)reach batchSize with non full buffer
-    bool bufferReachedBatchsize = !isBufferFull() && _bufferPointer - _batchPointer >= _writeOptions._batchSize;
+    bool bufferReachedBatchsize = _writeBuffer[_batchPointer] && _writeBuffer[_batchPointer]->isFull();
     // or flush interval timed out
     bool flushTimeout = _writeOptions._flushInterval > 0 && _lastFlushed > 0 && (millis()/1000 - _lastFlushed) > _writeOptions._flushInterval; 
 
     if(bufferReachedBatchsize || flushTimeout || isBufferFull() ) {
         INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", bufferReachedBatchsize?"true":"false",flushTimeout?"true":"false", isBufferFull()?"true":"false");
-       return flushBuffer();
+       return flushBufferInternal(true);
     } 
     return true;
 }
 
+void  InfluxDBClient::dropCurrentBatch() {
+    delete _writeBuffer[_batchPointer];
+    _writeBuffer[_batchPointer] = nullptr;
+    _batchPointer++;
+    //did we got over top?
+    if(_batchPointer == _writeBufferSize) {
+        // restart _batchPointer in ring buffer from start
+        _batchPointer = 0;
+        // we reached buffer size, that means buffer was full and now lower ceiling 
+        _bufferCeiling = _bufferPointer;
+    }
+     INFLUXDB_CLIENT_DEBUG("[D] Droped batch, batchpointer: %d\n", _batchPointer);
+}
+
 bool InfluxDBClient::flushBuffer() {
-    if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
-        // retry after period didn't run out yet
-        return false;
+    return flushBufferInternal(false);
+}
+
+bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
+    if(_lastRetryAfter > 0) {
+        uint32_t diff = (millis()-_lastRequestTime)/1000 ;
+        if(diff < _lastRetryAfter) {
+            INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, so far %ds\n", _lastRetryAfter, diff);
+            // retry after period didn't run out yet
+            _lastStatusCode = 0;
+            _lastErrorResponse = FPSTR(TooEarlyMessage);
+            return false;
+        }
     }
     char *data;
-    int size;
     bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
-    while(data = prepareBatch(size)) {
-        INFLUXDB_CLIENT_DEBUG("[D] Writing batch, size %d\n", size);
-        int statusCode = postData(data);
-        delete [] data;
-        // retry on unsuccessfull connection or retryable status codes
-        bool retry = statusCode < 0 || statusCode == 429 || statusCode == 503;
-        success = statusCode == 204;
-        // advance even on message failure (4xx != 429) or server failure (5xx != 503) 
-        if(success || !retry) {
-            _lastFlushed = millis()/1000;
-            _batchPointer += size;
-            //did we got over top?
-            if(_batchPointer >= _writeOptions._bufferSize) {
-                // restart _batchPointer in ring buffer from start
-                _batchPointer = _batchPointer - _writeOptions._bufferSize;
-                // we reached buffer size, that means buffer was full and now lower ceiling 
-                _bufferCeiling = _bufferPointer;
+    while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
+        data = _writeBuffer[_batchPointer]->createData();
+        if(!_writeBuffer[_batchPointer]->isFull()) {
+            // increase _bufferPointer as it happen when buffer is flushed when is full
+            if(++_bufferPointer == _writeBufferSize) {
+                _bufferPointer = 0;
             }
-        } else {
-            INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry\n");
-            // in case of retryable failure break loop
-            break;
+        }
+
+        INFLUXDB_CLIENT_DEBUG("[D] Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->pointer);
+        if(data) {
+            int statusCode = postData(data);
+            delete [] data;
+            // retry on unsuccessfull connection or retryable status codes
+            bool retry = statusCode < 0 || statusCode >= 429;
+            success = statusCode >= 200 && statusCode < 300;
+            // advance even on message failure x e <300;429)
+            if(success || !retry) {
+                _lastFlushed = millis()/1000;
+                dropCurrentBatch();
+            } else if(retry) {
+                _writeBuffer[_batchPointer]->retryCount++;
+                if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
+                    INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
+                    dropCurrentBatch();
+                }
+                if(!_lastRetryAfter) {
+                    _lastRetryAfter = _writeOptions._retryInterval;
+                    if(_writeBuffer[_batchPointer]) {
+                        for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
+                            _lastRetryAfter *= _writeOptions._retryInterval;
+                        }
+                        if(_lastRetryAfter > _writeOptions._maxRetryInterval) {
+                            _lastRetryAfter = _writeOptions._maxRetryInterval;
+                        }
+                    }
+                }
+                INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry, retryInterval: %d\n",_lastRetryAfter);
+                // in case of retryable failure break loop
+                break;
+            }
         }
        yield();
     }
     //Have we emptied the buffer?
     if(success) {
-        if(_batchPointer == _bufferPointer) {
+        if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
             _bufferPointer = 0;
             _batchPointer = 0;
             _bufferCeiling = 0;
@@ -410,58 +512,6 @@ bool InfluxDBClient::flushBuffer() {
     return success;
 }
 
-char *InfluxDBClient::prepareBatch(int &size) {
-    size = 0;
-    int length = 0;
-    char *buff = nullptr;
-    uint16_t top = _batchPointer+_writeOptions._batchSize;
-    INFLUXDB_CLIENT_DEBUG("[D] Prepare batch: bufferPointer: %d, batchPointer: %d, ceiling %d\n", _bufferPointer, _batchPointer, _bufferCeiling);
-    if(top > _bufferCeiling ) {
-        // are we returning to the begining?
-        if(isBufferFull()) {
-            top = top - _bufferCeiling;
-            // in case we are writing points in the begining of the buffer that have been overwritten, end on _bufferPointer
-            if(top > _bufferPointer) {
-                top = _bufferPointer;
-            }
-        } else {
-            top = _bufferCeiling;
-        }
-    } 
-    if(top > _batchPointer) { 
-        size = top - _batchPointer;
-    } else if(top < _batchPointer) {
-        size = _writeOptions._bufferSize - (_batchPointer - top);
-    }
-    INFLUXDB_CLIENT_DEBUG("[D] Prepare batch size %d\n", size);
-    if(size) {
-        int i = _batchPointer;
-        for(int c=0; c < size; c++) {
-            length += _pointsBuffer[i++].length();
-            if(i == _writeOptions._bufferSize) {
-                i = 0;
-            }
-            yield();
-        }
-        //create buffer for all lines including new line char and terminating char
-        buff = new char[length + size + 1];
-        if(buff) {
-            buff[0] = 0;
-            int i = _batchPointer;
-            for(int c=0; c < size; c++) {
-                strcat(buff+strlen(buff), _pointsBuffer[i++].c_str());
-                strcat(buff+strlen(buff), "\n");
-                if(i == _writeOptions._bufferSize) {
-                    i = 0;
-                }
-                yield();
-            }
-        } else {
-            size = 0;
-        }
-    }
-    return buff;
-}
 
 bool InfluxDBClient::validateConnection() {
     if(!_wifiClient && !init()) {
@@ -483,14 +533,14 @@ bool InfluxDBClient::validateConnection() {
 
    _lastErrorResponse = "";
     
-    postRequest(200);
+    afterRequest(200);
 
     _httpClient.end();
 
     return _lastStatusCode == 200;
 }
 
-void InfluxDBClient::preRequest() {
+void InfluxDBClient::beforeRequest() {
     if(_authToken.length() > 0) {
         _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
     }
@@ -514,11 +564,11 @@ int InfluxDBClient::postData(const char *data) {
 
         _httpClient.addHeader(F("Content-Type"), F("text/plain"));   
         
-        preRequest();        
+        beforeRequest();        
         
         _lastStatusCode = _httpClient.POST((uint8_t*)data, strlen(data));
         
-        postRequest(204);
+        afterRequest(204);
 
         
         _httpClient.end();
@@ -542,7 +592,7 @@ static const char QueryDialect[] PROGMEM = "\
 FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
         // retry after period didn't run out yet
-        return FluxQueryResult("Too early");
+        return FluxQueryResult(FPSTR(TooEarlyMessage));
     }
     if(!_wifiClient && !init()) {
         _lastStatusCode = 0;
@@ -556,7 +606,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     }
     _httpClient.addHeader(F("Content-Type"), F("application/json"));
     
-    preRequest();
+    beforeRequest();
 
     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
 
@@ -566,7 +616,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
 
     _lastStatusCode = _httpClient.POST(body);
     
-    postRequest(200);
+    afterRequest(200);
     if(_lastStatusCode == 200) {
         bool chunked = false;
         if(_httpClient.hasHeader(TransferEnconding)) {
@@ -584,20 +634,14 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     }
 }
 
-void InfluxDBClient::postRequest(int expectedStatusCode) {
+void InfluxDBClient::afterRequest(int expectedStatusCode) {
     _lastRequestTime = millis();
      INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
-    if(_lastStatusCode == 429 || _lastStatusCode == 503) { //retryable 
-        int retry = 0;
+    if(_lastStatusCode >= 429) { //retryable server errors
+        _lastRetryAfter = 0;
         if(_httpClient.hasHeader(RetryAfter)) {
-            retry = _httpClient.header(RetryAfter).toInt();
-            if(retry > 0 ) {
-                _lastRetryAfter = retry;
-                 INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
-            }
-        }
-        if(retry == 0) {
-            _lastRetryAfter = 60;
+            _lastRetryAfter = _httpClient.header(RetryAfter).toInt();
+            INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
         }
     } else {
         _lastRetryAfter = 0;
