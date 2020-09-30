@@ -34,7 +34,7 @@
  */
 Influxdb::Influxdb(String host, uint16_t port) {
   if(port == 443) {
-    // this happens usualy when influxdb is behind fw/proxy. Mostly, when influxdb is switched to https, the port remains the same (8086/9999)
+    // this happens usualy when influxdb is behind fw/proxy. Mostly, when influxdb is switched to https, the port remains the same (8086)
     // port number shouldn't be qualificator for secure connection, either scheme or a flag
     _serverUrl = "https://";
   } else {
@@ -71,7 +71,7 @@ void Influxdb::setBucket(String bucket) {
 
 /**
  * Set the influxDB port.
- * @param port v1.x uses 8086, v2 uses 9999
+ * @param port both v1.x and v3 use 8086
  */
 void Influxdb::setPort(uint16_t port){
   int b = _serverUrl.indexOf(":",5);
