@@ -1,18 +1,19 @@
 # Changelog
 ## Version 3.4.0 (in progres)
 ### Features
- - [#89](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/89) - ESP8266 only - Added Max Fragment Length Negotiation for TLS communicaton to reduce memory allocation. If server supports MFLN, it saves ~15kB. Standalone InfluxDB OSS server doesn't support MFLN, Cloud yes. To leverage MFLN for standalone OSS, a reverse proxy needs to be used. 
+ - [#89](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/89) - ESP8266 only - Added Max Fragment Length Negotiation for TLS communicaton to reduce memory allocation. If server supports MFLN, it saves ~10kB. Standalone InfluxDB OSS server doesn't support MFLN, Cloud yes. To leverage MFLN for standalone OSS, a reverse proxy needs to be used. 
  - [#91](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/91) - Improved API for settings of write and HTTP options:
     - Introduced `WriteOptions` to wrap the write related options (write precision, batch-size, etc). It offers fluent style API allowing to change only the required options. `InfluxDBClient` has overloaded `setWriteOptions(const WriteOptions& writeOptions)` method.
     - Introduced `HTTPOptions` to wrap the HTTP related options (e.g. reusing connection). It offers fluent style API allowing to change only the required options. `InfluxDBClient` has `setHTTPOptions(const HTTPOptions& httpOptions)` method.
     - Added possibility to set HTTP response read timeout (part of the `HTTPOptions`).
     - Method `InfluxDBClient::void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true)` is deprecated and it will be removed in the next release.
- - [#92](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/92) - Write logic improvements 
+ - [#93](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/93) - Write logic improvements 
    - Retry on failure logic unification with other InfluxDB clients (exponencial retry, max retry count 3, max retry interval)
    - Better write buffer memory management
 
 ### Documentation
  - [#87](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/87) - Fixed include file name in the Readme
+ - [#99](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/99) - Changed default InfluxDB 2 port from 9999 to 8086 (default since rc0)
 
 ### Fixes
  - [#90](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/90) - Fixed boolean type recognition of InfluxDB Flux
