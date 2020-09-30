@@ -32,7 +32,7 @@ Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
 ## Basic code for InfluxDB 2
 Using client is very easy. After [seting up InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
 ```cpp
-// InfluxDB 2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
+// InfluxDB 2 server url, e.g. http://192.168.1.48:8086 (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "token"
@@ -477,7 +477,7 @@ Complete source code is available in [QueryAggregated example](examples/QueryAgg
 
  // connect to WiFi
 
- Influxdb influx(INFLUXDB_HOST); // port defaults to 8086, use 9999 for v2
+ Influxdb influx(INFLUXDB_HOST); // port defaults to 8086
  // or to use a custom port
  Influxdb influx(INFLUXDB_HOST, INFLUXDB_PORT);
 
@@ -491,7 +491,7 @@ influx.setVersion(2);
 influx.setOrg("myOrganization");
 influx.setBucket("myBucket");
 influx.setToken("myToken");
-influx.setPort(9999);
+influx.setPort(8086);
 ```
 
 ### Sending a single measurement

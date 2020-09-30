@@ -35,7 +35,7 @@ ESP8266WiFiMulti wifiMulti;
 // InfluxDB 1.8+ (v2 compatibility API) use form user:password, eg. admin:adminpass
 #define INFLUXDB_TOKEN "server token"
 // InfluxDB v2 organization name or id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
-// InfluxDB 1.8+ (v2 compatibility API) leave empty 
+// InfluxDB 1.8+ (v2 compatibility API) use any non empty string
 #define INFLUXDB_ORG "org name/id"
 // InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 // InfluxDB 1.8+ (v2 compatibility API) use database name
