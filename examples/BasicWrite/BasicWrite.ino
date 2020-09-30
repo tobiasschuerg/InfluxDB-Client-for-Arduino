@@ -25,8 +25,7 @@ ESP8266WiFiMulti wifiMulti;
 // WiFi password
 #define WIFI_PASSWORD "password"
 // InfluxDB  server url. Don't use localhost, always server name or ip address.
-// For InfluxDB 2 e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries), 
-// For InfluxDB 1 e.g. http://192.168.1.48:8086
+// E.g. http://192.168.1.48:8086 (In InfluxDB 2 UI -> Load Data -> Client Libraries), 
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "toked-id"

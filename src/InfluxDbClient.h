@@ -67,13 +67,13 @@ class InfluxDBClient {
     // db - database name where to store or read data
     InfluxDBClient(const char *serverUrl, const char *db);
     // Creates InfluxDBClient instance for unsecured connection
-    // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:9999)
+    // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:8086)
     // org - name of the organization, which bucket belongs to    
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
     InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken);
     // Creates InfluxDBClient instance for secured connection
-    // serverUrl - url of the InfluxDB 2 server (e.g. https://localhost:9999)
+    // serverUrl - url of the InfluxDB 2 server (e.g. https://localhost:8086)
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
@@ -104,7 +104,7 @@ class InfluxDBClient {
     //    client.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
     void setHTTPOptions(const HTTPOptions &httpOptions);
     // Sets connection parameters for InfluxDB 2
-    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
+    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:8086)
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
