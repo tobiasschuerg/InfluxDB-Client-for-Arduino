@@ -1,4 +1,11 @@
 # Changelog
+## 3.5.0 [in progress]
+### Features
+
+### Documentation
+
+### Fixes
+
 ## 3.4.0 [2020-10-02]
 ### Features
  - [#89](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/89) - ESP8266 only - Added Max Fragment Length Negotiation for TLS communicaton to reduce memory allocation. If server supports MFLN, it saves ~10kB. Standalone InfluxDB OSS server doesn't support MFLN, Cloud yes. To leverage MFLN for standalone OSS, a reverse proxy needs to be used. 
