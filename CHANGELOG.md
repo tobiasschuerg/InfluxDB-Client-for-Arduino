@@ -13,10 +13,11 @@
 
 ### Documentation
  - [#87](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/87) - Fixed include file name in the Readme
- - [#99](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/99) - Changed default InfluxDB 2 port from 9999 to 8086 (default since rc0)
+ - [#99](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/99) - Changed default InfluxDB 2 port from 9999 to 8086 (default since InfluxDB 2 RC0)
 
 ### Fixes
  - [#90](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/90) - Fixed boolean type recognition of InfluxDB Flux
+ - [#101](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/101) - Better memory efficient point line composition
 
 ## Version 3.3.0 (2020-07-07)
  - [NEW] Added possibility skip server certification validation (`setInsecure()` method)

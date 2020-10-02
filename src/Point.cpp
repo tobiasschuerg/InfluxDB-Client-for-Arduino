@@ -61,14 +61,18 @@ void Point::putField(String name, String value) {
 
 String Point::toLineProtocol() const {
     String line =  _measurement;
+    line.reserve(1 + _tags.length() + 1 + _fields.length() + 1 + _timestamp.length());
     if(hasTags()) {
-        line += "," + _tags;
+        line += ",";
+        line += _tags;
     }
     if(hasFields()) {
-        line += " " + _fields;
+        line += " ";
+        line += _fields;
     }
     if(hasTime()) {
-        line += " " + _timestamp;
+        line += " ";
+        line += _timestamp;
     }
     return line;
 }
@@ -105,10 +109,10 @@ void  Point::setTime(String timestamp) {
 }
 
 void  Point::clearFields() {
-    _fields = "";
-    _timestamp = "";
+    _fields = (char *)nullptr;
+    _timestamp = (char *)nullptr;
 }
 
 void Point:: clearTags() {
-    _tags = "";
+    _tags = (char *)nullptr;
 }
