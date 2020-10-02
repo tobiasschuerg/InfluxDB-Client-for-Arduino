@@ -27,7 +27,7 @@
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
 
-#define INFLUXDB_CLIENT_VERSION "3.3.0"
+#define INFLUXDB_CLIENT_VERSION "3.4.0"
 
 #include <Arduino.h>
 #if defined(ESP8266)
