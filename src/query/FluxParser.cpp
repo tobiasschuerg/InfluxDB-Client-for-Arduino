@@ -201,7 +201,7 @@ readRow:
 }
 
 FluxDateTime *FluxQueryResult::convertRfc3339(String value, const char *type) {
-    FluxDateTime *ft = nullptr;
+    // unused declaration FluxDateTime *ft = nullptr;
     tm t = {0,0,0,0,0,0,0,0,0};
     // has the time part
     int zet = value.indexOf('Z');
