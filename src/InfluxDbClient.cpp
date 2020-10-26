@@ -291,6 +291,7 @@ void InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
     _writeOptions._retryInterval = writeOptions._retryInterval;
     _writeOptions._maxRetryInterval = writeOptions._maxRetryInterval;
     _writeOptions._maxRetryAttempts = writeOptions._maxRetryAttempts;
+    _writeOptions._defaultTags = writeOptions._defaultTags;
 }
 
 void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
@@ -339,7 +340,7 @@ bool InfluxDBClient::writePoint(Point & point) {
         if(_writeOptions._writePrecision != WritePrecision::NoTime && !point.hasTime()) {
             point.setTime(_writeOptions._writePrecision);
         }
-        String line = point.toLineProtocol();
+        String line = point.toLineProtocol(_writeOptions._defaultTags);
         return writeRecord(line);
     }
     return false;

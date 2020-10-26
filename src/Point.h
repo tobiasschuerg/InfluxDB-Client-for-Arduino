@@ -67,8 +67,8 @@ class Point {
     bool hasTags() const   { return _tags.length() > 0; }
     // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
-    // Creates line protocol
-    String toLineProtocol() const;
+    // Creates line protocol with optionaly added tags
+    String toLineProtocol(String includeTags = "") const;
     // returns current timestamp
     String getTime() const { return _timestamp; } 
   protected:

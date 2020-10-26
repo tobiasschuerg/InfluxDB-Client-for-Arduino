@@ -59,12 +59,16 @@ void Point::putField(String name, String value) {
     _fields += value;
 }
 
-String Point::toLineProtocol() const {
+String Point::toLineProtocol(String includeTags) const {
     String line =  _measurement;
-    line.reserve(1 + _tags.length() + 1 + _fields.length() + 1 + _timestamp.length());
+    line.reserve(1 + _tags.length() + 1 + includeTags.length() + 1 + _fields.length() + 1 + _timestamp.length());
     if(hasTags()) {
         line += ",";
         line += _tags;
+    }
+    if(includeTags.length()>0) {
+        line += ",";
+        line += includeTags;
     }
     if(hasFields()) {
         line += " ";

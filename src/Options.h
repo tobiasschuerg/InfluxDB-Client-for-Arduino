@@ -59,6 +59,9 @@ private:
     uint16_t _maxRetryInterval;
     // Maximum count of retry attempts of failed writes, default 3
     uint16_t _maxRetryAttempts;
+    // Default tags. Default tags are added to every written point. 
+    // There cannot be duplicate tags in default tags and tags included in a point.
+    String _defaultTags;
 public:
     WriteOptions():
         _writePrecision(WritePrecision::NoTime),
@@ -76,6 +79,8 @@ public:
     WriteOptions& retryInterval(uint16_t retryIntervalSec) { _retryInterval = retryIntervalSec; return *this; }
     WriteOptions& maxRetryInterval(uint16_t maxRetryIntervalSec) { _maxRetryInterval = maxRetryIntervalSec; return *this; }
     WriteOptions& maxRetryAttempts(uint16_t maxRetryAttempts) { _maxRetryAttempts = maxRetryAttempts; return *this; }
+    WriteOptions& addDefaultTag(String name, String value);
+    WriteOptions& clearDefaultTags() { _defaultTags = (char *)nullptr; return *this; }
 };
 
 /**

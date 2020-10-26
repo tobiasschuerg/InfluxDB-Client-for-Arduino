@@ -1,6 +1,7 @@
 # Changelog
 ## 3.5.0 [in progress]
 ### Features
+ - [#107](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/107) - Added possibility to set default tags. Use `WriteOptions::addDefaultTag()` to add a tag that will be added to each written point using the `writePoint()` function.
 
 ### Documentation
 
