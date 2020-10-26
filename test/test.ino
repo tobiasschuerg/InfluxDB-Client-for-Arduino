@@ -75,6 +75,7 @@ private:
     static void testServerTempDownBatchsize5();
     static void testRetriesOnServerOverload();
     static void testRetryInterval();
+    static void testDefaultTags();
 };
 
 void loop() {
@@ -88,8 +89,8 @@ void loop() {
 void Test::run() {
     // Basic tests
     testOptions();
-    testEcaping();
     testPoint();
+    testEcaping();
     testFluxTypes();
     testFluxParserEmpty();
     testFluxParserSingleTable();
@@ -106,6 +107,7 @@ void Test::run() {
     testV1();
     testUserAgent();
     testHTTPReadTimeout();
+    testDefaultTags();
     // Advanced tests
     testFailedWrites();
     testTimestamp();
@@ -127,8 +129,9 @@ void Test::testOptions() {
         TEST_ASSERT(defWO._retryInterval == 5);
         TEST_ASSERT(defWO._maxRetryInterval == 300);
         TEST_ASSERT(defWO._maxRetryAttempts == 3);
+        TEST_ASSERT(defWO._defaultTags.length() == 0);
 
-        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5);
+        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
         TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
         TEST_ASSERT(defWO._batchSize == 10);
         TEST_ASSERT(defWO._bufferSize == 20);
@@ -136,6 +139,7 @@ void Test::testOptions() {
         TEST_ASSERT(defWO._retryInterval == 1);
         TEST_ASSERT(defWO._maxRetryInterval == 20);
         TEST_ASSERT(defWO._maxRetryAttempts == 5);
+        TEST_ASSERT(defWO._defaultTags == "tag1=val1,tag2=val2");
 
         HTTPOptions defHO;
         TEST_ASSERT(!defHO._connectionReuse);
@@ -200,9 +204,16 @@ void Test::testEcaping() {
     p.addField("fie ld", "val ue");
     p.addField("fie,ld", "val,ue");
     p.addField("fie\"ld", "val\"ue");
+
     
     String line = p.toLineProtocol();
-    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);//
+    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
+
+    WriteOptions w;
+    w.addDefaultTag("dta=g","dval=ue");
+    w.addDefaultTag("dtag","dvalue");
+    line = p.toLineProtocol(w._defaultTags);
+    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue,dta\\=g=dval\\=ue,dtag=dvalue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
     TEST_END();
 }
 
@@ -232,6 +243,17 @@ void Test::testPoint() {
     String line = p.toLineProtocol();
     String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
+
+    String defaultTags="dtag=val";
+    line = p.toLineProtocol(defaultTags);
+    testLine = "test,tag1=tagvalue,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    TEST_ASSERTM(line == testLine, line);
+
+    p.clearTags();
+    line = p.toLineProtocol(defaultTags);
+    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    TEST_ASSERTM(line == testLine, line);
+
 
     p.clearFields();
     p.clearTags();
@@ -354,6 +376,7 @@ void Test::testBasicFunction() {
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
+
 
 void Test::testInit() {
     TEST_INIT("testInit");
@@ -1691,6 +1714,66 @@ void Test::testRetryInterval() {
     FluxQueryResult q = client.query(query);
     TEST_ASSERT(countLines(q) == 3); //point with the direction tag is skipped
     TEST_ASSERTM(q.getError()=="", q.getError()); 
+
+    TEST_END();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void Test::testDefaultTags() {
+    TEST_INIT("testDefaultTags");
+
+    InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    
+    TEST_ASSERT(waitServer(client, true));
+    for (int i = 0; i < 5; i++) {
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERT(client.writePoint(*p));
+        delete p;
+    }
+    String query = "select";
+    FluxQueryResult q = client.query(query);
+    TEST_ASSERTM(q.getError()=="", q.getError());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getColumnsName().size()==10,String(q.getColumnsName().size()));
+    TEST_ASSERT(q.next());
+    TEST_ASSERT(q.next());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getColumnsName().size()==10,String(q.getColumnsName().size())) ;
+    TEST_ASSERT(q.next());
+    TEST_ASSERT(!q.next());
+    q.close();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+
+    client.setWriteOptions(WriteOptions().addDefaultTag("dtag1","dval1").addDefaultTag("dtag2","dval2"));
+
+    for (int i = 0; i < 5; i++) {
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERT(client.writePoint(*p));
+        delete p;
+    }
+    q = client.query(query);
+    TEST_ASSERTM(q.getError()=="", q.getError());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getColumnsName().size()==12,String(q.getColumnsName().size()));
+    TEST_ASSERTM(q.getValueByName("dtag1").getString() == "dval1", q.getValueByName("dtag1").getString());
+    TEST_ASSERTM(q.getValueByName("dtag2").getString() == "dval2", q.getValueByName("dtag2").getString());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getValueByName("dtag1").getString() == "dval1",q.getValueByName("dtag1").getString());
+    TEST_ASSERTM(q.getValueByName("dtag2").getString() == "dval2", q.getValueByName("dtag2").getString());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getValueByName("dtag1").getString() == "dval1",q.getValueByName("dtag1").getString());
+    TEST_ASSERTM(q.getValueByName("dtag2").getString() == "dval2", q.getValueByName("dtag2").getString());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getColumnsName().size()==12,String(q.getColumnsName().size())) ;
+    TEST_ASSERTM(q.getValueByName("dtag1").getString() == "dval1",q.getValueByName("dtag1").getString());
+    TEST_ASSERTM(q.getValueByName("dtag2").getString() == "dval2", q.getValueByName("dtag2").getString());
+    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.getValueByName("dtag1").getString() == "dval1",q.getValueByName("dtag1").getString());
+    TEST_ASSERTM(q.getValueByName("dtag2").getString() == "dval2", q.getValueByName("dtag2").getString());
+    TEST_ASSERT(!q.next());
+    q.close();
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
