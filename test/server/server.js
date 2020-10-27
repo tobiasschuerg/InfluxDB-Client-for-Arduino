@@ -9,6 +9,7 @@ var lastUserAgent = '';
 var chunked = false;
 var delay = 0;
 var permanentError = 0;
+const prefix = '';
 
 app.use (function(req, res, next) {
     var data='';
@@ -22,19 +23,19 @@ app.use (function(req, res, next) {
         next();
     });
 });
-app.get('/test/user-agent', (req,res) => {
+app.get(prefix + '/test/user-agent', (req,res) => {
     res.status(200).send(lastUserAgent);
 })
-app.get('/ready', (req,res) => {
+app.get(prefix + '/ready', (req,res) => {
     lastUserAgent = req.get('User-Agent');
     res.status(200).send("<html><body><h1>OK</h1></body></html>");
 })
-app.get('/health', (req,res) => {
+app.get(prefix + '/health', (req,res) => {
     lastUserAgent = req.get('User-Agent');
     res.status(200).send("<html><body><h1>OK</h1></body></html>");
 })
 
-app.get('/ping', (req,res) => {
+app.get(prefix + '/ping', (req,res) => {
     lastUserAgent = req.get('User-Agent');
     if(req.query['verbose'] == 'true') {
         res.status(200).send("<html><body><h1>OK</h1></body></html>");
@@ -42,12 +43,12 @@ app.get('/ping', (req,res) => {
         res.status(204).end();
     }
 })
-app.post('/log', (req,res) => {
+app.post(prefix + '/log', (req,res) => {
     console.log(req.body);
     res.status(204).end();
 })
 
-app.post('/api/v2/write', (req,res) => {
+app.post(prefix + '/api/v2/write', (req,res) => {
     chunked = false;
     if(checkWriteParams(req, res) && handleAuthentication(req, res)) {
         //console.log('Write');
@@ -132,7 +133,7 @@ app.post('/api/v2/write', (req,res) => {
     }
 })
 
-app.post('/write', (req,res) => {
+app.post(prefix + '/write', (req,res) => {
     if(checkWriteParamsV1(req, res) ) {
         var points = parsePoints(req.body);
         if(Array.isArray(points) && points.length > 0) {
@@ -170,7 +171,7 @@ app.post('/write', (req,res) => {
     }
 })
 
-app.post('/api/v2/delete', (req,res) => {
+app.post(prefix + '/api/v2/delete', (req,res) => {
     console.log('Deleteting points');
     pointsdb = [];
     res.status(204).end(); 
@@ -259,7 +260,7 @@ function sleep(milliseconds) {
     } while (currentDate - date < milliseconds);
   }
 
-app.post('/api/v2/query', (req,res) => {
+app.post(prefix+'/api/v2/query', (req,res) => {
     //console.log("Query with: " + req.body);
     if(checkQueryParams(req, res) && handleAuthentication(req, res)) {
         var queryObj = JSON.parse(req.body);
