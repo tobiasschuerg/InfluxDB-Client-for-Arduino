@@ -6,6 +6,7 @@
 ### Documentation
 
 ### Fixes
+- [#108](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/108) - Added optional param for specifying decimal places of double.: `void Point::addField(String name, double value, int decimalPlaces = 2)`
 
 ## 3.4.0 [2020-10-02]
 ### Features

@@ -41,7 +41,7 @@ class Point {
     void addTag(String name, String value);
     // Add field with various types
     void addField(String name, float value, int decimalPlaces = 2)         { if(!isnan(value)) putField(name, String(value, decimalPlaces)); }
-    void addField(String name, double value)        { if(!isnan(value)) putField(name, String(value)); }
+    void addField(String name, double value, int decimalPlaces = 2)        { if(!isnan(value)) putField(name, String(value, decimalPlaces)); }
     void addField(String name, char value)          { addField(name, String(value).c_str()); }
     void addField(String name, unsigned char value) { putField(name, String(value)+"i"); }
     void addField(String name, int value)           { putField(name, String(value)+"i"); }

@@ -7,10 +7,13 @@
 #define INFLUXDB_CLIENT_TESTING
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+
 #if defined(ESP32)
+#include <WiFi.h>
 String chipId = String((unsigned long)ESP.getEfuseMac());
 String deviceName = "ESP32";
 #elif defined(ESP8266)
+#include <ESP8266WiFi.h>
 String chipId = String(ESP.getChipId());
 String deviceName = "ESP8266";
 #endif
