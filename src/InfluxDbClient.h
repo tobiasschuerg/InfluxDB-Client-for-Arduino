@@ -148,6 +148,12 @@ class InfluxDBClient {
     String getLastErrorMessage() const { return _lastErrorResponse; }
     // Returns server url
     String getServerUrl() const { return _serverUrl; }
+    // Check if it is possible to send write/query request to server. 
+    // Returns true if write or query can be send, or false, if server is overloaded and retry strategy is applied.
+    // Use getRemaingRetryTime() to get wait time in such case.
+    bool canSendRequest() { return getRemaingRetryTime() == 0; }
+    // Returns remaining wait time in seconds when retry strategy is applied.
+    uint32_t getRemaingRetryTime();
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
@@ -155,7 +161,7 @@ class InfluxDBClient {
     // Sets request params
     void beforeRequest();
     // Handles response
-    void afterRequest(int expectedStatusCode);
+    void afterRequest(int expectedStatusCode, bool modifyLastConnStatus = true);
     // Cleans instances
     void clean();
   protected:
