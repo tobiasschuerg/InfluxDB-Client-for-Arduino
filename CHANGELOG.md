@@ -2,6 +2,11 @@
 ## 3.5.0 [in progress]
 ### Features
  - [#107](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/107) - Added possibility to set default tags. Use `WriteOptions::addDefaultTag()` to add a tag that will be added to each written point using the `writePoint()` function.
+ - [#109](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/109) - Retry strategy improvements:
+   - Added `canSendRequest()` function to check if retry strategy is applied
+   - Added `getRemaingRetryTime()` function to get wait time before another request (write/query) can be sent
+   - Removed applying retry wait time in case of network error
+   - Better explanatory error message when a request is about to be sent in the retry wait state
 
 ### Documentation
 

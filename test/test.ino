@@ -51,7 +51,9 @@ void setup() {
 class Test {
 public:
     static void run();
-private:
+private: //helpers
+    static void setServerUrl(InfluxDBClient &client, String serverUrl);
+private: // tests
     static void testOptions();
     static void testEcaping();
     static void testPoint();
@@ -481,16 +483,29 @@ void Test::testRetryOnFailedConnection() {
 
     InfluxDBClient clientOk(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
     clientOk.setWriteOptions(WriteOptions().batchSize(1).bufferSize(5));
+    waitServer(clientOk, true);
+    TEST_ASSERT(clientOk.validateConnection());
+    Point *p = createPoint("test1");
+    TEST_ASSERT(clientOk.writePoint(*p));
+    delete p;
+    p = createPoint("test1");
+    TEST_ASSERT(clientOk.writePoint(*p));
+    delete p;
+    TEST_ASSERT(clientOk.isBufferEmpty());
+
     clientOk.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
 
     Serial.println("Stop server!");
     waitServer(clientOk, false);
     TEST_ASSERT(!clientOk.validateConnection());
-    Point *p = createPoint("test1");
+    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
+    p = createPoint("test1");
     TEST_ASSERT(!clientOk.writePoint(*p));
+    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
     delete p;
     p = createPoint("test1");
     TEST_ASSERT(!clientOk.writePoint(*p));
+    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
     delete p;
 
     Serial.println("Start server!");
@@ -499,6 +514,7 @@ void Test::testRetryOnFailedConnection() {
     TEST_ASSERT(clientOk.validateConnection());
     p = createPoint("test1");
     TEST_ASSERT(clientOk.writePoint(*p));
+    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
     delete p;
     TEST_ASSERT(clientOk.isBufferEmpty());
     String query = "select";
@@ -525,8 +541,8 @@ void Test::testBufferOverwriteBatchsize1() {
     TEST_ASSERT(client.isBufferFull());
     TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=10i") > 0, client._writeBuffer[0]->buffer[0]);
 
-    client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
-    client.setUrls();
+    setServerUrl(client,INFLUXDB_CLIENT_TESTING_URL );
+    
     waitServer(client, true);
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
@@ -566,8 +582,7 @@ void Test::testBufferOverwriteBatchsize5() {
     TEST_ASSERT(client.isBufferFull());
     TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=20i") > 0, client._writeBuffer[0]->buffer[0]);
 
-    client._serverUrl = INFLUXDB_CLIENT_TESTING_URL;
-    client.setUrls();
+    setServerUrl(client,INFLUXDB_CLIENT_TESTING_URL );
 
     waitServer(client, true);
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
@@ -1685,21 +1700,25 @@ void Test::testRetryInterval() {
 
     String rec = "test1,direction=permanent-set,x-code=502,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=0";
     TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 1, String(client._writeBuffer[0]->retryCount));
     delay(2000);
     rec = "test1,direction=permanent-unset,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=2";
     TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._lastRetryAfter == 4, String(client._lastRetryAfter));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 2, String(client._writeBuffer[0]->retryCount));
     delay(4000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=3";
     TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._lastRetryAfter == 8, String(client._lastRetryAfter));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 3, String(client._writeBuffer[0]->retryCount));
     delay(8000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=4";
     TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
     TEST_ASSERT(!client._writeBuffer[0]);
     TEST_ASSERTM(client._writeBuffer[1]->retryCount == 0, String(client._writeBuffer[1]->retryCount));
@@ -1707,12 +1726,16 @@ void Test::testRetryInterval() {
     delay(2000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=5";
     TEST_ASSERT(!client.writeRecord(rec));
+    TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
     TEST_ASSERT(!client._writeBuffer[0]);
     TEST_ASSERTM(client._writeBuffer[1]->retryCount == 1, String(client._writeBuffer[1]->retryCount));
 
     delay(2000);
+    TEST_ASSERT(client.canSendRequest());
     TEST_ASSERTM(client.flushBuffer(), client.getLastErrorMessage());
+    TEST_ASSERT(client.isBufferEmpty());
+    TEST_ASSERT(!client.isBufferFull());
     String query = "select";
     FluxQueryResult q = client.query(query);
     TEST_ASSERT(countLines(q) == 3); //point with the direction tag is skipped
@@ -1780,6 +1803,11 @@ void Test::testDefaultTags() {
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
+    client._serverUrl = serverUrl;
+    client.setUrls();
 }
 
 Point *createPoint(String measurement) {

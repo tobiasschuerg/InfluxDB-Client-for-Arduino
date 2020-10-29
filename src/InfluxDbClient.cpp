@@ -45,7 +45,7 @@ static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIE
 #include "util/debug.h"
 
 static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance"; 
-static const char TooEarlyMessage[] PROGMEM = "Too early request";
+static const char TooEarlyMessage[] PROGMEM = "Cannot send request yet because of applied retry strategy. Remaining ";
 // This cannot be put to PROGMEM due to the way how it is used
 static const char RetryAfter[] = "Retry-After";
 static const char TransferEnconding[] = "Transfer-Encoding";
@@ -398,10 +398,6 @@ bool InfluxDBClient::writeRecord(String &record) {
         if(_bufferPointer == _writeBufferSize) { // writeBuffer is full
             _bufferPointer = 0;
             INFLUXDB_CLIENT_DEBUG("[W] Reached write buffer size, old points will be overwritten\n");
-            // if(isBufferFull()) {
-            //     //if already isBufferFull
-            //     _batchPointer = 0;
-            // }
         } 
 
         if(_bufferCeiling < _writeBufferSize) {
@@ -443,16 +439,25 @@ bool InfluxDBClient::flushBuffer() {
     return flushBufferInternal(false);
 }
 
-bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
+uint32_t InfluxDBClient::getRemaingRetryTime() {
+    uint32_t rem = 0;
     if(_lastRetryAfter > 0) {
-        uint32_t diff = (millis()-_lastRequestTime)/1000 ;
-        if(diff < _lastRetryAfter) {
-            INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, so far %ds\n", _lastRetryAfter, diff);
-            // retry after period didn't run out yet
-            _lastStatusCode = 0;
-            _lastErrorResponse = FPSTR(TooEarlyMessage);
-            return false;
-        }
+        int32_t diff = _lastRetryAfter - (millis()-_lastRequestTime)/1000;
+        rem  =  diff<0?0:(uint32_t)diff;
+    }
+    return rem;
+}
+
+bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
+    uint32_t rwt = getRemaingRetryTime();
+    if(rwt > 0) {
+        INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, %ds yet\n", _lastRetryAfter, rwt);
+        // retry after period didn't run out yet
+        _lastStatusCode = 0;
+        _lastErrorResponse = FPSTR(TooEarlyMessage);
+        _lastErrorResponse += String(rwt);
+        _lastErrorResponse += "s";
+        return false;
     }
     char *data;
     bool success = true;
@@ -483,7 +488,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                     INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
                     dropCurrentBatch();
                 }
-                if(!_lastRetryAfter) {
+                if(!_lastRetryAfter && statusCode > 0) {
                     _lastRetryAfter = _writeOptions._retryInterval;
                     if(_writeBuffer[_batchPointer]) {
                         for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
@@ -534,7 +539,7 @@ bool InfluxDBClient::validateConnection() {
 
    _lastErrorResponse = "";
     
-    afterRequest(200);
+    afterRequest(200, false);
 
     _httpClient.end();
 
@@ -591,9 +596,14 @@ static const char QueryDialect[] PROGMEM = "\
 }}";
 
 FluxQueryResult InfluxDBClient::query(String fluxQuery) {
-    if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
+    uint32_t rwt = getRemaingRetryTime();
+    if(rwt > 0) {
+        INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _lastRetryAfter, rwt);
         // retry after period didn't run out yet
-        return FluxQueryResult(FPSTR(TooEarlyMessage));
+        String mess = FPSTR(TooEarlyMessage);
+        mess += String(rwt);
+        mess += "s";
+        return FluxQueryResult(mess);
     }
     if(!_wifiClient && !init()) {
         _lastStatusCode = 0;
@@ -635,17 +645,17 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     }
 }
 
-void InfluxDBClient::afterRequest(int expectedStatusCode) {
-    _lastRequestTime = millis();
-     INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
-    if(_lastStatusCode >= 429) { //retryable server errors
+void InfluxDBClient::afterRequest(int expectedStatusCode,  bool modifyLastConnStatus) {
+    if(modifyLastConnStatus) {
+        _lastRequestTime = millis();
+        INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
         _lastRetryAfter = 0;
-        if(_httpClient.hasHeader(RetryAfter)) {
-            _lastRetryAfter = _httpClient.header(RetryAfter).toInt();
-            INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
+        if(_lastStatusCode >= 429) { //retryable server errors
+            if(_httpClient.hasHeader(RetryAfter)) {
+                _lastRetryAfter = _httpClient.header(RetryAfter).toInt();
+                INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
+            }
         }
-    } else {
-        _lastRetryAfter = 0;
     }
     _lastErrorResponse = "";
     if(_lastStatusCode != expectedStatusCode) {
