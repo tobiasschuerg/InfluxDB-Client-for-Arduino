@@ -30,7 +30,7 @@
 #include <Arduino.h>
 
 #ifdef INFLUXDB_CLIENT_DEBUG_ENABLE
-# define INFLUXDB_CLIENT_DEBUG(fmt, ...) Serial.printf_P( (PGM_P)PSTR(fmt), ## __VA_ARGS__ )
+# define INFLUXDB_CLIENT_DEBUG(fmt, ...) Serial.printf("%.03f ",millis()/1000.0f);Serial.printf_P( (PGM_P)PSTR(fmt), ## __VA_ARGS__ )
 #else
 # define INFLUXDB_CLIENT_DEBUG(fmt, ...)
 #endif //INFLUXDB_CLIENT_DEBUG
