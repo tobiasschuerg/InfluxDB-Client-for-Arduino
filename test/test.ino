@@ -75,6 +75,7 @@ private: // tests
     static void testTimestamp();
     static void testHTTPReadTimeout();
     static void testRetryOnFailedConnection();
+    static void testRetryOnFailedConnectionWithFlush();
     static void testBufferOverwriteBatchsize1();
     static void testBufferOverwriteBatchsize5();
     static void testServerTempDownBatchsize5();
@@ -117,6 +118,7 @@ void Test::run() {
     testFailedWrites();
     testTimestamp();
     testRetryOnFailedConnection();
+    //testRetryOnFailedConnectionWithFlush();
     testBufferOverwriteBatchsize1();
     testBufferOverwriteBatchsize5();
     testServerTempDownBatchsize5();
@@ -520,6 +522,81 @@ void Test::testRetryOnFailedConnection() {
     String query = "select";
     FluxQueryResult q = clientOk.query(query);
     TEST_ASSERT(countLines(q) == 3);
+
+    TEST_END();
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void Test::testRetryOnFailedConnectionWithFlush() {
+    TEST_INIT("testRetryOnFailedConnectionWithFlush");
+
+    InfluxDBClient clientOk(INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_TOK);
+    clientOk.setWriteOptions(WriteOptions().batchSize(2).bufferSize(2).retryInterval(4));
+    waitServer(clientOk, true);
+    TEST_ASSERT(clientOk.validateConnection());
+    Point *p = createPoint("test1");
+    TEST_ASSERT(clientOk.writePoint(*p));
+    delete p;
+    TEST_ASSERT(clientOk.flushBuffer());
+    TEST_ASSERT(clientOk.isBufferEmpty());
+
+    clientOk.setHTTPOptions(HTTPOptions().httpReadTimeout(500));
+
+    Serial.println("Stop server!");
+    waitServer(clientOk, false);
+    // test dropping batch on max retry count
+    TEST_ASSERT(!clientOk.validateConnection());
+    p = createPoint("test1");
+    TEST_ASSERT(clientOk.writePoint(*p));
+    delete p;
+
+    Serial.print(millis()/1000.0f,3);
+    Serial.println(" Write 1");
+
+    TEST_ASSERT(!clientOk.flushBuffer());
+    TEST_ASSERT(!clientOk.isBufferEmpty());
+    Serial.println(clientOk.getLastErrorMessage());
+    
+    Serial.print(millis()/1000.0f,3);
+    Serial.println(" Write 2");
+
+    TEST_ASSERT(!clientOk.flushBuffer());
+    TEST_ASSERT(!clientOk.isBufferEmpty());
+    Serial.println(clientOk.getLastErrorMessage());
+
+    Serial.print(millis()/1000.0f,3);
+    Serial.println(" Write 3");
+
+    TEST_ASSERT(!clientOk.flushBuffer());
+    TEST_ASSERT(!clientOk.isBufferEmpty());
+    Serial.println(clientOk.getLastErrorMessage());
+    
+   
+    Serial.print(millis()/1000.0f,3);
+    Serial.println(" Write 4");
+
+    TEST_ASSERT(!clientOk.flushBuffer());
+    TEST_ASSERT(!clientOk.isBufferEmpty());
+    Serial.println(clientOk.getLastErrorMessage());
+
+
+    Serial.println("Start server!");
+    waitServer(clientOk, true);
+    clientOk.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
+    TEST_ASSERT(clientOk.validateConnection());
+
+    Serial.print(millis()/1000.0f,3);
+    Serial.println(" Write 5");
+     p = createPoint("test1");
+    TEST_ASSERT(clientOk.writePoint(*p));
+    delete p;
+    TEST_ASSERT(clientOk.flushBuffer());
+    TEST_ASSERT(clientOk.isBufferEmpty());
+
+    String query = "select";
+    FluxQueryResult q = clientOk.query(query);
+    TEST_ASSERT(countLines(q) == 2);
+
 
     TEST_END();
     deleteAll(INFLUXDB_CLIENT_TESTING_URL);

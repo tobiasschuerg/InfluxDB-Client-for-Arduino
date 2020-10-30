@@ -392,7 +392,6 @@ bool InfluxDBClient::writeRecord(String &record) {
             _batchPointer = 0;
         }
     }
-    INFLUXDB_CLIENT_DEBUG("[D] writeRecord: bufferPointer: %d, batchPointer: %d\n", _bufferPointer, _batchPointer);
     if(_writeBuffer[_bufferPointer]->append(record)) { //we reached batch size
         _bufferPointer++;
         if(_bufferPointer == _writeBufferSize) { // writeBuffer is full
@@ -404,7 +403,7 @@ bool InfluxDBClient::writeRecord(String &record) {
             _bufferCeiling++;
         }
     } 
-    
+    INFLUXDB_CLIENT_DEBUG("[D] writeRecord: bufferPointer: %d, batchPointer: %d, _bufferCeiling: %d\n", _bufferPointer, _batchPointer, _bufferCeiling);    
     return checkBuffer();
 }
 
@@ -419,20 +418,6 @@ bool InfluxDBClient::checkBuffer() {
        return flushBufferInternal(true);
     } 
     return true;
-}
-
-void  InfluxDBClient::dropCurrentBatch() {
-    delete _writeBuffer[_batchPointer];
-    _writeBuffer[_batchPointer] = nullptr;
-    _batchPointer++;
-    //did we got over top?
-    if(_batchPointer == _writeBufferSize) {
-        // restart _batchPointer in ring buffer from start
-        _batchPointer = 0;
-        // we reached buffer size, that means buffer was full and now lower ceiling 
-        _bufferCeiling = _bufferPointer;
-    }
-     INFLUXDB_CLIENT_DEBUG("[D] Droped batch, batchpointer: %d\n", _batchPointer);
 }
 
 bool InfluxDBClient::flushBuffer() {
@@ -464,8 +449,8 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     // send all batches, It could happen there was long network outage and buffer is full
     while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
         data = _writeBuffer[_batchPointer]->createData();
-        if(!_writeBuffer[_batchPointer]->isFull()) {
-            // increase _bufferPointer as it happen when buffer is flushed when is full
+        if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->retryCount == 0 ) { //do not increase pointer in case of retrying
+            // points will be written so increase _bufferPointer as it happen when buffer is flushed when is full
             if(++_bufferPointer == _writeBufferSize) {
                 _bufferPointer = 0;
             }
@@ -483,19 +468,21 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 _lastFlushed = millis()/1000;
                 dropCurrentBatch();
             } else if(retry) {
-                _writeBuffer[_batchPointer]->retryCount++;
-                if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
-                    INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
-                    dropCurrentBatch();
-                }
-                if(!_lastRetryAfter && statusCode > 0) {
-                    _lastRetryAfter = _writeOptions._retryInterval;
-                    if(_writeBuffer[_batchPointer]) {
-                        for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
-                            _lastRetryAfter *= _writeOptions._retryInterval;
-                        }
-                        if(_lastRetryAfter > _writeOptions._maxRetryInterval) {
-                            _lastRetryAfter = _writeOptions._maxRetryInterval;
+                if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
+                    _writeBuffer[_batchPointer]->retryCount++;
+                    if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
+                        INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
+                        dropCurrentBatch();
+                    }
+                    if(!_lastRetryAfter) {
+                        _lastRetryAfter = _writeOptions._retryInterval;
+                        if(_writeBuffer[_batchPointer]) {
+                            for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
+                                _lastRetryAfter *= _writeOptions._retryInterval;
+                            }
+                            if(_lastRetryAfter > _writeOptions._maxRetryInterval) {
+                                _lastRetryAfter = _writeOptions._maxRetryInterval;
+                            }
                         }
                     }
                 }
@@ -507,17 +494,30 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
        yield();
     }
     //Have we emptied the buffer?
-    if(success) {
-        if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
-            _bufferPointer = 0;
-            _batchPointer = 0;
-            _bufferCeiling = 0;
-            INFLUXDB_CLIENT_DEBUG("[D] Buffer empty\n");
-        }
+    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%x\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
+    if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
+        _bufferPointer = 0;
+        _batchPointer = 0;
+        _bufferCeiling = 0;
+        INFLUXDB_CLIENT_DEBUG("[D] Buffer empty\n");
     }
     return success;
 }
 
+
+void  InfluxDBClient::dropCurrentBatch() {
+    delete _writeBuffer[_batchPointer];
+    _writeBuffer[_batchPointer] = nullptr;
+    _batchPointer++;
+    //did we got over top?
+    if(_batchPointer == _writeBufferSize) {
+        // restart _batchPointer in ring buffer from start
+        _batchPointer = 0;
+        // we reached buffer size, that means buffer was full and now lower ceiling 
+        _bufferCeiling = _bufferPointer;
+    }
+    INFLUXDB_CLIENT_DEBUG("[D] Droped batch, batchpointer: %d\n", _batchPointer);
+}
 
 bool InfluxDBClient::validateConnection() {
     if(!_wifiClient && !init()) {
