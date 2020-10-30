@@ -8,10 +8,9 @@
    - Removed applying retry wait time in case of network error
    - Better explanatory error message when a request is about to be sent in the retry wait state
 
-### Documentation
-
 ### Fixes
 - [#108](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/108) - Added optional param for specifying decimal places of double.: `void Point::addField(String name, double value, int decimalPlaces = 2)`
+- [#111](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/110) - Fixed blocked writing after another point reached max retry count (#110)
 
 ## 3.4.0 [2020-10-02]
 ### Features
