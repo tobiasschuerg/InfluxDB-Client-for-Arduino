@@ -120,7 +120,7 @@ class InfluxDBClient {
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
     bool validateConnection();
-    // Writes record in InfluxDB line protocol format to write buffer
+    // Writes record in InfluxDB line protocol format to write buffer.
     // Returns true if successful, false in case of any error 
     bool writeRecord(String &record);
     // Writes record represented by Point to buffer
@@ -150,10 +150,10 @@ class InfluxDBClient {
     String getServerUrl() const { return _serverUrl; }
     // Check if it is possible to send write/query request to server. 
     // Returns true if write or query can be send, or false, if server is overloaded and retry strategy is applied.
-    // Use getRemaingRetryTime() to get wait time in such case.
-    bool canSendRequest() { return getRemaingRetryTime() == 0; }
+    // Use getRemainingRetryTime() to get wait time in such case.
+    bool canSendRequest() { return getRemainingRetryTime() == 0; }
     // Returns remaining wait time in seconds when retry strategy is applied.
-    uint32_t getRemaingRetryTime();
+    uint32_t getRemainingRetryTime();
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
