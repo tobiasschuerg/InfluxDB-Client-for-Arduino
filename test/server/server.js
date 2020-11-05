@@ -3,13 +3,67 @@ const readline = require('readline');
 var os = require('os');
 
 const app = express();
+const mgmtApp = express();
 const port = 999;
+const mgmtPort = 998;
 var pointsdb = []; 
 var lastUserAgent = '';
 var chunked = false;
 var delay = 0;
 var permanentError = 0;
 const prefix = '';
+var server = undefined;
+
+mgmtApp.use (function(req, res, next) {
+    var data='';
+    req.setEncoding('utf8');
+    req.on('data', function(chunk) { 
+       data += chunk;
+    });
+
+    req.on('end', function() {
+        req.body = data;
+        next();
+    });
+});
+
+mgmtApp.get('/start', (req,res) => {
+    if(server === undefined) {
+        console.log('Starting server');
+        server = app.listen(port);
+        server.on('close',function() {
+            pointsdb = [];
+            server = undefined;
+            console.log('Server closed');
+        });
+        res.status(201).send(`Listening on http://${server.address().address}:${server.address().port}`);
+    } else {
+        res.status(204).end();
+    };
+});
+
+mgmtApp.get('/stop', (req,res) => {
+    if(server === undefined) {
+        res.status(404).end();
+    } else {
+        console.log('Shutting down server');
+        server.close();
+        res.status(200).end();
+    };
+});
+mgmtApp.get('/status', (req,res) => {
+    if(server === undefined) {
+        res.status(404).send("stopped");
+    } else {
+        res.status(200).send("running");
+    }
+});
+
+mgmtApp.post('/log', (req,res) => {
+    console.log('===' + req.body + '=====');
+    res.status(204).end();
+})
+
 
 app.use (function(req, res, next) {
     var data='';
@@ -43,10 +97,7 @@ app.get(prefix + '/ping', (req,res) => {
         res.status(204).end();
     }
 })
-app.post(prefix + '/log', (req,res) => {
-    console.log(req.body);
-    res.status(204).end();
-})
+
 
 app.post(prefix + '/api/v2/write', (req,res) => {
     chunked = false;
@@ -302,41 +353,6 @@ app.post(prefix+'/api/v2/query', (req,res) => {
     }
 });
 
-var rl = readline.createInterface(process.stdin, process.stdout);
-
-rl.on('line', function(line) {
-    rl.close();
-}).on('close',function(){
-    process.exit(0);
-});
-
-var server = app.listen(port)
-var ifaces = os.networkInterfaces();
-
-console.log("Available interfaces:")
-Object.keys(ifaces).forEach(function (ifname) {
-  var alias = 0;
-
-  ifaces[ifname].forEach(function (iface) {
-    if ('IPv4' !== iface.family || iface.internal !== false) {
-      // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
-      return;
-    }
-
-    if (alias >= 1) {
-      // this single interface has multiple ipv4 addresses
-      console.log('  ', ifname + ':' + alias, iface.address);
-    } else {
-      // this interface has only one ipv4 adress
-      console.log('  ', ifname, iface.address);
-    }
-    ++alias;
-  });
-});
-console.log(`Listening on http://${server.address().address}:${server.address().port}`)
-console.log(`Press Enter to exit`)
-
-
 function parsePoints(data) {
     var lines = data.split("\n");
     var points = [];
@@ -471,3 +487,43 @@ function convertToCSV(objArray) {
 
     return str;
 }
+
+var mgmtServer = mgmtApp.listen(mgmtPort)
+
+var rl = readline.createInterface(process.stdin, process.stdout);
+
+rl.on('line', function(line) {
+    rl.close();
+}).on('close',function(){
+    if(server !== undefined) {
+        server.close();
+    }
+    mgmtServer.close();
+    process.exit(0);
+});
+
+
+var ifaces = os.networkInterfaces();
+
+console.log("Available interfaces:")
+Object.keys(ifaces).forEach(function (ifname) {
+  var alias = 0;
+
+  ifaces[ifname].forEach(function (iface) {
+    if ('IPv4' !== iface.family || iface.internal !== false) {
+      // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
+      return;
+    }
+
+    if (alias >= 1) {
+      // this single interface has multiple ipv4 addresses
+      console.log('  ', ifname + ':' + alias, iface.address);
+    } else {
+      // this interface has only one ipv4 adress
+      console.log('  ', ifname, iface.address);
+    }
+    ++alias;
+  });
+});
+console.log(`Listening on http://${mgmtServer.address().address}:${mgmtServer.address().port}`)
+console.log(`Press Enter to exit`)
