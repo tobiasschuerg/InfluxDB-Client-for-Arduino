@@ -68,6 +68,7 @@ private: // tests
     static void testTimestamp();
     static void testHTTPReadTimeout();
     static void testRetryOnFailedConnection();
+    static void testRetryOnFailedConnectionWithFlush();
     static void testBufferOverwriteBatchsize1();
     static void testBufferOverwriteBatchsize5();
     static void testServerTempDownBatchsize5();

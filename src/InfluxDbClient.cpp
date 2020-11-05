@@ -468,8 +468,8 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 _lastFlushed = millis()/1000;
                 dropCurrentBatch();
             } else if(retry) {
+                _writeBuffer[_batchPointer]->retryCount++;
                 if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
-                    _writeBuffer[_batchPointer]->retryCount++;
                     if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
                         INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
                         dropCurrentBatch();
