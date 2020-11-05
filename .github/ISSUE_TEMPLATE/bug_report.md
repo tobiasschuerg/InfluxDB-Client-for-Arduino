@@ -32,3 +32,4 @@ __Specifications:__
  - Library Version:
  - InfluxDB Version:
  - Board/ESP chip:
+ - Device Arduino SDK version:
