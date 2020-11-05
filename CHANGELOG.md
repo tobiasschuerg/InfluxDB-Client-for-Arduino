@@ -1,8 +1,8 @@
 # Changelog
-## 3.6.0 [in progress]
-### Features
-
+## 3.5.1 [in progress]
 ### Fixes
+- [#114](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/114) - Renamed `getRemaingRetryTime()`->`getRemainingRetryTime()`
+- [#115](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/115) - Restored writing capability after a connection failure
 
 ## 3.5.0 [2020-10-30]
 ### Features
@@ -15,7 +15,7 @@
 
 ### Fixes
 - [#108](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/108) - Added optional param for specifying decimal places of double.: `void Point::addField(String name, double value, int decimalPlaces = 2)`
-- [#111](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/110) - Fixed blocked writing after another point reached max retry count (#110)
+- [#111](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/111) - Fixed blocked writing after another point reached max retry count (#110)
 
 ## 3.4.0 [2020-10-02]
 ### Features

@@ -424,7 +424,7 @@ bool InfluxDBClient::flushBuffer() {
     return flushBufferInternal(false);
 }
 
-uint32_t InfluxDBClient::getRemaingRetryTime() {
+uint32_t InfluxDBClient::getRemainingRetryTime() {
     uint32_t rem = 0;
     if(_lastRetryAfter > 0) {
         int32_t diff = _lastRetryAfter - (millis()-_lastRequestTime)/1000;
@@ -434,7 +434,7 @@ uint32_t InfluxDBClient::getRemaingRetryTime() {
 }
 
 bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
-    uint32_t rwt = getRemaingRetryTime();
+    uint32_t rwt = getRemainingRetryTime();
     if(rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, %ds yet\n", _lastRetryAfter, rwt);
         // retry after period didn't run out yet
@@ -468,8 +468,8 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 _lastFlushed = millis()/1000;
                 dropCurrentBatch();
             } else if(retry) {
+                _writeBuffer[_batchPointer]->retryCount++;
                 if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
-                    _writeBuffer[_batchPointer]->retryCount++;
                     if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
                         INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
                         dropCurrentBatch();
@@ -485,7 +485,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                             }
                         }
                     }
-                }
+                } 
                 INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry, retryInterval: %d\n",_lastRetryAfter);
                 // in case of retryable failure break loop
                 break;
@@ -596,7 +596,7 @@ static const char QueryDialect[] PROGMEM = "\
 }}";
 
 FluxQueryResult InfluxDBClient::query(String fluxQuery) {
-    uint32_t rwt = getRemaingRetryTime();
+    uint32_t rwt = getRemainingRetryTime();
     if(rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _lastRetryAfter, rwt);
         // retry after period didn't run out yet
