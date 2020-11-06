@@ -42,6 +42,7 @@ void printFreeHeap() {
 
 int httpPOST(String url, String mess) {
   HTTPClient http;
+  http.setReuse(false);
   int code = 0;
   if(http.begin(url)) {
     code = http.POST(mess);
@@ -52,12 +53,14 @@ int httpPOST(String url, String mess) {
 
 int httpGET(String url) {
   HTTPClient http;
+  http.setReuse(false);
   int code = 0;
   if(http.begin(url)) {
     code = http.GET();
     if(code != 204) {
-       Serial.print("[TD] ");
-       Serial.println(http.getString());
+       //Serial.print("[TD] ");
+       //String res = http.getString();
+       //Serial.println(res);
     }
     http.end();
   }

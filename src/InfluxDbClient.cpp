@@ -44,11 +44,11 @@ static const char UserAgent[] PROGMEM = "influxdb-client-arduino/" INFLUXDB_CLIE
 //#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
-static const char UnitialisedMessage[] PROGMEM = "Unconfigured instance"; 
+static const char UninitializedMessage[] PROGMEM = "Unconfigured instance"; 
 static const char TooEarlyMessage[] PROGMEM = "Cannot send request yet because of applied retry strategy. Remaining ";
 // This cannot be put to PROGMEM due to the way how it is used
 static const char RetryAfter[] = "Retry-After";
-static const char TransferEnconding[] = "Transfer-Encoding";
+static const char TransferEncoding[] = "Transfer-Encoding";
 
 static String escapeJSONString(String &value);
 #if defined(ESP8266)  
@@ -110,6 +110,7 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
 
 bool InfluxDBClient::init() {
     INFLUXDB_CLIENT_DEBUG("Init\n");
+    INFLUXDB_CLIENT_DEBUG("  Library version: " INFLUXDB_CLIENT_VERSION "\n");
     INFLUXDB_CLIENT_DEBUG("  Server url: %s\n", _serverUrl.c_str());
     INFLUXDB_CLIENT_DEBUG("  Org: %s\n", _org.c_str());
     INFLUXDB_CLIENT_DEBUG("  Bucket: %s\n", _bucket.c_str());
@@ -340,7 +341,7 @@ bool InfluxDBClient::writePoint(Point & point) {
         if(_writeOptions._writePrecision != WritePrecision::NoTime && !point.hasTime()) {
             point.setTime(_writeOptions._writePrecision);
         }
-        String line = point.toLineProtocol(_writeOptions._defaultTags);
+        String line = pointToLineProtocol(point);
         return writeRecord(line);
     }
     return false;
@@ -504,7 +505,6 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     return success;
 }
 
-
 void  InfluxDBClient::dropCurrentBatch() {
     delete _writeBuffer[_batchPointer];
     _writeBuffer[_batchPointer] = nullptr;
@@ -516,13 +516,17 @@ void  InfluxDBClient::dropCurrentBatch() {
         // we reached buffer size, that means buffer was full and now lower ceiling 
         _bufferCeiling = _bufferPointer;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Droped batch, batchpointer: %d\n", _batchPointer);
+    INFLUXDB_CLIENT_DEBUG("[D] Dropped batch, batchpointer: %d\n", _batchPointer);
+}
+
+String InfluxDBClient::pointToLineProtocol(const Point& point) {
+    return point.toLineProtocol(_writeOptions._defaultTags);
 }
 
 bool InfluxDBClient::validateConnection() {
     if(!_wifiClient && !init()) {
         _lastStatusCode = 0;
-        _lastErrorResponse = FPSTR(UnitialisedMessage);
+        _lastErrorResponse = FPSTR(UninitializedMessage);
         return false;
     }
     // on version 1.x /ping will by default return status code 204, without verbose
@@ -550,14 +554,14 @@ void InfluxDBClient::beforeRequest() {
     if(_authToken.length() > 0) {
         _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
     }
-    const char * headerKeys[] = {RetryAfter, TransferEnconding} ;
+    const char * headerKeys[] = {RetryAfter, TransferEncoding} ;
     _httpClient.collectHeaders(headerKeys, 2);
 }
 
 int InfluxDBClient::postData(const char *data) {
     if(!_wifiClient && !init()) {
         _lastStatusCode = 0;
-        _lastErrorResponse = FPSTR(UnitialisedMessage);
+        _lastErrorResponse = FPSTR(UninitializedMessage);
         return 0;
     }
     if(data) {
@@ -607,7 +611,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     }
     if(!_wifiClient && !init()) {
         _lastStatusCode = 0;
-        _lastErrorResponse = FPSTR(UnitialisedMessage);
+        _lastErrorResponse = FPSTR(UninitializedMessage);
         return FluxQueryResult(_lastErrorResponse);
     }
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
@@ -630,8 +634,8 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     afterRequest(200);
     if(_lastStatusCode == 200) {
         bool chunked = false;
-        if(_httpClient.hasHeader(TransferEnconding)) {
-            String header = _httpClient.header(TransferEnconding);
+        if(_httpClient.hasHeader(TransferEncoding)) {
+            String header = _httpClient.header(TransferEncoding);
             chunked = header.equalsIgnoreCase("chunked");
         }
         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", chunked?"true":"false");

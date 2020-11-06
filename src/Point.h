@@ -68,6 +68,7 @@ class Point {
     // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol with optionaly added tags
+    [[deprecated("Use InfluxDBClient::pointToLineProtocol()")]]
     String toLineProtocol(String includeTags = "") const;
     // returns current timestamp
     String getTime() const { return _timestamp; } 

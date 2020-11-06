@@ -120,7 +120,7 @@ void loop() {
 
       // Print what are we exactly writing
       Serial.print("Writing: ");
-      Serial.println(sensorNetworks.toLineProtocol());
+      Serial.println(client.pointToLineProtocol(sensorNetworks));
 
       // Write point into buffer - low priority measures
       client.writePoint(sensorNetworks);
@@ -134,7 +134,7 @@ void loop() {
 
   // Print what are we exactly writing
   Serial.print("Writing: ");
-  Serial.println(sensorStatus.toLineProtocol());
+  Serial.println(client.pointToLineProtocol(sensorStatus));
 
   // Write point into buffer - high priority measure
   client.writePoint(sensorStatus);

@@ -197,7 +197,7 @@ void Test::testEcaping() {
     w.addDefaultTag("dta=g","dval=ue");
     w.addDefaultTag("dtag","dvalue");
     line = p.toLineProtocol(w._defaultTags);
-    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue,dta\\=g=dval\\=ue,dtag=dvalue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
+    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,dta\\=g=dval\\=ue,dtag=dvalue,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
     TEST_END();
 }
 
@@ -230,7 +230,7 @@ void Test::testPoint() {
 
     String defaultTags="dtag=val";
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,tag1=tagvalue,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
@@ -1804,6 +1804,15 @@ void Test::testDefaultTags() {
     TEST_INIT("testDefaultTags");
 
     InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+
+    Point pt("test");
+    pt.addTag("tag1", "tagvalue");
+    pt.addField("fieldInt", -23);
+    String testLine = "test,tag1=tagvalue fieldInt=-23i";
+    String line = client.pointToLineProtocol(pt);
+    TEST_ASSERTM(line == testLine, line);
+
+    
     
     TEST_ASSERT(waitServer(Test::managementUrl, true));
     for (int i = 0; i < 5; i++) {
@@ -1827,6 +1836,9 @@ void Test::testDefaultTags() {
     deleteAll(Test::apiUrl);
 
     client.setWriteOptions(WriteOptions().addDefaultTag("dtag1","dval1").addDefaultTag("dtag2","dval2"));
+    testLine = "test,dtag1=dval1,dtag2=dval2,tag1=tagvalue fieldInt=-23i";
+    line = client.pointToLineProtocol(pt);
+    TEST_ASSERTM(line == testLine, line);
 
     for (int i = 0; i < 5; i++) {
         Point *p = createPoint("test1");
