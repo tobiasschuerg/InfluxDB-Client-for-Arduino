@@ -1,5 +1,8 @@
 # Changelog
 ## 3.5.1 [in progress]
+### Features
+- [#117](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/117) - Added `InfluxDBClient::pointToLineProtocol(const Point& point)` for simple creation of InfluxDB line-protocol string with respect to default tags
+
 ### Fixes
 - [#114](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/114) - Renamed `getRemaingRetryTime()`->`getRemainingRetryTime()`
 - [#115](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/115) - Restored writing capability after a connection failure

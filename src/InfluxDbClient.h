@@ -110,13 +110,15 @@ class InfluxDBClient {
     // authToken - InfluxDB 2 authorization token
     // serverCert - Optional. InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo = nullptr);
-    // Sets parameters for connection to InfuxDB 1
+    // Sets parameters for connection to InfluxDB 1
     // serverUrl - url of the InfluxDB server (e.g. http://localhost:8086)
     // db - database name where to store or read data
     // user - Optional. User name, in case of server requires authetication
     // password - Optional. User password, in case of server requires authetication
     // certInfo - Optional. InfluxDB server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParamsV1(const char *serverUrl, const char *db, const char *user = nullptr, const char *password = nullptr, const char *certInfo = nullptr);
+    // Creates line protocol string from point data and optional default tags set in WriteOptions.
+    String pointToLineProtocol(const Point& point);
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
     bool validateConnection();
@@ -126,7 +128,7 @@ class InfluxDBClient {
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
-    // Sends Flux query and returns FluxQueryResult object for subsequentialy reading flux query response.
+    // Sends Flux query and returns FluxQueryResult object for subsequently reading flux query response.
     // Use FluxQueryResult::next() method to iterate over lines of the query result.
     // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
     FluxQueryResult query(String fluxQuery);
@@ -208,7 +210,7 @@ class InfluxDBClient {
     uint8_t _bufferCeiling = 0;
     // Index of bath start for next write
     uint8_t _batchPointer = 0;
-    // Last time in sec bufer has been sucessfully flushed
+    // Last time in sec buffer has been successfully flushed
     uint32_t _lastFlushed = 0;
     // Last time in ms we made are a request to server
     uint32_t _lastRequestTime = 0;
@@ -218,7 +220,7 @@ class InfluxDBClient {
     String _lastErrorResponse;
     // Underlying HTTPClient instance 
     HTTPClient _httpClient;
-    // Underlying connenction object 
+    // Underlying connection object 
     WiFiClient *_wifiClient = nullptr;
     // Certificate info
     const char *_certInfo = nullptr;
@@ -237,7 +239,7 @@ class InfluxDBClient {
     void setUrls();
     // Ensures buffer has required size
     void reserveBuffer(int size);
-    // Drops current batcj and advances batch pointer
+    // Drops current batch and advances batch pointer
     void dropCurrentBatch();
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     //  flashOnlyFull - whether to flush only full batches

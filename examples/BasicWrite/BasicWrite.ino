@@ -81,7 +81,7 @@ void loop() {
   sensor.addField("rssi", WiFi.RSSI());
   // Print what are we exactly writing
   Serial.print("Writing: ");
-  Serial.println(sensor.toLineProtocol());
+  Serial.println(client.pointToLineProtocol(sensor));
   // If no Wifi signal, try to reconnect it
   if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
     Serial.println("Wifi connection lost");
