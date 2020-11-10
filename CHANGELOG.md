@@ -1,5 +1,5 @@
 # Changelog
-## 3.5.1 [in progress]
+## 3.6.0 [2020-11-10]
 ### Features
 - [#117](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/117) - Added `InfluxDBClient::pointToLineProtocol(const Point& point)` for simple creation of InfluxDB line-protocol string with respect to default tags
 
