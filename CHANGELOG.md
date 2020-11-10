@@ -6,6 +6,7 @@
 ### Fixes
 - [#114](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/114) - Renamed `getRemaingRetryTime()`->`getRemainingRetryTime()`
 - [#115](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/115) - Restored writing capability after a connection failure
+- [#118](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/118) - Added escaping of URL params (org, bucker, V1 username and pass)
 
 ## 3.5.0 [2020-10-30]
 ### Features

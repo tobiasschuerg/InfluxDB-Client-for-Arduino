@@ -233,25 +233,25 @@ void InfluxDBClient::setUrls() {
     if(_dbVersion == 2) {
         _writeUrl = _serverUrl;
         _writeUrl += "/api/v2/write?org=";
-        _writeUrl +=  _org ;
+        _writeUrl +=  urlEncode(_org.c_str());
         _writeUrl += "&bucket=";
-        _writeUrl += _bucket;
+        _writeUrl += urlEncode(_bucket.c_str());
         INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
         _queryUrl = _serverUrl;
         _queryUrl += "/api/v2/query?org=";
-        _queryUrl +=  _org;
+        _queryUrl +=  urlEncode(_org.c_str());
         INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
     } else {
         _writeUrl = _serverUrl;
         _writeUrl += "/write?db=";
-        _writeUrl += _bucket;
+        _writeUrl += urlEncode(_bucket.c_str());
         _queryUrl = _serverUrl;
         _queryUrl += "/api/v2/query";
         if(_user.length() > 0 && _password.length() > 0) {
             String auth = "&u=";
-            auth += _user;
+            auth += urlEncode(_user.c_str());
             auth += "&p=";
-            auth += _password;
+            auth += urlEncode(_password.c_str());
             _writeUrl += auth;  
             _queryUrl += "?";
             _queryUrl += auth;
