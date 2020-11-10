@@ -427,14 +427,18 @@ function checkWriteParams(req, res) {
 const AllowedPrecisionsV1 = ['ns','u','ms','s'];
 function checkWriteParamsV1(req, res) {
     var db = req.query['db'];
+    var user = req.query['u'];
+    var pass = req.query['p'];
     var precision = req.query['precision'];
     if(db != 'my-db') {
         res.status(404).send(`{"code":"not found","message":"database \"${db}\" not found"}`);
         return false;
     } else if(typeof precision !== 'undefined' && AllowedPrecisionsV1.indexOf(precision)==-1) {
-        res.status(400).send(`{"code":"bad request ","message":"precision \"${precision}\" is not valid"}`);
+        res.status(400).send(`precision \"${precision}\" is not valid`);
         return false;
-    }else {
+    } else if (user !== 'user' && pass != 'my secret pass') {
+        res.status(401).send("unauthorized")
+    } else {
         return true;
     }
 }

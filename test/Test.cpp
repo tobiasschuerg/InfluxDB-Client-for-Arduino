@@ -73,6 +73,7 @@ void Test::run() {
     testOptions();
     testPoint();
     testEcaping();
+    testUrlEncode();
     testFluxTypes();
     testFluxParserEmpty();
     testFluxParserSingleTable();
@@ -104,69 +105,69 @@ void Test::run() {
 }
 
 void Test::testOptions() {
-        TEST_INIT("testOptions");
-        WriteOptions defWO;
-        TEST_ASSERT(defWO._writePrecision == WritePrecision::NoTime);
-        TEST_ASSERT(defWO._batchSize == 1);
-        TEST_ASSERT(defWO._bufferSize == 5);
-        TEST_ASSERT(defWO._flushInterval == 60);
-        TEST_ASSERT(defWO._retryInterval == 5);
-        TEST_ASSERT(defWO._maxRetryInterval == 300);
-        TEST_ASSERT(defWO._maxRetryAttempts == 3);
-        TEST_ASSERT(defWO._defaultTags.length() == 0);
+    TEST_INIT("testOptions");
+    WriteOptions defWO;
+    TEST_ASSERT(defWO._writePrecision == WritePrecision::NoTime);
+    TEST_ASSERT(defWO._batchSize == 1);
+    TEST_ASSERT(defWO._bufferSize == 5);
+    TEST_ASSERT(defWO._flushInterval == 60);
+    TEST_ASSERT(defWO._retryInterval == 5);
+    TEST_ASSERT(defWO._maxRetryInterval == 300);
+    TEST_ASSERT(defWO._maxRetryAttempts == 3);
+    TEST_ASSERT(defWO._defaultTags.length() == 0);
 
-        defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
-        TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
-        TEST_ASSERT(defWO._batchSize == 10);
-        TEST_ASSERT(defWO._bufferSize == 20);
-        TEST_ASSERT(defWO._flushInterval == 120);
-        TEST_ASSERT(defWO._retryInterval == 1);
-        TEST_ASSERT(defWO._maxRetryInterval == 20);
-        TEST_ASSERT(defWO._maxRetryAttempts == 5);
-        TEST_ASSERT(defWO._defaultTags == "tag1=val1,tag2=val2");
+    defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
+    TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
+    TEST_ASSERT(defWO._batchSize == 10);
+    TEST_ASSERT(defWO._bufferSize == 20);
+    TEST_ASSERT(defWO._flushInterval == 120);
+    TEST_ASSERT(defWO._retryInterval == 1);
+    TEST_ASSERT(defWO._maxRetryInterval == 20);
+    TEST_ASSERT(defWO._maxRetryAttempts == 5);
+    TEST_ASSERT(defWO._defaultTags == "tag1=val1,tag2=val2");
 
-        HTTPOptions defHO;
-        TEST_ASSERT(!defHO._connectionReuse);
-        TEST_ASSERT(defHO._httpReadTimeout == 5000);
+    HTTPOptions defHO;
+    TEST_ASSERT(!defHO._connectionReuse);
+    TEST_ASSERT(defHO._httpReadTimeout == 5000);
 
-        defHO = HTTPOptions().connectionReuse(true).httpReadTimeout(20000);
-        TEST_ASSERT(defHO._connectionReuse);
-        TEST_ASSERT(defHO._httpReadTimeout == 20000);
+    defHO = HTTPOptions().connectionReuse(true).httpReadTimeout(20000);
+    TEST_ASSERT(defHO._connectionReuse);
+    TEST_ASSERT(defHO._httpReadTimeout == 20000);
 
-        InfluxDBClient c;
-        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NoTime);
-        TEST_ASSERT(c._writeOptions._batchSize == 1);
-        TEST_ASSERT(c._writeOptions._bufferSize == 5);
-        TEST_ASSERT(c._writeOptions._flushInterval == 60);
-        TEST_ASSERT(c._writeOptions._retryInterval == 5);
-        TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
-        TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
-        TEST_ASSERT(!c._httpOptions._connectionReuse);
-        TEST_ASSERT(c._httpOptions._httpReadTimeout == 5000);
+    InfluxDBClient c;
+    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NoTime);
+    TEST_ASSERT(c._writeOptions._batchSize == 1);
+    TEST_ASSERT(c._writeOptions._bufferSize == 5);
+    TEST_ASSERT(c._writeOptions._flushInterval == 60);
+    TEST_ASSERT(c._writeOptions._retryInterval == 5);
+    TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
+    TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
+    TEST_ASSERT(!c._httpOptions._connectionReuse);
+    TEST_ASSERT(c._httpOptions._httpReadTimeout == 5000);
 
-        c.setWriteOptions(defWO);
-        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
-        TEST_ASSERT(c._writeOptions._batchSize == 10);
-        TEST_ASSERT(c._writeOptions._bufferSize == 20);
-        TEST_ASSERT(c._writeOptions._flushInterval == 120);
-        TEST_ASSERT(c._writeOptions._retryInterval == 1);
-        TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
-        TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
+    c.setWriteOptions(defWO);
+    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
+    TEST_ASSERT(c._writeOptions._batchSize == 10);
+    TEST_ASSERT(c._writeOptions._bufferSize == 20);
+    TEST_ASSERT(c._writeOptions._flushInterval == 120);
+    TEST_ASSERT(c._writeOptions._retryInterval == 1);
+    TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
+    TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
 
-        c.setHTTPOptions(defHO);
-        TEST_ASSERT(c._httpOptions._connectionReuse);
-        TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+    c.setHTTPOptions(defHO);
+    TEST_ASSERT(c._httpOptions._connectionReuse);
+    TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
 
-        c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
-        TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
-        TEST_ASSERT(c._writeOptions._batchSize == 15);
-        TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
-        TEST_ASSERT(c._writeOptions._flushInterval == 70);
-        TEST_ASSERT(!c._httpOptions._connectionReuse);
-        TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+    c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
+    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
+    TEST_ASSERT(c._writeOptions._batchSize == 15);
+    TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
+    TEST_ASSERT(c._writeOptions._flushInterval == 70);
+    TEST_ASSERT(!c._httpOptions._connectionReuse);
+    TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
 
-        TEST_END();
-    }
+    TEST_END();
+}
 
 
 void Test::testEcaping() {
@@ -433,7 +434,7 @@ void Test::testHTTPReadTimeout() {
     InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     waitServer(Test::managementUrl, true);
     TEST_ASSERT(client.validateConnection());
-    //set server delay for 6s (client has default timeout 5s)
+    //set server delay on query for 6s (client has default timeout 5s)
     String rec = "a,direction=timeout,timeout=6 a=1";
     TEST_ASSERT(client.writeRecord(rec));
     rec = "a,tag=a, a=1i";
@@ -449,7 +450,7 @@ void Test::testHTTPReadTimeout() {
     TEST_ASSERT(client.writeRecord(rec));
     q = client.query(query);
     // should be ok
-    TEST_ASSERT(q.next());
+    TEST_ASSERTM(q.next(), q.getError());
     TEST_ASSERT(!q.next());
     TEST_ASSERTM(q.getError() == "", q.getError());
     q.close();
@@ -1089,10 +1090,11 @@ void Test::testTimestamp() {
 }
 
 void Test::testV1() {
-
     TEST_INIT("testV1");
-    InfluxDBClient client(Test::apiUrl, Test::dbName);
+    InfluxDBClient client;
 
+    client.setConnectionParamsV1(Test::apiUrl, Test::dbName, "user","my secret password");
+    waitServer(Test::managementUrl, true);
     TEST_ASSERTM(client.validateConnection(), client.getLastErrorMessage());
     //test with no batching
     for (int i = 0; i < 20; i++) {
@@ -1870,6 +1872,14 @@ void Test::testDefaultTags() {
 
     TEST_END();
     deleteAll(Test::apiUrl);
+}
+
+void Test::testUrlEncode() {
+    TEST_INIT("testUrlEncode");
+    String res = "my%20%5Bsecret%5D%20pass%3A%2F%5Cw%60o%5Er%25d";
+    String urlEnc = urlEncode("my [secret] pass:/\\w`o^r%d");
+    TEST_ASSERTM(res == urlEnc, urlEnc);
+    TEST_END();
 }
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {

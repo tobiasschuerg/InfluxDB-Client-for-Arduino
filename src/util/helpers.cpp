@@ -118,3 +118,32 @@ String escapeValue(const char *value) {
     }
     return ret;
 }
+
+
+static char invalidChars[] = "$&+,/:;=?@ <>#%{}|\\^~[]`";
+
+static char hex_digit(char c) {
+    return "0123456789ABCDEF"[c & 0x0F];
+}
+
+String urlEncode(const char* src) {  
+    int n=0;
+    char c,*s = (char *)src;
+    while (c = *s++) {
+        if(strchr(invalidChars, c)) {
+            n++;
+        } 
+    }
+    String ret;
+    ret.reserve(strlen(src)+2*n+1);
+    s = (char *)src;
+    while (c = *s++) {  
+       if (strchr(invalidChars,c)) {
+           ret += '%';
+           ret += hex_digit(c >> 4);
+           ret += hex_digit(c);
+      }
+      else ret += c;
+   }
+   return ret;
+}
