@@ -76,6 +76,7 @@ private: // tests
     static void testRetryInterval();
     static void testDefaultTags();
     static void testUrlEncode();
+    static void testRepeatedInit();
 };
 
 bool testAssertm(int line, bool state,String message);

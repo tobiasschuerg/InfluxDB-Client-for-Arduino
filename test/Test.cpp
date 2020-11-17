@@ -87,6 +87,7 @@ void Test::run() {
     testFluxParserErrorInRow();
     testBasicFunction();
     testInit();
+    testRepeatedInit();
     testV1();
     testUserAgent();
     testHTTPReadTimeout();
@@ -454,6 +455,18 @@ void Test::testHTTPReadTimeout() {
     TEST_ASSERT(!q.next());
     TEST_ASSERTM(q.getError() == "", q.getError());
     q.close();
+    TEST_END();
+    deleteAll(Test::apiUrl);
+}
+
+void Test::testRepeatedInit() {
+    TEST_INIT("testRepeatedInit");
+    InfluxDBClient client;
+    //waitServer(Test::managementUrl, true);
+    for(int i = 0; i<20;i++) {
+        client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+        TEST_ASSERT(client.validateConnection());
+    }
     TEST_END();
     deleteAll(Test::apiUrl);
 }
