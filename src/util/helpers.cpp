@@ -1,21 +1,21 @@
 /**
- * 
+ *
  * helpers.cpp: InfluxDB Client util functions
- * 
+ *
  * MIT License
- * 
+ *
  * Copyright (c) 2020 InfluxData
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,7 +28,7 @@
 
 void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2, const char* ntpServer3) {
   // Accurate time is necessary for certificate validion
-  
+
   configTzTime(tzInfo,ntpServer1, ntpServer2, ntpServer3);
 
   // Wait till time is synced
@@ -50,16 +50,16 @@ void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2
 unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits) {
     unsigned long long tsVal = 0;
     switch(secFracDigits) {
-        case 0: 
+        case 0:
             tsVal = tv->tv_sec;
             break;
-        case 6: 
+        case 6:
             tsVal = tv->tv_sec * 1000000LL + tv->tv_usec;
             break;
         case 9:
             tsVal = tv->tv_sec * 1000000000LL + tv->tv_usec * 1000LL;
             break;
-        case 3: 
+        case 3:
         default:
             tsVal = tv->tv_sec * 1000LL + tv->tv_usec / 1000LL;
             break;
@@ -77,7 +77,7 @@ String timeStampToString(unsigned long long timestamp) {
 String escapeKey(String key, bool escapeEqual) {
     String ret;
     ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
-    
+
     for (char c: key)
     {
         switch (c)
@@ -126,18 +126,18 @@ static char hex_digit(char c) {
     return "0123456789ABCDEF"[c & 0x0F];
 }
 
-String urlEncode(const char* src) {  
+String urlEncode(const char* src) {
     int n=0;
     char c,*s = (char *)src;
     while (c = *s++) {
         if(strchr(invalidChars, c)) {
             n++;
-        } 
+        }
     }
     String ret;
     ret.reserve(strlen(src)+2*n+1);
     s = (char *)src;
-    while (c = *s++) {  
+    while ((c = *s++)) {
        if (strchr(invalidChars,c)) {
            ret += '%';
            ret += hex_digit(c >> 4);
