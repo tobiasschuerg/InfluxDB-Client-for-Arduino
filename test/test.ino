@@ -2,7 +2,7 @@
  *  Sketch for running InfluxDBClient tests.
  *  For compiling in VSCode add path to workspace ("${workspaceFolder}\\**")
  *  Most of the tests require running mock server: cd test/server & node server.js. It will print ip adresses of available network interfaces.
- *  Modify INFLUXDB_CLIENT_MANAGEMENT_URL and INFLUXDB_CLIENT_TESTING_URL macros to set the correct mock server address.
+ *  Modify INFLUXDB_CLIENT_TESTING_SERVER_HOST to set the correct mock server address.
  * 
  */
 
@@ -15,8 +15,7 @@
 #include <ESP8266WiFi.h>
 #endif
 
-#define INFLUXDB_CLIENT_MANAGEMENT_URL "http://192.168.88.142:998"
-#define INFLUXDB_CLIENT_TESTING_URL "http://192.168.88.142:999"
+#define INFLUXDB_CLIENT_TESTING_SERVER_HOST "192.168.88.142"
 #define INFLUXDB_CLIENT_TESTING_ORG "my-org"
 #define INFLUXDB_CLIENT_TESTING_BUC "my-bucket"
 #define INFLUXDB_CLIENT_TESTING_DB "my-db"
@@ -25,6 +24,10 @@
 #define INFLUXDB_CLIENT_TESTING_PASS "password"
 
 #include "customSettings.h"
+
+#define INFLUXDB_CLIENT_MANAGEMENT_URL "http://" INFLUXDB_CLIENT_TESTING_SERVER_HOST ":998"
+#define INFLUXDB_CLIENT_TESTING_URL "http://" INFLUXDB_CLIENT_TESTING_SERVER_HOST ":999"
+
 #include "TestSupport.h"
 #include "Test.h"
 
