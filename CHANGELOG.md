@@ -1,4 +1,12 @@
 # Changelog
+## 3.6.1 [in progress]
+### Features
+### Fixes
+- [#121](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/121) - Fixed compile error in case of warning is treated as an error
+- [#122](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/122) - Deleting WiFiClient instance to avoid memory leaking when the InfluxDBClient is reinitialized
+### Doc
+- [#120](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/120) - Improved language wording in the Readme
+
 ## 3.6.0 [2020-11-10]
 ### Features
 - [#117](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/117) - Added `InfluxDBClient::pointToLineProtocol(const Point& point)` for simple creation of InfluxDB line-protocol string with respect to default tags
@@ -30,7 +38,7 @@
     - Added possibility to set HTTP response read timeout (part of the `HTTPOptions`).
     - Method `InfluxDBClient::void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true)` is deprecated and it will be removed in the next release.
  - [#93](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/93) - Write logic improvements 
-   - Retry on failure logic unification with other InfluxDB clients (exponencial retry, max retry count 3, max retry interval)
+   - Retry on failure logic unification with other InfluxDB clients (exponential retry, max retry count 3, max retry interval)
    - Better write buffer memory management
 
 ### Documentation
@@ -43,7 +51,7 @@
 
 ## Version 3.3.0 (2020-07-07)
  - [NEW] Added possibility skip server certification validation (`setInsecure()` method)
- - [NEW] Added possibility to query flux on secured InfuxDB 1.8 using V1 approach
+ - [NEW] Added possibility to query flux on secured InfluxDB 1.8 using V1 approach
  - [NEW] `validateConnection()` can be used also for the [forward compatibility](https://docs.influxdata.com/influxdb/latest/tools/api/#influxdb-2-0-api-compatibility-endpoints) connection to InfluxDB 1.8
  - [FIX] More precice default timestamp generating, up to microseconds
  - [FIX] Debug compilation error
