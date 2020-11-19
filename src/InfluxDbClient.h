@@ -219,7 +219,7 @@ class InfluxDBClient {
     // Server reponse or library error message for last failed request
     String _lastErrorResponse;
     // Underlying HTTPClient instance 
-    HTTPClient _httpClient;
+    HTTPClient *_httpClient = nullptr;
     // Underlying connection object 
     WiFiClient *_wifiClient = nullptr;
     // Certificate info

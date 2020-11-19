@@ -109,13 +109,14 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
 }
 
 bool InfluxDBClient::init() {
-    INFLUXDB_CLIENT_DEBUG("Init\n");
-    INFLUXDB_CLIENT_DEBUG("  Library version: " INFLUXDB_CLIENT_VERSION "\n");
-    INFLUXDB_CLIENT_DEBUG("  Server url: %s\n", _serverUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG("  Org: %s\n", _org.c_str());
-    INFLUXDB_CLIENT_DEBUG("  Bucket: %s\n", _bucket.c_str());
-    INFLUXDB_CLIENT_DEBUG("  Token: %s\n", _authToken.c_str());
-    INFLUXDB_CLIENT_DEBUG("  DB version: %d\n", _dbVersion);
+    INFLUXDB_CLIENT_DEBUG("[D] Init\n");
+    INFLUXDB_CLIENT_DEBUG("[D]  Library version: " INFLUXDB_CLIENT_VERSION "\n");
+    INFLUXDB_CLIENT_DEBUG("[D]  Server url: %s\n", _serverUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _org.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _bucket.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Token: %s\n", _authToken.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  DB version: %d\n", _dbVersion);
+    INFLUXDB_CLIENT_DEBUG("[D]  Connection reuse: %s\n", _httpOptions._connectionReuse?"true":"false");
     if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
          INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
         return false;
@@ -150,9 +151,12 @@ bool InfluxDBClient::init() {
     } else {
         _wifiClient = new WiFiClient;
     }
-    _httpClient.setReuse(_httpOptions._connectionReuse);
+    if(!_httpClient) {
+        _httpClient = new HTTPClient;
+    }
+    _httpClient->setReuse(_httpOptions._connectionReuse);
 
-    _httpClient.setUserAgent(FPSTR(UserAgent));
+    _httpClient->setUserAgent(FPSTR(UserAgent));
     return true;
 }
 
@@ -192,9 +196,9 @@ bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url) {
         portS.remove(0, (index + 1)); // remove hostname + :
         port = portS.toInt(); // get port
     }
-    INFLUXDB_CLIENT_DEBUG("probeMaxFragmentLength to %s:%d\n", host.c_str(), port);
+    INFLUXDB_CLIENT_DEBUG("[D] probeMaxFragmentLength to %s:%d\n", host.c_str(), port);
     bool mfln = client->probeMaxFragmentLength(host, port, 1024);
-    INFLUXDB_CLIENT_DEBUG("  MFLN:%s\n", mfln ? "yes" : "no");
+    INFLUXDB_CLIENT_DEBUG("[D]  MFLN:%s\n", mfln ? "yes" : "no");
     if (mfln) {
         client->setBufferSizes(1024, 1024);
     } 
@@ -214,7 +218,14 @@ InfluxDBClient::~InfluxDBClient() {
 }
 
 void InfluxDBClient::clean() {
-     _wifiClient = nullptr;
+    if(_httpClient) {
+        delete _httpClient;
+        _httpClient = nullptr;
+    }
+    if(_wifiClient) {
+        delete _wifiClient;
+        _wifiClient = nullptr;
+    }
 #if defined(ESP8266)     
     if(_cert) {
         delete _cert;
@@ -229,18 +240,18 @@ void InfluxDBClient::clean() {
 }
 
 void InfluxDBClient::setUrls() {
-    INFLUXDB_CLIENT_DEBUG("setUrls\n");
+    INFLUXDB_CLIENT_DEBUG("[D] setUrls\n");
     if(_dbVersion == 2) {
         _writeUrl = _serverUrl;
         _writeUrl += "/api/v2/write?org=";
         _writeUrl +=  urlEncode(_org.c_str());
         _writeUrl += "&bucket=";
         _writeUrl += urlEncode(_bucket.c_str());
-        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
         _queryUrl = _serverUrl;
         _queryUrl += "/api/v2/query?org=";
         _queryUrl +=  urlEncode(_org.c_str());
-        INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
     } else {
         _writeUrl = _serverUrl;
         _writeUrl += "/write?db=";
@@ -256,13 +267,13 @@ void InfluxDBClient::setUrls() {
             _queryUrl += "?";
             _queryUrl += auth;
         }
-        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
-        INFLUXDB_CLIENT_DEBUG("  queryUrl: %s\n", _queryUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
     }
     if(_writeOptions._writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
         _writeUrl += precisionToString(_writeOptions._writePrecision, _dbVersion);
-        INFLUXDB_CLIENT_DEBUG("  writeUrl: %s\n", _writeUrl.c_str());
+        INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
     }
     
 }
@@ -297,8 +308,11 @@ void InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
 
 void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
     _httpOptions = httpOptions;
-    _httpClient.setReuse(_httpOptions._connectionReuse);
-    _httpClient.setTimeout(_httpOptions._httpReadTimeout);
+    if(!_httpClient) {
+        _httpClient = new HTTPClient;
+    }
+    _httpClient->setReuse(_httpOptions._connectionReuse);
+    _httpClient->setTimeout(_httpOptions._httpReadTimeout);
 }
 
 void InfluxDBClient::resetBuffer() {
@@ -312,7 +326,7 @@ void InfluxDBClient::resetBuffer() {
     if(_writeBufferSize < 2) {
         _writeBufferSize = 2;
     }
-    INFLUXDB_CLIENT_DEBUG("Reset buffer: writeBuffSize: %d\n", _writeBufferSize);
+    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: writeBuffSize: %d\n", _writeBufferSize);
     _writeBuffer = new Batch*[_writeBufferSize];
     for(int i=0;i<_writeBufferSize;i++) {
         _writeBuffer[i] = nullptr;
@@ -325,7 +339,7 @@ void InfluxDBClient::resetBuffer() {
 void InfluxDBClient::reserveBuffer(int size) {
     if(size > _writeBufferSize) {
         Batch **newBuffer = new Batch*[size];
-        INFLUXDB_CLIENT_DEBUG("Resizing buffer from %d to %d\n",_writeBufferSize, size);
+        INFLUXDB_CLIENT_DEBUG("[D] Resizing buffer from %d to %d\n",_writeBufferSize, size);
         for(int i=0;i<_bufferCeiling; i++) {
             newBuffer[i] = _writeBuffer[i];
         }
@@ -533,29 +547,29 @@ bool InfluxDBClient::validateConnection() {
     String url = _serverUrl + (_dbVersion==2?"/health":"/ping?verbose=true");
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
-    if(!_httpClient.begin(*_wifiClient, url)) {
+    if(!_httpClient->begin(*_wifiClient, url)) {
         INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return false;
     }
-    _httpClient.addHeader(F("Accept"), F("application/json"));
+    _httpClient->addHeader(F("Accept"), F("application/json"));
     
-    _lastStatusCode = _httpClient.GET();
+    _lastStatusCode = _httpClient->GET();
 
    _lastErrorResponse = "";
     
     afterRequest(200, false);
 
-    _httpClient.end();
+    _httpClient->end();
 
     return _lastStatusCode == 200;
 }
 
 void InfluxDBClient::beforeRequest() {
     if(_authToken.length() > 0) {
-        _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
+        _httpClient->addHeader(F("Authorization"), "Token " + _authToken);
     }
     const char * headerKeys[] = {RetryAfter, TransferEncoding} ;
-    _httpClient.collectHeaders(headerKeys, 2);
+    _httpClient->collectHeaders(headerKeys, 2);
 }
 
 int InfluxDBClient::postData(const char *data) {
@@ -566,22 +580,22 @@ int InfluxDBClient::postData(const char *data) {
     }
     if(data) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
-        if(!_httpClient.begin(*_wifiClient, _writeUrl)) {
+        if(!_httpClient->begin(*_wifiClient, _writeUrl)) {
             INFLUXDB_CLIENT_DEBUG("[E] Begin failed\n");
             return false;
         }
         INFLUXDB_CLIENT_DEBUG("[D] Sending:\n%s\n", data);       
 
-        _httpClient.addHeader(F("Content-Type"), F("text/plain"));   
+        _httpClient->addHeader(F("Content-Type"), F("text/plain"));   
         
         beforeRequest();        
         
-        _lastStatusCode = _httpClient.POST((uint8_t*)data, strlen(data));
+        _lastStatusCode = _httpClient->POST((uint8_t*)data, strlen(data));
         
         afterRequest(204);
 
         
-        _httpClient.end();
+        _httpClient->end();
     } 
     return _lastStatusCode;
 }
@@ -615,11 +629,11 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
         return FluxQueryResult(_lastErrorResponse);
     }
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
-    if(!_httpClient.begin(*_wifiClient, _queryUrl)) {
+    if(!_httpClient->begin(*_wifiClient, _queryUrl)) {
         INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return FluxQueryResult("");;
     }
-    _httpClient.addHeader(F("Content-Type"), F("application/json"));
+    _httpClient->addHeader(F("Content-Type"), F("application/json"));
     
     beforeRequest();
 
@@ -629,22 +643,22 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     body += escapeJSONString(fluxQuery) + "\",";
     body += FPSTR(QueryDialect);
 
-    _lastStatusCode = _httpClient.POST(body);
+    _lastStatusCode = _httpClient->POST(body);
     
     afterRequest(200);
     if(_lastStatusCode == 200) {
         bool chunked = false;
-        if(_httpClient.hasHeader(TransferEncoding)) {
-            String header = _httpClient.header(TransferEncoding);
+        if(_httpClient->hasHeader(TransferEncoding)) {
+            String header = _httpClient->header(TransferEncoding);
             chunked = header.equalsIgnoreCase("chunked");
         }
         INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", chunked?"true":"false");
-        HttpStreamScanner *scanner = new HttpStreamScanner(&_httpClient, chunked);
+        HttpStreamScanner *scanner = new HttpStreamScanner(_httpClient, chunked);
         CsvReader *reader = new CsvReader(scanner);
         
         return FluxQueryResult(reader);
     } else {
-        _httpClient.end();
+        _httpClient->end();
         return FluxQueryResult(_lastErrorResponse);
     }
 }
@@ -655,8 +669,8 @@ void InfluxDBClient::afterRequest(int expectedStatusCode,  bool modifyLastConnSt
         INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
         _lastRetryAfter = 0;
         if(_lastStatusCode >= 429) { //retryable server errors
-            if(_httpClient.hasHeader(RetryAfter)) {
-                _lastRetryAfter = _httpClient.header(RetryAfter).toInt();
+            if(_httpClient->hasHeader(RetryAfter)) {
+                _lastRetryAfter = _httpClient->header(RetryAfter).toInt();
                 INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
             }
         }
@@ -664,10 +678,10 @@ void InfluxDBClient::afterRequest(int expectedStatusCode,  bool modifyLastConnSt
     _lastErrorResponse = "";
     if(_lastStatusCode != expectedStatusCode) {
         if(_lastStatusCode > 0) {
-            _lastErrorResponse = _httpClient.getString();
+            _lastErrorResponse = _httpClient->getString();
             INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", _lastErrorResponse.c_str());
         } else {
-            _lastErrorResponse = _httpClient.errorToString(_lastStatusCode);
+            _lastErrorResponse = _httpClient->errorToString(_lastStatusCode);
             INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _lastErrorResponse.c_str());
         }
     }
