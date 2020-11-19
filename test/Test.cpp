@@ -87,6 +87,7 @@ void Test::run() {
     testFluxParserErrorInRow();
     testBasicFunction();
     testInit();
+    testRepeatedInit();
     testV1();
     testUserAgent();
     testHTTPReadTimeout();
@@ -456,6 +457,25 @@ void Test::testHTTPReadTimeout() {
     q.close();
     TEST_END();
     deleteAll(Test::apiUrl);
+}
+
+void Test::testRepeatedInit() {
+    // test for validation repeated re-init and not leaking wificlient
+    TEST_INIT("testRepeatedInit");
+    
+    waitServer(Test::managementUrl, true);
+    uint32_t startRAM = ESP.getFreeHeap();
+    do {
+        InfluxDBClient client;
+        for(int i = 0; i<20;i++) {
+            client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+            TEST_ASSERT(client.validateConnection());
+        }
+    } while(0);
+    uint32_t endRAM = ESP.getFreeHeap();
+    long diff = endRAM-startRAM;
+    TEST_ASSERTM(diff>-100,String(diff));
+    TEST_END();
 }
 
 void Test::testRetryOnFailedConnection() {
@@ -852,7 +872,7 @@ void Test::testRetriesOnServerOverload() {
             }
         }
         delete p;
-        delay(164);
+        delay(162);
     }
     TEST_ASSERT(!client.isBufferEmpty());
     TEST_ASSERT(client.flushBuffer());

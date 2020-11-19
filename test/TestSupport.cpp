@@ -34,6 +34,7 @@
 
 #include "TestSupport.h"
 
+static HTTPClient httpClient;
 
 void printFreeHeap() {
   Serial.print("[TD] Free heap: ");  
@@ -41,28 +42,26 @@ void printFreeHeap() {
 }
 
 int httpPOST(String url, String mess) {
-  HTTPClient http;
-  http.setReuse(false);
+  httpClient.setReuse(false);
   int code = 0;
-  if(http.begin(url)) {
-    code = http.POST(mess);
-    http.end();
+  if(httpClient.begin(url)) {
+    code = httpClient.POST(mess);
+    httpClient.end();
   }
   return code;
 }
 
 int httpGET(String url) {
-  HTTPClient http;
-  http.setReuse(false);
+  httpClient.setReuse(false);
   int code = 0;
-  if(http.begin(url)) {
-    code = http.GET();
+  if(httpClient.begin(url)) {
+    code = httpClient.GET();
     if(code != 204) {
        //Serial.print("[TD] ");
        //String res = http.getString();
        //Serial.println(res);
     }
-    http.end();
+    httpClient.end();
   }
   return code;
 }
