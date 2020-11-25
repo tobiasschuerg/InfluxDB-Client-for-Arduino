@@ -1,6 +1,6 @@
 /**
  * 
- * InfluxData.h: InfluxDB Client for Arduino
+ * InfluxData.cpp: InfluxDB Client for Arduino
  * 
  * MIT License
  * 
@@ -24,14 +24,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
 */
-#include "InfluxDbClient.h"
+#include "InfluxData.h"
+#include "util/helpers.h"
 
-class InfluxData : public Point {
- public:
-  InfluxData(String measurement) : Point(measurement) {}
+void InfluxData::setTimestamp(long int seconds) 
+{ 
+    _timestamp = timeStampToString(seconds) + "000000000"; 
+}
 
-  void addValue(String key, float value) { addField(key, value); }
-  void addValueString(String key, String value) { addField(key, value); }
-  void setTimestamp(long int seconds);
-  String toString() const;
-};
+ String InfluxData::toString() const { 
+    String t; 
+    return createLineProtocol(t); 
+}

@@ -91,8 +91,7 @@ class InfluxDBClient {
     // flushInterval - maximum number of seconds data will be held in buffer before are written to the db. 
     //                 Data are written either when number of points in buffer reaches batchSize or time of  
     // preserveConnection - true if HTTP connection should be kept open. Usable for frequent writes.
-    [[deprecated("Use setWriteOptions(const WriteOptions &writeOptions)")]]
-    void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true); 
+    void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true) __attribute__ ((deprecated("Use setWriteOptions(const WriteOptions &writeOptions)")));
     // Sets custom write options. See WriteOptions doc for more info. 
     // Must be called before calling any method initiating a connection to server.
     // Example: 

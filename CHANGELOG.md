@@ -4,6 +4,8 @@
 ### Fixes
 - [#121](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/121) - Fixed compile error in case of warning is treated as an error
 - [#122](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/122) - Deleting WiFiClient instance to avoid memory leaking when the InfluxDBClient is reinitialized
+- [#124](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/124) - Fixed compilation warnings
+
 ### Doc
 - [#120](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/120) - Improved language wording in the Readme
 

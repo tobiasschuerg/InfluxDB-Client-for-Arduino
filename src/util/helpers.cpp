@@ -34,7 +34,7 @@ void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2
   // Wait till time is synced
   Serial.print("Syncing time");
   int i = 0;
-  while (time(nullptr) < 1000000000ul && i < 40) {
+  while (time(nullptr) < 1000000000l && i < 40) {
     Serial.print(".");
     delay(500);
     i++;
@@ -129,7 +129,7 @@ static char hex_digit(char c) {
 String urlEncode(const char* src) {
     int n=0;
     char c,*s = (char *)src;
-    while (c = *s++) {
+    while ((c = *s++)) {
         if(strchr(invalidChars, c)) {
             n++;
         }
