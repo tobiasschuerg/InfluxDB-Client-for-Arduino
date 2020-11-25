@@ -72,6 +72,7 @@ void Test::run() {
     // Basic tests
     testOptions();
     testPoint();
+    testLineProtocol();
     testEcaping();
     testUrlEncode();
     testFluxTypes();
@@ -191,15 +192,26 @@ void Test::testEcaping() {
     p.addField("fie,ld", "val,ue");
     p.addField("fie\"ld", "val\"ue");
 
+    InfluxDBClient client;
     
     String line = p.toLineProtocol();
-    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
+    const char *lp = "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"";
+    TEST_ASSERTM(line == lp, line);
+    line = client.pointToLineProtocol(p);
+    TEST_ASSERTM(line == lp, line);
 
     WriteOptions w;
     w.addDefaultTag("dta=g","dval=ue");
     w.addDefaultTag("dtag","dvalue");
+    
+    const char *lp2 = "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,dta\\=g=dval\\=ue,dtag=dvalue,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"";
     line = p.toLineProtocol(w._defaultTags);
-    TEST_ASSERTM(line == "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,dta\\=g=dval\\=ue,dtag=dvalue,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"", line);
+
+    TEST_ASSERTM(line == lp2, line);
+    client.setWriteOptions(w);
+    line = client.pointToLineProtocol(p);
+    TEST_ASSERTM(line == lp2, line);
+    
     TEST_END();
 }
 
@@ -312,6 +324,104 @@ void Test::testPoint() {
     TEST_ASSERT(!p.hasFields());
     p.addField("nan", (double)NAN);
     TEST_ASSERT(!p.hasFields());
+
+    TEST_END();
+}
+
+void Test::testLineProtocol() {
+    TEST_INIT("testLineProtocol");
+
+    InfluxDBClient client;
+    Point p("test");
+    p.addTag("tag1", "tagvalue");
+    p.addField("fieldInt", -23);
+    p.addField("fieldBool", true);
+    p.addField("fieldFloat1", 1.123f);
+    p.addField("fieldFloat2", 1.12345f, 5);
+    p.addField("fieldDouble1", 1.123);
+    p.addField("fieldDouble2", 1.12345, 5);
+    p.addField("fieldChar", 'A');
+    p.addField("fieldUChar", (unsigned char)1);
+    p.addField("fieldUInt", 23u);
+    p.addField("fieldLong", 123456l);
+    p.addField("fieldULong", 123456ul);
+    p.addField("fieldString", "text test");
+
+    String line = client.pointToLineProtocol(p);
+    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    TEST_ASSERTM(line == testLine, line);
+
+    client.setWriteOptions(WriteOptions().addDefaultTag("dtag","val"));
+
+    line = client.pointToLineProtocol(p);
+    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    TEST_ASSERTM(line == testLine, line);
+
+    p.clearTags();
+    line = client.pointToLineProtocol(p);
+    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    TEST_ASSERTM(line == testLine, line);
+
+
+    p.clearFields();
+    p.clearTags();
+
+    //line protocol without tags
+    p.addField("f", 1);
+    line = client.pointToLineProtocol(p);
+    testLine = "test,dtag=val f=1i";
+    TEST_ASSERTM(line == testLine, line);
+
+    TEST_ASSERT(!p.hasTime());
+    time_t now = time(nullptr);
+    String snow(now);
+    p.setTime(now);
+    String testLineTime = testLine + " " + snow;
+    line = client.pointToLineProtocol(p);
+    TEST_ASSERTM(line == testLineTime, line);
+    
+    unsigned long long ts = now*1000000000LL+123456789;
+    p.setTime(ts);
+    testLineTime = testLine + " " + snow + "123456789";
+    line = client.pointToLineProtocol(p);
+    TEST_ASSERTM(line == testLineTime, line);
+
+    now += 10;
+    snow = now;
+    p.setTime(snow);
+    testLineTime = testLine + " " + snow;
+    line = client.pointToLineProtocol(p);
+    TEST_ASSERTM(line == testLineTime, line);
+
+    p.setTime(WritePrecision::S);
+    line = client.pointToLineProtocol(p);
+    int partsCount;
+    String *parts = getParts(line, ' ', partsCount);
+    TEST_ASSERTM(partsCount == 3, String("3 != ") + partsCount);
+    TEST_ASSERT(parts[2].length() == snow.length());
+    delete[] parts;
+
+    p.setTime(WritePrecision::MS);
+    TEST_ASSERT(p.hasTime());
+    line = client.pointToLineProtocol(p);
+    parts = getParts(line, ' ', partsCount);
+    TEST_ASSERT(partsCount == 3);
+    TEST_ASSERT(parts[2].length() == snow.length() + 3);
+    delete[] parts;
+
+    p.setTime(WritePrecision::US);
+    line = client.pointToLineProtocol(p);
+    parts = getParts(line, ' ', partsCount);
+    TEST_ASSERT(partsCount == 3);
+    TEST_ASSERT(parts[2].length() == snow.length() + 6);
+    delete[] parts;
+
+    p.setTime(WritePrecision::NS);
+    line = client.pointToLineProtocol(p);
+    parts = getParts(line, ' ', partsCount);
+    TEST_ASSERT(partsCount == 3);
+    TEST_ASSERT(parts[2].length() == snow.length() + 9);
+    delete[] parts;
 
     TEST_END();
 }
@@ -977,7 +1087,6 @@ void Test::testFailedWrites() {
         TEST_ASSERTM(client.writePoint(*p) == (i % 5 != 0), String("i=") + i + client.getLastErrorMessage());
         delete p;
     }
-    int count;
     String query = "";
     FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
@@ -1075,7 +1184,7 @@ void Test::testTimestamp() {
     std::vector<String> lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERT(lines.size() == 20);
-    for (int i = 0; i < lines.size(); i++) {
+    for (unsigned int i = 0; i < lines.size(); i++) {
         int partsCount;
         String *parts = getParts(lines[i], ',', partsCount);
         TEST_ASSERTM(partsCount == 11, String(i) + ":" + lines[i]);  //1measurement,4tags,5fields, 1timestamp
@@ -1097,7 +1206,7 @@ void Test::testTimestamp() {
     lines = getLines(q);
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERT(lines.size() == 20);  //20 points+header
-    for (int i = 0; i < lines.size(); i++) {
+    for (unsigned int i = 0; i < lines.size(); i++) {
         int partsCount;
         String *parts = getParts(lines[i], ',', partsCount);
         TEST_ASSERTM(partsCount == 10, String(i) + ":" + lines[i]);  //1measurement,4tags,5fields
@@ -1114,6 +1223,7 @@ void Test::testV1() {
     InfluxDBClient client;
 
     client.setConnectionParamsV1(Test::apiUrl, Test::dbName, "user","my secret password");
+    client.setHTTPOptions(HTTPOptions().connectionReuse(true));
     waitServer(Test::managementUrl, true);
     TEST_ASSERTM(client.validateConnection(), client.getLastErrorMessage());
     //test with no batching
@@ -1317,10 +1427,10 @@ end:
     return false;
 }
 
-bool testStringVector(std::vector<String> vect, const char *values[], int size) {
+bool testStringVector(std::vector<String> vect, const char *values[], unsigned int size) {
     do {
         TEST_ASSERTM(vect.size() == size, String(vect.size()));
-        for(int i=0;i<size;i++) {
+        for(unsigned int i=0;i<size;i++) {
             if(vect[i] != values[i]) {
                 Serial.print("assert failure: ");
                 Serial.println(vect[i]);
@@ -1367,10 +1477,10 @@ end:
 }
 
 
-bool testTableColumns(FluxQueryResult flux,  const char *columns[], int columnsCount) {
+bool testTableColumns(FluxQueryResult flux,  const char *columns[], unsigned int columnsCount) {
     do {
         TEST_ASSERT(testStringVector(flux.getColumnsName(), columns, columnsCount));
-        for(int i=0;i<columnsCount;i++) {
+        for(unsigned int i=0;i<columnsCount;i++) {
             TEST_ASSERTM(flux.getColumnIndex(columns[i]) == i, columns[i]);
         }
         TEST_ASSERTM(flux.getColumnIndex("x") == -1, "flux.getColumnIndex(\"x\")");

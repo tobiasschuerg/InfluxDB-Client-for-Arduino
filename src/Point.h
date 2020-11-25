@@ -35,6 +35,7 @@
  * It defines data to be written to InfluxDB.
  */
 class Point {
+friend class InfluxDBClient;
   public:
     Point(String measurement);
     // Adds string tag 
@@ -67,17 +68,19 @@ class Point {
     bool hasTags() const   { return _tags.length() > 0; }
     // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
-    // Creates line protocol with optionaly added tags
-    [[deprecated("Use InfluxDBClient::pointToLineProtocol()")]]
-    String toLineProtocol(String includeTags = "") const;
+    // Creates line protocol with optionally added tags
+    String toLineProtocol(String includeTags = "") const __attribute__ ((deprecated("Use InfluxDBClient::pointToLineProtocol()")));
     // returns current timestamp
     String getTime() const { return _timestamp; } 
   protected:
     String _measurement;
     String _tags;
     String _fields;
-    String _timestamp;    
+    String _timestamp;
+  protected:    
     // method for formating field into line protocol
     void putField(String name, String value);
+    // Creates line protocol string
+    String createLineProtocol(String &incTags) const;
 };
 #endif //_POINT_H_

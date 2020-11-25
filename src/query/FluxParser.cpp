@@ -62,7 +62,7 @@ int FluxQueryResult::getColumnIndex(String columnName) {
 
 FluxValue FluxQueryResult::getValueByIndex(int index) {
     FluxValue ret;
-    if(index >= 0 && index < _data->_columnValues.size()) {
+    if(index >= 0 && index < (int)_data->_columnValues.size()) {
         ret = _data->_columnValues[index];
     }
     return ret;
@@ -156,7 +156,7 @@ readRow:
                    INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			       return false;
                 } else {
-                    for(int i=1;i < vals.size(); i++) {
+                    for(unsigned int i=1;i < vals.size(); i++) {
                         _data->_columnNames.push_back(vals[i]);
                     }
                 }
@@ -174,7 +174,7 @@ readRow:
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
 			return false;
 		}
-		for(int i=1;i < vals.size(); i++) {
+		for(unsigned int i=1;i < vals.size(); i++) {
             FluxBase *v  = nullptr;
             if(vals[i].length() > 0) {
                 v = convertValue(vals[i], _data->_columnDatatypes[i-1]);
@@ -191,7 +191,7 @@ readRow:
 		_data->_tablePosition++;
         clearColumns();
         _data->_tableChanged = true;
-		for(int i=1;i < vals.size(); i++) {
+		for(unsigned int i=1;i < vals.size(); i++) {
 			_data->_columnDatatypes.push_back(vals[i]);
 		}
 		parsingState = ParsingStateNameRow;

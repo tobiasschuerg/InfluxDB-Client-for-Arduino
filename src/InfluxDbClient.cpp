@@ -509,7 +509,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
        yield();
     }
     //Have we emptied the buffer?
-    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%x\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
+    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%p\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
     if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
         _bufferPointer = 0;
         _batchPointer = 0;
@@ -534,7 +534,7 @@ void  InfluxDBClient::dropCurrentBatch() {
 }
 
 String InfluxDBClient::pointToLineProtocol(const Point& point) {
-    return point.toLineProtocol(_writeOptions._defaultTags);
+    return point.createLineProtocol(_writeOptions._defaultTags);
 }
 
 bool InfluxDBClient::validateConnection() {
@@ -693,7 +693,7 @@ static String escapeJSONString(String &value) {
     int i,from = 0;
     while((i = value.indexOf('"',from)) > -1) {
         d++;
-        if(i == value.length()-1) {
+        if(i == (int)value.length()-1) {
             break;
         }
         from = i+1;
@@ -711,7 +711,7 @@ static String escapeJSONString(String &value) {
             case '\r': ret += "\\r"; break;
             case '\t': ret += "\\t"; break;
             default:
-                if ('\x00' <= c && c <= '\x1f') {
+                if (c <= '\x1f') {
                     ret += "\\u";
                     char buf[3 + 8 * sizeof(unsigned int)];
                     sprintf(buf,  "\\u%04u", c);

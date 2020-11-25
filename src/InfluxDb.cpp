@@ -142,7 +142,7 @@ boolean Influxdb::write() {
  * Write a single measurement into the db.
  */
 boolean Influxdb::write(InfluxData data) { 
-    return write(data.toLineProtocol());
+    return write(pointToLineProtocol(data));
 }
 
 /**
