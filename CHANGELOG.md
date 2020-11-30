@@ -1,5 +1,5 @@
 # Changelog
-## 3.6.1 [in progress]
+## 3.6.1 [2020-11-30]
 ### Features
 ### Fixes
 - [#121](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/121) - Fixed compile error in case of warning is treated as an error
