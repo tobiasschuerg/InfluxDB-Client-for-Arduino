@@ -195,6 +195,8 @@ class InfluxDBClient {
     String _writeUrl;
     // Cached full query url
     String _queryUrl;
+    // Cached full validation url
+    String _validateUrl;
     // Points buffer
     Batch **_writeBuffer = nullptr;
     // Batch buffer size
