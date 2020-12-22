@@ -252,18 +252,12 @@ void InfluxDBClient::setUrls() {
         _queryUrl += "/api/v2/query?org=";
         _queryUrl +=  urlEncode(_org.c_str());
         INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
-        _validateUrl = _serverUrl;
-        _validateUrl += "/health";
-        INFLUXDB_CLIENT_DEBUG("[D]  validateUrl: %s\n", _validateUrl.c_str());
     } else {
         _writeUrl = _serverUrl;
         _writeUrl += "/write?db=";
         _writeUrl += urlEncode(_bucket.c_str());
         _queryUrl = _serverUrl;
         _queryUrl += "/api/v2/query";
-        // on version 1.x /ping will by default return status code 204, without verbose
-        _validateUrl = _serverUrl;
-        _validateUrl += "/ping?verbose=true";
         if(_user.length() > 0 && _password.length() > 0) {
             String auth = "&u=";
             auth += urlEncode(_user.c_str());
@@ -272,11 +266,9 @@ void InfluxDBClient::setUrls() {
             _writeUrl += auth;  
             _queryUrl += "?";
             _queryUrl += auth;
-            _validateUrl += auth;
         }
         INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
         INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
-        INFLUXDB_CLIENT_DEBUG("[D]  validateUrl: %s\n", _validateUrl.c_str());
     }
     if(_writeOptions._writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
@@ -551,9 +543,17 @@ bool InfluxDBClient::validateConnection() {
         _lastErrorResponse = FPSTR(UninitializedMessage);
         return false;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", _serverUrl.c_str());
+    // on version 1.x /ping will by default return status code 204, without verbose
+    String url = _serverUrl + (_dbVersion==2?"/health":"/ping?verbose=true");
+    if(_dbVersion==1 && _user.length() > 0 && _password.length() > 0) {
+        url += "&u=";
+        url += urlEncode(_user.c_str());
+        url += "&p=";
+        url += urlEncode(_password.c_str());
+    }
+    INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
-    if(!_httpClient->begin(*_wifiClient, _validateUrl)) {
+    if(!_httpClient->begin(*_wifiClient, url)) {
         INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return false;
     }
