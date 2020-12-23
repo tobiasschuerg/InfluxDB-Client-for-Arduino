@@ -545,6 +545,12 @@ bool InfluxDBClient::validateConnection() {
     }
     // on version 1.x /ping will by default return status code 204, without verbose
     String url = _serverUrl + (_dbVersion==2?"/health":"/ping?verbose=true");
+    if(_dbVersion==1 && _user.length() > 0 && _password.length() > 0) {
+        url += "&u=";
+        url += urlEncode(_user.c_str());
+        url += "&p=";
+        url += urlEncode(_password.c_str());
+    }
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
     if(!_httpClient->begin(*_wifiClient, url)) {
