@@ -1,4 +1,11 @@
 # Changelog
+## 3.7.0 [in progress]
+### Features
+ - [#125](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/124) - Added credentials to the InfluxDB 1.x validation endpoint (/ping). To leverage this, [enable ping authentication](https://docs.influxdata.com/influxdb/v1.8/administration/config/#ping-auth-enabled-false) 
+
+### Fixes
+ - [#129](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/129) - Updated InfluxDB 2 Cloud CA certificate to trust servers from all cloud providers (AWS, Azure, GCP)
+
 ## 3.6.1 [2020-11-30]
 ### Features
 ### Fixes
