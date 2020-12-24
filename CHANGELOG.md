@@ -1,5 +1,5 @@
 # Changelog
-## 3.7.0 [in progress]
+## 3.7.0 [2020-12-24]
 ### Features
  - [#125](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/124) - Added credentials to the InfluxDB 1.x validation endpoint (/ping). To leverage this, [enable ping authentication](https://docs.influxdata.com/influxdb/v1.8/administration/config/#ping-auth-enabled-false) 
 
