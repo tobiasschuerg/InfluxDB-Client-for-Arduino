@@ -111,6 +111,8 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
 bool InfluxDBClient::init() {
     INFLUXDB_CLIENT_DEBUG("[D] Init\n");
     INFLUXDB_CLIENT_DEBUG("[D]  Library version: " INFLUXDB_CLIENT_VERSION "\n");
+    INFLUXDB_CLIENT_DEBUG("[D]  Device : " INFLUXDB_CLIENT_PLATFORM "\n");
+    INFLUXDB_CLIENT_DEBUG("[D]  SDK version: " INFLUXDB_CLIENT_PLATFORM_VERSION "\n");
     INFLUXDB_CLIENT_DEBUG("[D]  Server url: %s\n", _serverUrl.c_str());
     INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _org.c_str());
     INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _bucket.c_str());
