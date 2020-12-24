@@ -29,7 +29,7 @@
 
 // Root Certificate Authority of InfluxData Cloud 2 servers. 
 // Valid with all providers (AWS, Azure, GCP) 
-// Valid until 30-09-2020 14:01:14
+// Valid until 30-09-2021 14:01:14
 const char InfluxDbCloud2CACert[] PROGMEM =  R"EOF( 
 -----BEGIN CERTIFICATE-----
 MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/
