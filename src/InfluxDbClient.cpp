@@ -131,7 +131,9 @@ bool InfluxDBClient::init() {
     if(https) {
 #if defined(ESP8266)         
         BearSSL::WiFiClientSecure *wifiClientSec = new BearSSL::WiFiClientSecure;
-        if(_certInfo && strlen_P(_certInfo) > 0) {
+        if (_insecure) {
+            wifiClientSec->setInsecure();
+        } else if(_certInfo && strlen_P(_certInfo) > 0) {
             if(strlen_P(_certInfo) > 60 ) { //differentiate fingerprint and cert
                 _cert = new BearSSL::X509List(_certInfo); 
                 wifiClientSec->setTrustAnchors(_cert);
@@ -139,13 +141,11 @@ bool InfluxDBClient::init() {
                 wifiClientSec->setFingerprint(_certInfo);
             }
         }
-        if (_insecure) {
-            wifiClientSec->setInsecure();
-        }
+        
         checkMFLN(wifiClientSec, _serverUrl);
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
-        if(_certInfo && strlen_P(_certInfo) > 0) { 
+        if(!_insecure && _certInfo && strlen_P(_certInfo) > 0) { 
               wifiClientSec->setCACert(_certInfo);
          }
 #endif    
