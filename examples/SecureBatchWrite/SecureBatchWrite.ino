@@ -44,7 +44,7 @@ ESP8266WiFiMulti wifiMulti;
 //  Japanesse:      "JST-9"
 //  Central Europe: "CET-1CEST,M3.5.0,M10.5.0/3"
 #define TZ_INFO "CET-1CEST,M3.5.0,M10.5.0/3"
-// NTP servers the for time syncronozation.
+// NTP servers the for time synchronization.
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 #define NTP_SERVER1  "pool.ntp.org"
 #define NTP_SERVER2  "time.nis.gov"
@@ -54,6 +54,8 @@ ESP8266WiFiMulti wifiMulti;
 
 // InfluxDB client instance with preconfigured InfluxCloud certificate
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+// InfluxDB client instance without preconfigured InfluxCloud certificate for insecure connection 
+//InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
 // Data point
 Point sensorStatus("wifi_status");
@@ -71,13 +73,16 @@ void setup() {
   Serial.print("Connecting to wifi");
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.print(".");
-    delay(100);
+    delay(500);
   }
   Serial.println();
 
   // Add tags
   sensorStatus.addTag("device", DEVICE);
   sensorStatus.addTag("SSID", WiFi.SSID());
+
+  // Alternatively, set insecure connection to skip server certificate validation 
+  //client.setInsecure(true);
 
   // Accurate time is necessary for certificate validation and writing in batches
   // Syncing progress and the time will be printed to Serial.
@@ -143,8 +148,9 @@ void loop() {
   sensorStatus.clearFields();
 
   // If no Wifi signal, try to reconnect it
-  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+  if (wifiMulti.run() != WL_CONNECTED) {
     Serial.println("Wifi connection lost");
+  }
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
   Serial.println("Flushing data into InfluxDB");

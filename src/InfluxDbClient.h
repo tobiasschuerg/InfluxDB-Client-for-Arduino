@@ -81,8 +81,8 @@ class InfluxDBClient {
     InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo);
     // Clears instance.
     ~InfluxDBClient();
-    // Allows insecure connection. setInsecure must be called before calling any method initiating a connection to server.
-    // Works only on ESP8266. ESP32 allows unsecured connections by default (status for latest 1.0.4 ESP32 Arduino SDK).
+    // Allows insecure connection by skiping server certificate validation. 
+    // setInsecure must be called before calling any method initiating a connection to server.
     void setInsecure(bool value);
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately

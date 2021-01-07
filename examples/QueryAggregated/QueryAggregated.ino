@@ -1,7 +1,7 @@
 /**
  * QueryAggregated Example code for InfluxDBClient library for Arduino.
  * 
- * This example demonstrates querying basic aggreagated statistic parameters of WiFi signal level measured and stored in BasicWrite and SecureWrite examples.
+ * This example demonstrates querying basic aggregated statistic parameters of WiFi signal level measured and stored in BasicWrite and SecureWrite examples.
  * 
  * Demonstrates connection to any InfluxDB instance accesible via:
  *  - unsecured http://...

@@ -1,4 +1,11 @@
 # Changelog
+## 3.x.x [in progress]
+### Documentation
+ - [#134](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/134):
+   - Added untrusted connection (skipping certificate validation) info to Readme
+   - `SecureWrite` and `SecureBatchWrite` demos enhanced with example about using untrusted connection
+   - Various fixes of typos
+
 ## 3.7.0 [2020-12-24]
 ### Features
  - [#125](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/124) - Added credentials to the InfluxDB 1.x validation endpoint (/ping). To leverage this, [enable ping authentication](https://docs.influxdata.com/influxdb/v1.8/administration/config/#ping-auth-enabled-false) 
@@ -40,7 +47,7 @@
 
 ## 3.4.0 [2020-10-02]
 ### Features
- - [#89](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/89) - ESP8266 only - Added Max Fragment Length Negotiation for TLS communicaton to reduce memory allocation. If server supports MFLN, it saves ~10kB. Standalone InfluxDB OSS server doesn't support MFLN, Cloud yes. To leverage MFLN for standalone OSS, a reverse proxy needs to be used. 
+ - [#89](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/89) - ESP8266 only - Added Max Fragment Length Negotiation for TLS communication to reduce memory allocation. If server supports MFLN, it saves ~10kB. Standalone InfluxDB OSS server doesn't support MFLN, Cloud yes. To leverage MFLN for standalone OSS, a reverse proxy needs to be used. 
  - [#91](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/91) - Improved API for settings of write and HTTP options:
     - Introduced `WriteOptions` to wrap the write related options (write precision, batch-size, etc). It offers fluent style API allowing to change only the required options. `InfluxDBClient` has overloaded `setWriteOptions(const WriteOptions& writeOptions)` method.
     - Introduced `HTTPOptions` to wrap the HTTP related options (e.g. reusing connection). It offers fluent style API allowing to change only the required options. `InfluxDBClient` has `setHTTPOptions(const HTTPOptions& httpOptions)` method.
@@ -62,7 +69,7 @@
  - [NEW] Added possibility skip server certification validation (`setInsecure()` method)
  - [NEW] Added possibility to query flux on secured InfluxDB 1.8 using V1 approach
  - [NEW] `validateConnection()` can be used also for the [forward compatibility](https://docs.influxdata.com/influxdb/latest/tools/api/#influxdb-2-0-api-compatibility-endpoints) connection to InfluxDB 1.8
- - [FIX] More precice default timestamp generating, up to microseconds
+ - [FIX] More precise default timestamp generating, up to microseconds
  - [FIX] Debug compilation error
  - [FIX] SecureBatchWrite compile error
  
@@ -91,6 +98,6 @@
 ## Version 3.0.0 (2020-02-11)
  - New API with similar keywords as other official InfluxDB clients
  - Richer set of data types for fields and timestamp methods
- - Advanced features, such as implicit batching, automatic retrying on server backpressure and connection failure, along with secured communication over TLS supported for both devices and authentication
+ - Advanced features, such as implicit batching, automatic retrying on server back-pressure and connection failure, along with secured communication over TLS supported for both devices and authentication
  - Special characters escaping
  - Backward support for original API of V1/V2
