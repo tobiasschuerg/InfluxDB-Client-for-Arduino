@@ -119,7 +119,7 @@ void loop() {
     Serial.print("  ");
     // Print values of the row
     for(FluxValue &val: result.getValues()) {
-      // Check wheter the value is null
+      // Check whether the value is null
       if(!val.isNull()) {
         // Use raw string, unconverted value
         Serial.print(val.getRawValue());
