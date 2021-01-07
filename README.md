@@ -1,6 +1,6 @@
 # InfluxDB Arduino Client
 
-Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether it is a local server or InfluxDB Cloud. The library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
+Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), no matter whether it is a local server or InfluxDB Cloud. The library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server back-pressure and connection failure.
 
 It also allows setting data in various formats, automatically escapes special characters and offers specifying timestamp in various precisions.
 
@@ -24,6 +24,7 @@ Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
   - [Secure Connection](#secure-connection)
     - [InfluxDb 2](#influxdb-2)
     - [InfluxDb 1](#influxdb-1)
+    - [Skipping certificate validation](#skipping-certificate-validation)
   - [Querying](#querying)
   - [Original API](#original-api)
     - [Initialization](#initialization)
@@ -35,7 +36,7 @@ Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
 
 
 ## Basic code for InfluxDB 2
-After [setting up an InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
+After [setting up an InfluxDB 2 server](https://docs.influxdata.com/influxdb/v2.0/get-started/), first define connection parameters and a client instance:
 ```cpp
 // InfluxDB 2 server url, e.g. http://192.168.1.48:8086 (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
@@ -70,11 +71,11 @@ client.writePoint(pointDevice);
 
 Complete source code is available in the [BasicWrite example](examples/BasicWrite/BasicWrite.ino).
 
-Data can be seen in the InfluxDB UI immediately. Use the [Data Explorer](https://v2.docs.influxdata.com/v2.0/visualize-data/explore-metrics/) or create a [Dashboard](https://v2.docs.influxdata.com/v2.0/visualize-data/dashboards/).
+Data can be seen in the InfluxDB UI immediately. Use the [Data Explorer](https://docs.influxdata.com/influxdb/v2.0/query-data/execute-queries/data-explorer/) or create a [Dashboard](https://docs.influxdata.com/influxdb/v2.0/visualize-data/dashboards/).
 
 ## Basic code for InfluxDB 1
 Using InfluxDB Arduino client for InfluxDB 1 is almost the same as for InfluxDB 2. The only difference is that InfluxDB 1 uses _database_ as classic name for data storage instead of bucket and the server is unsecured by default.
-There is also a different `InfluxDBClient contructor` and  `setConnectionParametersV1` function for setting the security params. Everything else remains the same.
+There is also a different `InfluxDBClient constructor` and  `setConnectionParametersV1` function for setting the security params. Everything else remains the same.
 
 ```cpp
 // InfluxDB server url, e.g. http://192.168.1.48:8086 (don't use localhost, always server name or ip address)
@@ -101,13 +102,15 @@ client.writePoint(pointDevice);
 Complete source code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino)
 
 ## Connecting to InfluxDB Cloud 2
-Instead of setting up a local InfluxDB 2 server, it is possible to quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with a [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
+Instead of setting up a local InfluxDB 2 server, it is possible to quickly [start with InfluxDB Cloud 2](https://docs.influxdata.com/influxdb/cloud/get-started/) with a [Free Plan](https://docs.influxdata.com/influxdb/cloud/account-management/pricing-plans/#free-plan).
 
-Connecting an Arduino client to InfuxDB Cloud server requires a few additional steps.
-InfluxDBCloud uses secure communication (https) and we need to tell the client to trust this connection.
+InfluxDB Cloud uses secure communication over TLS (https). We need to tell the client to trust this connection. The paragraph bellow describes how to set trusted connection. However, InfluxDB cloud servers have only 3 months validity period. Their CA certificate, included in this library, has the validity period a year. This is not much for a long running device. To avoid such limitation you can use an untrusted connection. Check [Skipping certification validation](#skipping-certificate-validation) for more details. 
+
+Connecting an Arduino client to InfluxDB Cloud server requires a few additional steps comparing to connecting to local server.
+
 Connection parameters are almost the same as above, the only difference is that server URL now points to the InfluxDB Cloud 2, you set up after you've finished creating an InfluxDB Cloud 2 subscription. You will find the correct server URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
 ```cpp
-//Include also InfluxClould 2 CA certificate
+//Include also InfluxCloud 2 CA certificate
 #include <InfluxDbCloud.h>
 // InfluxDB 2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
@@ -129,7 +132,7 @@ Read more about [secure connection](#secure-connection).
 Additionally, time needs to be synced:
 ```cpp
 // Synchronize time with NTP servers and set timezone
-// Accurate time is necessary for certificate validaton and writing in batches
+// Accurate time is necessary for certificate validation and writing in batches
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 configTzTime(TZ_INFO "pool.ntp.org", "time.nis.gov");
 ```
@@ -152,13 +155,13 @@ client.writePoint(pointDevice);
 Complete source code is available in [SecureWrite example](examples/SecureWrite/SecureWrite.ino).
 
 ## Writing in Batches
-InfluxDB client for Arduino can also write data in batches. A batch is simply a set of points that will be sent at once. To create a batch, the client will keep all points until the number of points reaches the batch size and then it will write all points at once to the InfluDB server. This is often more efficient than writing each point separately.
+InfluxDB client for Arduino can also write data in batches. A batch is simply a set of points that will be sent at once. To create a batch, the client will keep all points until the number of points reaches the batch size and then it will write all points at once to the InfluxDB server. This is often more efficient than writing each point separately.
 
 ### Timestamp
 If using batch writes, the timestamp should be employed. Timestamp specifies the time when data was gathered and it is used in the form of a number of seconds (milliseconds, etc) from epoch (1.1.1970) UTC.
 If points have no timestamp assigned, InfluxDB assigns a timestamp at the time of writing, which could happen much later than the data has been obtained, because the final batch write will happen when the batch is full (or when [flush buffer](#buffer-handling-and-retrying) is forced).
 
-InfuxDB allows sending timestamps in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino. The maximum avavailable precision is microseconds. Setting the timestamp to nanoseconds will just add zeroes for microseconds fraction and will not improve timestamp accuracy.
+InfluxDB allows sending timestamps in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino. The maximum available precision is microseconds. Setting the timestamp to nanoseconds will just add zeroes for microseconds fraction and will not improve timestamp accuracy.
 
 The client has to be configured with a time precision. The default settings is to not use the timestamp, which means that the server will assign a timestamp when the data is written to the database. The `setWriteOptions` functions allows setting custom `WriteOptions` params and one of them is __write precision__:
 ``` cpp
@@ -179,7 +182,7 @@ The `getTime()` method allows copying the timestamp between points.
 Dealing with timestamps, and also validating server or CA certificate, requires that the device has correctly set the time. This can be done with one line of code:
 ```cpp
 // Synchronize time with NTP servers and set timezone
-// Accurate time is necessary for certificate validaton and writing in batches
+// Accurate time is necessary for certificate validation and writing in batches
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 configTzTime("PST8PDT", "pool.ntp.org", "time.nis.gov");
 ```
@@ -190,7 +193,7 @@ Timezone string details are described at [https://www.gnu.org/software/libc/manu
 Values for some timezones:
 - Central Europe: `CET-1CEST,M3.5.0,M10.5.0/3`
 - Eastern: `EST5EDT`
-- Japanesse: `JST-9`
+- Japanese: `JST-9`
 - Pacific Time: `PST8PDT`
 
 There is also another function for syncing the time, which takes timezone and DST offset. As DST info is set via static offset it will create local time problem when DST change occurs.
@@ -202,7 +205,7 @@ configTime(long gmtOffset_sec, int daylightOffset_sec, const char* server1, cons
 In the example code it would be:
 ```cpp
 // Synchronize time with NTP servers
-// Accurate time is necessary for certificate validaton and writing in batches
+// Accurate time is necessary for certificate validation and writing in batches
 configTime(3600, 3600, "pool.ntp.org", "time.nis.gov");
 ```
 
@@ -211,8 +214,8 @@ Both `configTzTime` and `configTime` functions are asynchronous. This means that
 There is a helper function `timeSync` provided with the this library. The function starts time synchronization by calling the `configTzTime` and waits maximum 20 seconds for time to be synchronized. It prints progress info and final local time to the `Serial` console.
 `timeSync` has the same signature as `configTzTime` and it is included with the main header file `InfluxDbClient.h`:
 ```cpp
-// Synchronize time with NTP servers and waits for completition. Prints waiting progress and final synchronized time to the Serial.
-// Accurate time is necessary for certificate validion and writing points in batch
+// Synchronize time with NTP servers and waits for competition. Prints waiting progress and final synchronized time to the Serial.
+// Accurate time is necessary for certificate validation and writing points in batch
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2 = nullptr, const char* ntpServer3 = nullptr);
 ```
@@ -238,7 +241,7 @@ client.writePoint(point1);
 // Write second point to the buffer
 client.writePoint(point2);
 ..
-// Write nineth point to the buffer
+// Write ninth point to the buffer
 client.writePoint(point9);
 // Writing tenth point will cause flushing buffer and returns actual write result.
 if(!client.writePoint(point10)) {
@@ -250,9 +253,9 @@ if(!client.writePoint(point10)) {
 In case cases where the number of points is not always the same, set the batch size to the maximum number of points and use the `flushBuffer()` function to force writing to the database. See [Buffer Handling](#buffer-handling-and-retrying) for more details.
 
 ## Buffer Handling and Retrying
-InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server backpressure and connection failure.
+InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server back-pressure and connection failure.
 
-Its size is controled by the `bufferSize` param of [WriteOptions](#write-options) object:
+Its size is controlled by the `bufferSize` param of [WriteOptions](#write-options) object:
 ```cpp
 // Increase buffer to allow caching of failed writes
 client.setWriteOptions(WriteOptions().bufferSize(50));
@@ -297,19 +300,21 @@ Writing points can be controlled via `WriteOptions`, which is set in the `setWri
 `HTTPOptions` controls some aspects of HTTP communication and they are set via `setHTTPOptions` function:
 | Parameter | Default Value | Meaning |
 |-----------|---------------|---------|
-| reuseConnection | `false` | Whether HTTP connection should be kept open after inital communicaton. Usable for frequent writes/queries. |
+| reuseConnection | `false` | Whether HTTP connection should be kept open after initial communication. Usable for frequent writes/queries. |
 | httpReadTimeout | `5000` | Timeout (ms) for reading server response |
 
 ## Secure Connection
 Connecting to a secured server requires configuring the client to trust the server. This is achieved by providing the client with a server certificate, certificate authority certificate or certificate SHA1 fingerprint.
 
-Note: `HTTPClient` in the current ESP32 arduino SDK (1.0.4) doesn't validate the server certificate, so providing a server certificate is not necessary. But it is definitely safer to do it, as it can change in the future.
-Other limitation of ESP32 arduino SDK (1.0.4) is that `WiFiClientSecure` doesn't support fingerprint to validate the server certificate.
+:memo: In ESP32 arduino SDK (1.0.4), `WiFiClientSecure` doesn't support fingerprint to validate the server certificate.
 
-The certificate (in PEM format) or SHA1 fingerprint can be placed in flash memory to save initial RAM:
+The certificate (in PEM format) or SHA1 fingerprint should be placed in flash memory to save RAM.
+Code bellow is an example certificate in PEM format. Valid InfluxDB 2 Cloud CA certificate is included in the library in the constant `InfluxDbCloud2CACert`, located in the `InfluxDBCloud.h`.
+
+You can use a custom server certificate by exporting it, e.g. using a web browser:
 ```cpp
-// Certificate of Certificate Authority of InfluxData Cloud 2 servers
-const char InfluxDbCloud2CACert[] PROGMEM =  R"EOF(
+// Server certificate in PEM format, placed in the program (flash) memory to save RAM
+const char ServerCert[] PROGMEM =  R"EOF(
 -----BEGIN CERTIFICATE-----
 MIIGEzCCA/ugAwIBAgIQfVtRJrR2uhHbdBYLvFMNpzANBgkqhkiG9w0BAQwFADCB
 iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
@@ -347,8 +352,8 @@ yOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K
 -----END CERTIFICATE-----
 )EOF";
 
-// Fingerprint of Certificate Authority of InfluxData Cloud 2 servers
-const char InfluxDbCloud2CAFingerprint[] PROGMEM = "9B:62:0A:63:8B:B1:D2:CA:5E:DF:42:6E:A3:EE:1F:19:36:48:71:1F";
+// Alternatively, use a fingerprint of server certificate to set trust. Works only for ESP8266.
+const char ServerCert[] PROGMEM = "9B:62:0A:63:8B:B1:D2:CA:5E:DF:42:6E:A3:EE:1F:19:36:48:71:1F";
 ```
 
 ### InfluxDb 2
@@ -356,7 +361,7 @@ There are two ways to set the certificate or fingerprint to trust a server:
  - Use full param constructor
 ```cpp
 // InfluxDB client instance with preconfigured InfluxCloud certificate
-InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, ServerCert);
 ```
 - Use `setConnectionParams` function:
 ```cpp
@@ -365,7 +370,7 @@ InfluxDBClient client;
 
 void setup() {
     // configure client
-    client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+    client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, ServerCert);
 }
 ```
 ### InfluxDb 1
@@ -377,12 +382,32 @@ InfluxDBClient client;
 
 void setup() {
     // configure client
-    client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, InfluxDbCloud2CACert);
+    client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, ServerCert);
 }
 ```
-Another important prerequisity to sucessfully validate a server or CA certificate is to have properly synchronized time. More on this in [Configure Time](#configure-time).
+Another important prerequisite to successfully validate a server or CA certificate is to have properly synchronized time. More on this in [Configure Time](#configure-time).
 
-Note: Time synchronization is not required for validating server certificate via SHA1 fingerprint.
+:information_source: Time synchronization is not required for validating server certificate via SHA1 fingerprint.
+
+### Skipping certificate validation
+Server certificates have limited validity period, often only a few months. It will be necessary to frequently change trusted certificate in the source code and reflashing the device. A solution could be using OTA update, but you will still need to care about certificate validity and updating it ahead of time to avoid connection failures.
+
+Most comfortable way is to skip server certificate validation completely by establishing untrusted connection. This is done with the help of `InfluxDBClient::setInsecure()` method. 
+You will also save space in flash (and RAM) by leaving certificate param empty when calling constructor or `setConnectionParams` method.
+
+:memo: The `InfluxDBClient::setInsecure()` method must be called before calling any function that will establish connection. The best place to call it is in the `setup` method: 
+
+```cpp
+// InfluxDB client instance without a server certificate
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
+
+void setup() {
+    // Set insecure connection to skip server certificate validation 
+    client.setInsecure(true);
+}
+```
+
+:warning: Using untrusted connection is a security risk.
 
 ## Querying
 InfluxDB 2 and InfluxDB 1.7+ (with [enabled flux](https://docs.influxdata.com/influxdb/latest/administration/config/#flux-enabled-false)) uses [Flux](https://www.influxdata.com/products/flux/) to process and query data. InfluxDB client for Arduino offers a simple, but powerful, way how to query data with `query` function. It parses response line by line, so it can read a huge responses (thousands data lines), without consuming a lot device memory.
@@ -401,13 +426,13 @@ The InfluxDB flux query result set is returned in CSV format. In the example bel
 ,_result,0,2020-05-18T15:06:00.475253281Z,2020-05-19T15:06:00.475253281Z,2020-05-19T13:08:20Z,-56,667G,rssi,wifi_status,ESP32
 ```
 
-Accessing data using `FluxQueryResult` requires knowing the query result structure, especially the name and the type of the column. The best practise is to tune the query
+Accessing data using `FluxQueryResult` requires knowing the query result structure, especially the name and the type of the column. The best practice is to tune the query
 in the `InfluxDB Data Explorer` and use the final query with this library.
 
- Browsing thought the result set is done by repeatedly calling the `next()` method, until it returns false. Unsuccesful reading is distinqushed by a non empty value from the `getError()` method.
+ Browsing thought the result set is done by repeatedly calling the `next()` method, until it returns false. Unsuccessful reading is distinguished by a non empty value from the `getError()` method.
  As a flux query result can contain several tables, differing by grouping key, use the `hasTableChanged()` method to determine when there is a new table.
  Single values are returned using the `getValueByIndex()` or `getValueByName()` methods.
- All row values at once are retreived by the `getValues()` method.
+ All row values at once are retrieved by the `getValues()` method.
   Always call the `close()` method at the of reading.
 
 A value in the flux query result column, retrieved by the `getValueByIndex()` or `getValueByName()` methods, is represented by the `FluxValue` object.
@@ -416,7 +441,7 @@ It provides getter methods for supported flux types:
 | Flux type | Getter | C type |
 | ----- | ------ |  --- |
 | long | getLong() | long |
-| unsignedLong | getUnsignedLong() | unsingned long |
+| unsignedLong | getUnsignedLong() | unsigned long |
 | dateTime:RFC3339, dateTime:RFC3339Nano | getDateTime() |  [FluxDateTime](src/query/FluxTypes.h#L100) |
 | bool | getBool() | bool |
 | double | bool | double |
