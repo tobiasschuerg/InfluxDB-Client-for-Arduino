@@ -47,6 +47,8 @@ ESP8266WiFiMulti wifiMulti;
 
 // InfluxDB client instance with preconfigured InfluxCloud certificate
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+// InfluxDB client instance without preconfigured InfluxCloud certificate for insecure connection 
+//InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
 // Data point
 Point sensor("wifi_status");
@@ -61,13 +63,16 @@ void setup() {
   Serial.print("Connecting to wifi");
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.print(".");
-    delay(100);
+    delay(500);
   }
   Serial.println();
 
   // Add tags
   sensor.addTag("device", DEVICE);
   sensor.addTag("SSID", WiFi.SSID());
+
+  // Alternatively, set insecure connection to skip server certificate validation 
+  //client.setInsecure(true);
 
   // Accurate time is necessary for certificate validation and writing in batches
   // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
@@ -93,8 +98,9 @@ void loop() {
   Serial.print("Writing: ");
   Serial.println(client.pointToLineProtocol(sensor));
   // If no Wifi signal, try to reconnect it
-  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+  if (wifiMulti.run() != WL_CONNECTED) {
     Serial.println("Wifi connection lost");
+  }
   // Write point
   if (!client.writePoint(sensor)) {
     Serial.print("InfluxDB write failed: ");
