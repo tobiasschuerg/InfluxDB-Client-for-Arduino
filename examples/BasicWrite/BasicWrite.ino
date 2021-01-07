@@ -53,7 +53,7 @@ void setup() {
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.print(".");
-    delay(100);
+    delay(500);
   }
   Serial.println();
 
@@ -83,8 +83,9 @@ void loop() {
   Serial.print("Writing: ");
   Serial.println(client.pointToLineProtocol(sensor));
   // If no Wifi signal, try to reconnect it
-  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+  if (wifiMulti.run() != WL_CONNECTED) {
     Serial.println("Wifi connection lost");
+  }
   // Write point
   if (!client.writePoint(sensor)) {
     Serial.print("InfluxDB write failed: ");
