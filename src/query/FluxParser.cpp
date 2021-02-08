@@ -196,7 +196,9 @@ readRow:
 		}
 		parsingState = ParsingStateNameRow;
 		goto readRow;
-	}
+	} else {
+        goto readRow;
+    }
 	return true;
 }
 
