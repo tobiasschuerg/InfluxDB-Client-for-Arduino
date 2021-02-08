@@ -1,10 +1,13 @@
 # Changelog
-## 3.x.x [in progress]
+## 3.7.1 [in progress]
 ### Documentation
  - [#134](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/134):
    - Added untrusted connection (skipping certificate validation) info to Readme
    - `SecureWrite` and `SecureBatchWrite` demos enhanced with example about using untrusted connection
    - Various fixes of typos
+
+### Fixes
+ - [#137](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/137) - Fixed parsing Flux response with unexpected annotations
 
 ## 3.7.0 [2020-12-24]
 ### Features
