@@ -403,7 +403,7 @@ InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKE
 
 void setup() {
     // Set insecure connection to skip server certificate validation 
-    client.setInsecure(true);
+    client.setInsecure();
 }
 ```
 

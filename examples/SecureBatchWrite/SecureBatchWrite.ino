@@ -82,7 +82,7 @@ void setup() {
   sensorStatus.addTag("SSID", WiFi.SSID());
 
   // Alternatively, set insecure connection to skip server certificate validation 
-  //client.setInsecure(true);
+  //client.setInsecure();
 
   // Accurate time is necessary for certificate validation and writing in batches
   // Syncing progress and the time will be printed to Serial.
