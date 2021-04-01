@@ -72,7 +72,7 @@ void setup() {
   sensor.addTag("SSID", WiFi.SSID());
 
   // Alternatively, set insecure connection to skip server certificate validation 
-  //client.setInsecure(true);
+  //client.setInsecure();
 
   // Accurate time is necessary for certificate validation and writing in batches
   // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/

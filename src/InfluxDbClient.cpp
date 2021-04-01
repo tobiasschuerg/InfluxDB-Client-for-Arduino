@@ -141,13 +141,17 @@ bool InfluxDBClient::init() {
                 wifiClientSec->setFingerprint(_certInfo);
             }
         }
-        
         checkMFLN(wifiClientSec, _serverUrl);
 #elif defined(ESP32)
         WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
-        if(!_insecure && _certInfo && strlen_P(_certInfo) > 0) { 
-              wifiClientSec->setCACert(_certInfo);
-         }
+        if (_insecure) {
+#ifndef ARDUINO_ESP32_RELEASE_1_0_4
+            // This works only in ESP32 SDK 1.0.5 and higher
+            wifiClientSec->setInsecure();
+#endif            
+        } else if(_certInfo && strlen_P(_certInfo) > 0) { 
+           wifiClientSec->setCACert(_certInfo);
+        }
 #endif    
         _wifiClient = wifiClientSec;
     } else {

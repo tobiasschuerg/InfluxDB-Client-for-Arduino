@@ -83,7 +83,7 @@ class InfluxDBClient {
     ~InfluxDBClient();
     // Allows insecure connection by skiping server certificate validation. 
     // setInsecure must be called before calling any method initiating a connection to server.
-    void setInsecure(bool value);
+    void setInsecure(bool value = true);
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
     // bufferSize - maximum size of Points buffer. Buffer contains new data that will be written to the database
