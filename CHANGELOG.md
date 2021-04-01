@@ -1,5 +1,5 @@
 # Changelog
-## 3.7.1 [in progress]
+## 3.8.0 [2021-04-01]
 ### Features
  - [#143](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/143) - `InfluxDBClient::setInsecure` now works also for ESP32. Requires Arduino ESP32 SDK 1.0.5 or higher
 
