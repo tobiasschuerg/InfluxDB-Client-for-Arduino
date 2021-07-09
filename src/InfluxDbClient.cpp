@@ -319,6 +319,9 @@ void InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
     }
     _httpClient->setReuse(_httpOptions._connectionReuse);
     _httpClient->setTimeout(_httpOptions._httpReadTimeout);
+#if defined(ESP32) 
+     _httpClient->setConnectTimeout(_httpOptions._httpReadTimeout);
+#endif
 }
 
 void InfluxDBClient::resetBuffer() {
