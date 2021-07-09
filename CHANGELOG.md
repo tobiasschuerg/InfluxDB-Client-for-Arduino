@@ -1,4 +1,8 @@
 # Changelog
+## 3.8.1 [in progress]
+### Fixes
+ - [#150](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/150) - `HTTPOptions::httpReadTimeout` is also set as the connect timeout for HTTP connection on ESP32. It doesn't work for HTTPS connection yet. 
+
 ## 3.8.0 [2021-04-01]
 ### Features
  - [#143](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/143) - `InfluxDBClient::setInsecure` now works also for ESP32. Requires Arduino ESP32 SDK 1.0.5 or higher
