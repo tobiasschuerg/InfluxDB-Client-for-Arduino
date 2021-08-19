@@ -168,6 +168,14 @@ void Test::testOptions() {
     TEST_ASSERT(!c._httpOptions._connectionReuse);
     TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
 
+    defWO = WriteOptions().batchSize(100).bufferSize(7000);
+    c.setWriteOptions(defWO);
+    TEST_ASSERTM(c._writeBufferSize == 70, String(c._writeBufferSize));
+
+    defWO = WriteOptions().batchSize(10).bufferSize(7000);
+    c.setWriteOptions(defWO);
+    TEST_ASSERTM(c._writeBufferSize == 255, String(c._writeBufferSize));
+
     TEST_END();
 }
 
@@ -531,7 +539,8 @@ void Test::testUserAgent() {
     TEST_ASSERT(client.validateConnection());
     String url = String(Test::apiUrl) + "/test/user-agent";
     HTTPClient http;
-    TEST_ASSERT(http.begin(url));
+    WiFiClient wifiClient;
+    TEST_ASSERT(http.begin(wifiClient, url));
     TEST_ASSERT(http.GET() == 200);
     String agent = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
     String data = http.getString();

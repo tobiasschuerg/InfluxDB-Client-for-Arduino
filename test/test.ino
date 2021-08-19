@@ -32,7 +32,11 @@
 #include "Test.h"
 
 void setup() {
+#if defined(ESP8266)
+    Serial.begin(74880);
+#else
     Serial.begin(115200);
+#endif    
 
     //Serial.setDebugOutput(true);
     randomSeed(123);
