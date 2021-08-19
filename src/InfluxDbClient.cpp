@@ -294,15 +294,20 @@ void InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
         _writeOptions._writePrecision = writeOptions._writePrecision;
         setUrls();
     }
-    if(writeOptions._batchSize > 0) {
+    bool writeBufferSizeChanges = false;
+    if(writeOptions._batchSize > 0 && _writeOptions._batchSize != writeOptions._batchSize) {
         _writeOptions._batchSize = writeOptions._batchSize;
+        writeBufferSizeChanges = true;
     }
-    if(_writeOptions._bufferSize > 0 && writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
+    if(writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
         _writeOptions._bufferSize = writeOptions._bufferSize;
         if(_writeOptions._bufferSize <  2*_writeOptions._batchSize) {
             _writeOptions._bufferSize = 2*_writeOptions._batchSize;
             INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
         }
+        writeBufferSizeChanges = true;
+    }
+    if(writeBufferSizeChanges) {
         resetBuffer();
     }
     _writeOptions._flushInterval = writeOptions._flushInterval;
@@ -331,7 +336,10 @@ void InfluxDBClient::resetBuffer() {
         }
         delete [] _writeBuffer;
     }
-    _writeBufferSize = _writeOptions._bufferSize/_writeOptions._batchSize;
+    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: buffer Size: %d, batch size: %d\n", _writeOptions._bufferSize, _writeOptions._batchSize);
+    uint16_t a = _writeOptions._bufferSize/_writeOptions._batchSize;
+    //limit to max(byte)
+    _writeBufferSize = a>=(1<<8)?(1<<8)-1:a;
     if(_writeBufferSize < 2) {
         _writeBufferSize = 2;
     }

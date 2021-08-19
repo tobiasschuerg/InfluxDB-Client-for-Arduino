@@ -44,7 +44,8 @@ void printFreeHeap() {
 int httpPOST(String url, String mess) {
   httpClient.setReuse(false);
   int code = 0;
-  if(httpClient.begin(url)) {
+  WiFiClient client;
+  if(httpClient.begin(client, url)) {
     code = httpClient.POST(mess);
     httpClient.end();
   }
@@ -54,7 +55,8 @@ int httpPOST(String url, String mess) {
 int httpGET(String url) {
   httpClient.setReuse(false);
   int code = 0;
-  if(httpClient.begin(url)) {
+  WiFiClient client;
+  if(httpClient.begin(client, url)) {
     code = httpClient.GET();
     if(code != 204) {
        //Serial.print("[TD] ");
