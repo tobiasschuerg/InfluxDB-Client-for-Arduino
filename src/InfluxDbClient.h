@@ -27,18 +27,9 @@
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
 
-#define INFLUXDB_CLIENT_VERSION "3.8.0"
 
 #include <Arduino.h>
-#if defined(ESP8266)
-# include <WiFiClientSecureBearSSL.h>
-# include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-# include <HTTPClient.h>
-#else
-# error "This library currently supports only ESP8266 and ESP32."
-#endif
-
+#include "HTTPService.h"
 #include "Point.h"
 #include "WritePrecision.h"
 #include "query/FluxParser.h"
@@ -84,6 +75,8 @@ class InfluxDBClient {
     // Allows insecure connection by skiping server certificate validation. 
     // setInsecure must be called before calling any method initiating a connection to server.
     void setInsecure(bool value = true);
+    // Sets custom write options.
+    // Must be called before calling any method initiating a connection to server.
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
     // bufferSize - maximum size of Points buffer. Buffer contains new data that will be written to the database
@@ -91,18 +84,22 @@ class InfluxDBClient {
     // flushInterval - maximum number of seconds data will be held in buffer before are written to the db. 
     //                 Data are written either when number of points in buffer reaches batchSize or time of  
     // preserveConnection - true if HTTP connection should be kept open. Usable for frequent writes.
-    void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true) __attribute__ ((deprecated("Use setWriteOptions(const WriteOptions &writeOptions)")));
+    // Returns true if setting was successful. Otherwise check getLastErrorMessage() for an error.
+    bool setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true) __attribute__ ((deprecated("Use setWriteOptions(const WriteOptions &writeOptions)")));
     // Sets custom write options. See WriteOptions doc for more info. 
     // Must be called before calling any method initiating a connection to server.
+    // Returns true if setting was successful. Otherwise check getLastErrorMessage() for an error.
     // Example: 
     //    client.setWriteOptions(WriteOptions().batchSize(10).bufferSize(50)).
-    void setWriteOptions(const WriteOptions &writeOptions);
+    bool setWriteOptions(const WriteOptions &writeOptions);
     // Sets custom HTTP options. See HTTPOptions doc for more info. 
     // Must be called before calling any method initiating a connection to server.
+    // Returns true if setting was successful. Otherwise check getLastErrorMessage() for an error.
     // Example: 
     //    client.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
-    void setHTTPOptions(const HTTPOptions &httpOptions);
+      bool setHTTPOptions(const HTTPOptions &httpOptions);
     // Sets connection parameters for InfluxDB 2
+    // Must be called before calling any method initiating a connection to server.
     // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:8086)
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
@@ -110,6 +107,7 @@ class InfluxDBClient {
     // serverCert - Optional. InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo = nullptr);
     // Sets parameters for connection to InfluxDB 1
+    // Must be called before calling any method initiating a connection to server.
     // serverUrl - url of the InfluxDB server (e.g. http://localhost:8086)
     // db - database name where to store or read data
     // user - Optional. User name, in case of server requires authetication
@@ -144,9 +142,9 @@ class InfluxDBClient {
     // Wipes out buffered points
     void resetBuffer();
     // Returns HTTP status of last request to server. Usefull for advanced handling of failures.
-    int getLastStatusCode() const { return _lastStatusCode;  }
+    int getLastStatusCode() const { return  _service?_service->getLastStatusCode():0;  }
     // Returns last response when operation failed
-    String getLastErrorMessage() const { return _lastErrorResponse; }
+    String getLastErrorMessage() const { return _service?_service->getLastErrorMessage():_lastError; }
     // Returns server url
     String getServerUrl() const { return _serverUrl; }
     // Check if it is possible to send write/query request to server. 
@@ -159,10 +157,6 @@ class InfluxDBClient {
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
     bool init();
-    // Sets request params
-    void beforeRequest();
-    // Handles response
-    void afterRequest(int expectedStatusCode, bool modifyLastConnStatus = true);
     // Cleans instances
     void clean();
   protected:
@@ -186,8 +180,10 @@ class InfluxDBClient {
     String _serverUrl;
     String _bucket;
     String _org;
-    // token authetication
+    // V2 authetication token
     String _authToken;
+    // Certificate info
+    const char *_certInfo = nullptr;   
     // V1 user authetication
     String _user;
     String _password;
@@ -201,8 +197,14 @@ class InfluxDBClient {
     uint8_t _writeBufferSize;
     // Write options
     WriteOptions _writeOptions;
-    // HTTP options
-    HTTPOptions _httpOptions;
+    // if true - allow insecure connection
+    bool _insecure = 0;
+    // Error message of last failed operation
+    String _lastError;
+    // Store retry timeout suggested by server or computed
+    int _retryTime = 0; 
+    // HTTP operations object
+    HTTPService *_service = nullptr;
     // Index to buffer where to store new batch
     uint8_t _bufferPointer = 0;
     // Actual count of batches in buffer 
@@ -211,31 +213,12 @@ class InfluxDBClient {
     uint8_t _batchPointer = 0;
     // Last time in sec buffer has been successfully flushed
     uint32_t _lastFlushed = 0;
-    // Last time in ms we made are a request to server
-    uint32_t _lastRequestTime = 0;
-    // HTTP status code of last request to server
-    int _lastStatusCode = 0;
-    // Server reponse or library error message for last failed request
-    String _lastErrorResponse;
-    // Underlying HTTPClient instance 
-    HTTPClient *_httpClient = nullptr;
-    // Underlying connection object 
-    WiFiClient *_wifiClient = nullptr;
-    // Certificate info
-    const char *_certInfo = nullptr;
     // Version of InfluxDB 1 or 2
     uint8_t _dbVersion = 2;
-#ifdef  ESP8266
-  BearSSL::X509List *_cert = nullptr;   
-#endif
-    // if true - allow insecure connection
-    bool _insecure = 0;
-    // Store retry timeout suggested by server after last request
-    int _lastRetryAfter = 0;
     // Sends POST request with data in body
     int postData(const char *data);
     // Sets cached InfluxDB server API URLs
-    void setUrls();
+    bool setUrls();
     // Ensures buffer has required size
     void reserveBuffer(int size);
     // Drops current batch and advances batch pointer

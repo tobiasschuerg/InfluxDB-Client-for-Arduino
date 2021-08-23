@@ -30,6 +30,7 @@
 #include "WritePrecision.h"
 
 class InfluxDBClient;
+class HTTPService;
 class Influxdb;
 class Test;
 
@@ -89,6 +90,7 @@ public:
 class HTTPOptions {
 private:    
     friend class InfluxDBClient;
+    friend class HTTPService;
     friend class Influxdb;
     friend class Test;
     // true if HTTP connection should be kept open. Usable for frequent writes.
