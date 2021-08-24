@@ -2,9 +2,9 @@
 
 Mock server which simulates InfluxDB 1 and 2 write and query API.
 
-First time, run: `npm install` to download dependencies.
+First time, run: `yarn install` to download dependencies.
 
-Run server: `node server.js`:
+Run server: `yarn start`:
 
 In query, it returns all written points, unless deleted. The results set had simple cvs form: measurement,tags, fields.
 

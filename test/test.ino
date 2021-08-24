@@ -19,7 +19,7 @@
 #define INFLUXDB_CLIENT_TESTING_ORG "my-org"
 #define INFLUXDB_CLIENT_TESTING_BUC "my-bucket"
 #define INFLUXDB_CLIENT_TESTING_DB "my-db"
-#define INFLUXDB_CLIENT_TESTING_TOK "1234567890"
+#define INFLUXDB_CLIENT_TESTING_TOK "my-token"
 #define INFLUXDB_CLIENT_TESTING_SSID "SSID"
 #define INFLUXDB_CLIENT_TESTING_PASS "password"
 
@@ -27,9 +27,11 @@
 
 #define INFLUXDB_CLIENT_MANAGEMENT_URL "http://" INFLUXDB_CLIENT_TESTING_SERVER_HOST ":998"
 #define INFLUXDB_CLIENT_TESTING_URL "http://" INFLUXDB_CLIENT_TESTING_SERVER_HOST ":999"
+#define INFLUXDB_CLIENT_E2E_TESTING_URL "http://" INFLUXDB_CLIENT_TESTING_SERVER_HOST ":8086"
 
 #include "TestSupport.h"
 #include "Test.h"
+#include "E2ETest.h"
 
 void setup() {
 #if defined(ESP8266)
@@ -45,7 +47,7 @@ void setup() {
 
     initInet();
 
-    Test::setup(INFLUXDB_CLIENT_MANAGEMENT_URL,INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_DB, INFLUXDB_CLIENT_TESTING_TOK );
+    Test::setup(INFLUXDB_CLIENT_MANAGEMENT_URL,INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_E2E_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_DB, INFLUXDB_CLIENT_TESTING_TOK );
 
     Serial.printf("Using server: %s\n", INFLUXDB_CLIENT_TESTING_URL);
 }
@@ -59,6 +61,7 @@ void loop() {
     uint32_t start = millis();
 
     Test::run();
+    E2ETest::run();
 
     now = time(nullptr);
     Serial.print("End time: ");
@@ -71,8 +74,6 @@ void loop() {
         delay(1000);
     }
 }
-
-
 
 void initInet() {
     WiFi.mode(WIFI_STA);

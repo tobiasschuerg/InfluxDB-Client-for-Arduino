@@ -48,6 +48,8 @@ String escapeKey(String key, bool escapeEqual = true);
 String escapeValue(const char *value);
 // Encode URL string for invalid chars
 String urlEncode(const char* src);
+// Returns true of string contains valid InfluxDB ID type
+bool isValidID(const char *idString);
 
 
 #endif //_INFLUXDB_CLIENT_HELPERS_H

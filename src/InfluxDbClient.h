@@ -35,7 +35,7 @@
 #include "query/FluxParser.h"
 #include "util/helpers.h"
 #include "Options.h"
-
+#include "BucketsClient.h"
 
 #ifdef USING_AXTLS
 #error AxTLS does not work
@@ -144,15 +144,17 @@ class InfluxDBClient {
     // Returns HTTP status of last request to server. Usefull for advanced handling of failures.
     int getLastStatusCode() const { return  _service?_service->getLastStatusCode():0;  }
     // Returns last response when operation failed
-    String getLastErrorMessage() const { return _service?_service->getLastErrorMessage():_lastError; }
+    String getLastErrorMessage() const { return _connInfo.lastError; }
     // Returns server url
-    String getServerUrl() const { return _serverUrl; }
+    String getServerUrl() const { return _connInfo.serverUrl; }
     // Check if it is possible to send write/query request to server. 
     // Returns true if write or query can be send, or false, if server is overloaded and retry strategy is applied.
     // Use getRemainingRetryTime() to get wait time in such case.
     bool canSendRequest() { return getRemainingRetryTime() == 0; }
     // Returns remaining wait time in seconds when retry strategy is applied.
     uint32_t getRemainingRetryTime();
+    // Returns sub-client for managing buckets
+    BucketsClient getBucketsClient();
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
@@ -176,17 +178,7 @@ class InfluxDBClient {
         }
     };
   friend class Test;
-    // Connection info
-    String _serverUrl;
-    String _bucket;
-    String _org;
-    // V2 authetication token
-    String _authToken;
-    // Certificate info
-    const char *_certInfo = nullptr;   
-    // V1 user authetication
-    String _user;
-    String _password;
+    ConnectionInfo _connInfo;  
     // Cached full write url
     String _writeUrl;
     // Cached full query url
@@ -197,10 +189,6 @@ class InfluxDBClient {
     uint8_t _writeBufferSize;
     // Write options
     WriteOptions _writeOptions;
-    // if true - allow insecure connection
-    bool _insecure = 0;
-    // Error message of last failed operation
-    String _lastError;
     // Store retry timeout suggested by server or computed
     int _retryTime = 0; 
     // HTTP operations object
@@ -213,8 +201,9 @@ class InfluxDBClient {
     uint8_t _batchPointer = 0;
     // Last time in sec buffer has been successfully flushed
     uint32_t _lastFlushed = 0;
-    // Version of InfluxDB 1 or 2
-    uint8_t _dbVersion = 2;
+    // Bucket sub-client
+    BucketsClient _buckets;
+  protected:    
     // Sends POST request with data in body
     int postData(const char *data);
     // Sets cached InfluxDB server API URLs

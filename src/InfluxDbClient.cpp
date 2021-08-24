@@ -66,27 +66,27 @@ InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const cha
 }
 
 void InfluxDBClient::setInsecure(bool value){
-  _insecure = value;
+  _connInfo.insecure = value;
 }
 
 void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
     clean();
-    _serverUrl = serverUrl;
-    _bucket = bucket;
-    _org = org;
-    _authToken = authToken;
-    _certInfo = certInfo;
-    _dbVersion = 2;
+    _connInfo.serverUrl = serverUrl;
+    _connInfo.bucket = bucket;
+    _connInfo.org = org;
+    _connInfo.authToken = authToken;
+    _connInfo.certInfo = certInfo;
+    _connInfo.dbVersion = 2;
 }
 
 void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db, const char *user, const char *password, const char *certInfo) {
     clean();
-    _serverUrl = serverUrl;
-    _bucket = db;
-    _user = user;
-    _password = password;
-    _certInfo = certInfo;
-    _dbVersion = 1;
+    _connInfo.serverUrl = serverUrl;
+    _connInfo.bucket = db;
+    _connInfo.user = user;
+    _connInfo.password = password;
+    _connInfo.certInfo = certInfo;
+    _connInfo.dbVersion = 1;
 }
 
 bool InfluxDBClient::init() {
@@ -94,24 +94,24 @@ bool InfluxDBClient::init() {
     INFLUXDB_CLIENT_DEBUG("[D]  Library version: " INFLUXDB_CLIENT_VERSION "\n");
     INFLUXDB_CLIENT_DEBUG("[D]  Device : " INFLUXDB_CLIENT_PLATFORM "\n");
     INFLUXDB_CLIENT_DEBUG("[D]  SDK version: " INFLUXDB_CLIENT_PLATFORM_VERSION "\n");
-    INFLUXDB_CLIENT_DEBUG("[D]  Server url: %s\n", _serverUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _org.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _bucket.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  Token: %s\n", _authToken.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Server url: %s\n", _connInfo.serverUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _connInfo.org.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _connInfo.bucket.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D]  Token: %s\n", _connInfo.authToken.c_str());
     INFLUXDB_CLIENT_DEBUG("[D]  DB version: %d\n", _dbVersion);
-    if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
+    if(_connInfo.serverUrl.length() == 0 || (_connInfo.dbVersion == 2 && (_connInfo.org.length() == 0 || _connInfo.bucket.length() == 0 || _connInfo.authToken.length() == 0))) {
         INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
-        _lastError = F("Invalid parameters");
+        _connInfo.lastError = F("Invalid parameters");
         return false;
     }
-    if(_serverUrl.endsWith("/")) {
-        _serverUrl = _serverUrl.substring(0,_serverUrl.length()-1);
+    if(_connInfo.serverUrl.endsWith("/")) {
+         _connInfo.serverUrl = _connInfo.serverUrl.substring(0,_connInfo.serverUrl.length()-1);
     }
-    if(!_serverUrl.startsWith("http")) {
-        _lastError = F("Invalid URL scheme");
+    if(!_connInfo.serverUrl.startsWith("http")) {
+        _connInfo.lastError = F("Invalid URL scheme");
         return false;
     }
-    _service = new HTTPService(_serverUrl, _authToken, _certInfo, _insecure);
+    _service = new HTTPService(&_connInfo);
 
     setUrls();
     
@@ -136,6 +136,7 @@ void InfluxDBClient::clean() {
         delete _service;
         _service = nullptr;
     }
+    _buckets = nullptr;
     _lastFlushed = 0;
     _retryTime = 0;
 }
@@ -145,28 +146,28 @@ bool InfluxDBClient::setUrls() {
         return false;
     }
     INFLUXDB_CLIENT_DEBUG("[D] setUrls\n");
-    if(_dbVersion == 2) {
+    if( _connInfo.dbVersion == 2) {
         _writeUrl = _service->getServerAPIURL();
         _writeUrl += "write?org=";
-        _writeUrl +=  urlEncode(_org.c_str());
+        _writeUrl +=  urlEncode(_connInfo.org.c_str());
         _writeUrl += "&bucket=";
-        _writeUrl += urlEncode(_bucket.c_str());
+        _writeUrl += urlEncode(_connInfo.bucket.c_str());
         INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
         _queryUrl = _service->getServerAPIURL();;
         _queryUrl += "query?org=";
-        _queryUrl +=  urlEncode(_org.c_str());
+        _queryUrl +=  urlEncode(_connInfo.org.c_str());
         INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
     } else {
-        _writeUrl = _serverUrl;
+        _writeUrl = _connInfo.serverUrl;
         _writeUrl += "/write?db=";
-        _writeUrl += urlEncode(_bucket.c_str());
-        _queryUrl = _serverUrl;
+        _writeUrl += urlEncode(_connInfo.bucket.c_str());
+        _queryUrl = _connInfo.serverUrl;
         _queryUrl += "/api/v2/query";
-        if(_user.length() > 0 && _password.length() > 0) {
+        if(_connInfo.user.length() > 0 && _connInfo.password.length() > 0) {
             String auth = "&u=";
-            auth += urlEncode(_user.c_str());
+            auth += urlEncode(_connInfo.user.c_str());
             auth += "&p=";
-            auth += urlEncode(_password.c_str());
+            auth += urlEncode(_connInfo.password.c_str());
             _writeUrl += auth;  
             _queryUrl += "?";
             _queryUrl += auth;
@@ -176,7 +177,7 @@ bool InfluxDBClient::setUrls() {
     }
     if(_writeOptions._writePrecision != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
-        _writeUrl += precisionToString(_writeOptions._writePrecision, _dbVersion);
+        _writeUrl += precisionToString(_writeOptions._writePrecision, _connInfo.dbVersion);
         INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
     }
     return true;
@@ -232,6 +233,16 @@ bool InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
     }
     _service->setHTTPOptions(httpOptions);
     return true;
+}
+
+BucketsClient InfluxDBClient::getBucketsClient() {
+    if(!_service && !init()) {
+        return BucketsClient();
+    }
+    if(!_buckets) {
+        _buckets = BucketsClient(&_connInfo, _service);
+    }
+    return _buckets;
 }
 
 void InfluxDBClient::resetBuffer() {
@@ -375,9 +386,9 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     if(rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot write yet, pause %ds, %ds yet\n", _retryTime, rwt);
         // retry after period didn't run out yet
-        _lastError = FPSTR(TooEarlyMessage);
-        _lastError += String(rwt);
-        _lastError += "s";
+        _connInfo.lastError = FPSTR(TooEarlyMessage);
+        _connInfo.lastError += String(rwt);
+        _connInfo.lastError += "s";
         return false;
     }
     char *data;
@@ -463,12 +474,12 @@ bool InfluxDBClient::validateConnection() {
         return false;
     }
     // on version 1.x /ping will by default return status code 204, without verbose
-    String url = _serverUrl + (_dbVersion==2?"/health":"/ping?verbose=true");
-    if(_dbVersion==1 && _user.length() > 0 && _password.length() > 0) {
+    String url = _connInfo.serverUrl + (_connInfo.dbVersion==2?"/health":"/ping?verbose=true");
+    if(_connInfo.dbVersion==1 && _connInfo.user.length() > 0 && _connInfo.password.length() > 0) {
         url += "&u=";
-        url += urlEncode(_user.c_str());
+        url += urlEncode(_connInfo.user.c_str());
         url += "&p=";
-        url += urlEncode(_password.c_str());
+        url += urlEncode(_connInfo.password.c_str());
     }
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
@@ -514,7 +525,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
         return FluxQueryResult(mess);
     }
     if(!_service && !init()) {
-        return FluxQueryResult(_lastError);
+        return FluxQueryResult(_connInfo.lastError);
     }
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());

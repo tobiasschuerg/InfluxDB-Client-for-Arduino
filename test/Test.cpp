@@ -31,54 +31,19 @@
 #include <Platform.h>
 #include "../src/Version.h"
 
-#if defined(ESP32)
-#include <WiFi.h>
-String chipId = String((unsigned long)ESP.getEfuseMac());
-String deviceName = "ESP32";
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-String chipId = String(ESP.getChipId());
-String deviceName = "ESP8266";
-#endif
-
-
 
 #define INFLUXDB_CLIENT_TESTING_BAD_URL "http://127.0.0.1:999"
 
-#define TEST_INIT(name)  int temp = failures;\
- const char *testName = name; \
- serverLog(Test::managementUrl, name); \
-  do { \
-  Serial.println(testName)
-#define TEST_END()  } while(0); \
- end: Serial.printf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
-#define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) goto end
-#define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) goto end
-
-const char * Test::managementUrl;
-const char * Test::apiUrl;
-const char * Test::orgName;
-const char * Test::bucketName;
-const char * Test::dbName;
-const char * Test::token;
-int Test::failures = 0;
-
-void Test::setup(const char *mgmtUrl, const char * apiUrl, const char * orgName, const char * bucketName, const char * dbName, const char * token) {
-    Test::managementUrl = mgmtUrl;
-    Test::apiUrl = apiUrl;
-    Test::orgName = orgName;
-    Test::bucketName = bucketName;
-    Test::dbName = dbName;
-    Test::token = token;
-}
-
 void Test::run() {
+    failures = 0;
+    Serial.println("Unit & Integration Tests");
     // Basic tests
     testOptions();
     testPoint();
     testLineProtocol();
     testEcaping();
     testUrlEncode();
+    testIsValidID();
     testFluxTypes();
     testFluxParserEmpty();
     testFluxParserSingleTable();
@@ -107,7 +72,8 @@ void Test::run() {
     testServerTempDownBatchsize5();
     testRetriesOnServerOverload();
     testRetryInterval();
-    Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
+    testBuckets();    
+    Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
 }
 
 void Test::testOptions() {
@@ -148,7 +114,9 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._retryInterval == 5);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
-    HTTPService s("http://localhost:8086","my-token", nullptr, false);
+    //ConnectionInfo connInfo = { "http://localhost:8086", "","", "my-token", 2, "", "", nullptr, false, "" };
+    ConnectionInfo connInfo = {.serverUrl= "http://localhost:8086", .authToken = "my-token"};
+    HTTPService s(&connInfo);
     TEST_ASSERT(!s._httpOptions._connectionReuse);
     TEST_ASSERT(s._httpOptions._httpReadTimeout == 5000);
     // Client has no params
@@ -1187,7 +1155,6 @@ void Test::testTimestamp() {
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
         delete p;
     }
-    int count;
     String query = "";
     FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
@@ -1486,10 +1453,10 @@ end:
 }
 
 
-bool testTableColumns(FluxQueryResult flux,  const char *columns[], unsigned int columnsCount) {
+bool testTableColumns(FluxQueryResult flux,  const char *columns[], int columnsCount) {
     do {
         TEST_ASSERT(testStringVector(flux.getColumnsName(), columns, columnsCount));
-        for(unsigned int i=0;i<columnsCount;i++) {
+        for(int i=0;i<columnsCount;i++) {
             TEST_ASSERTM(flux.getColumnIndex(columns[i]) == i, columns[i]);
         }
         TEST_ASSERTM(flux.getColumnIndex("x") == -1, "flux.getColumnIndex(\"x\")");
@@ -2021,36 +1988,96 @@ void Test::testUrlEncode() {
     TEST_END();
 }
 
+void Test::testIsValidID() {
+    TEST_INIT("testIsValidID");
+    TEST_ASSERT(isValidID("0123456789abcdef"));
+    TEST_ASSERT(isValidID("0000000000000000"));
+    TEST_ASSERT(isValidID("9999999999999999"));
+    TEST_ASSERT(isValidID("aaaaaaaaaaaaaaaa"));
+    TEST_ASSERT(isValidID("ffffffffffffffff"));
+    TEST_ASSERT(!isValidID("w123456789abcdef"));
+    TEST_ASSERT(!isValidID("ffffffffffffffffa"));
+    TEST_ASSERT(!isValidID("ffffffffffffffa"));
+    TEST_ASSERT(!isValidID("ffffffff-fffffff"));
+    TEST_END();
+}
+
+void Test::testBuckets() {
+    TEST_INIT("testBuckets");
+    Bucket emptyb;
+    TEST_ASSERT(emptyb.isNull());
+    TEST_ASSERT(!emptyb);
+    TEST_ASSERT(emptyb.getID() == nullptr);
+    TEST_ASSERT(emptyb.getName() == nullptr);
+    TEST_ASSERT(emptyb.getExpire() == 0);
+
+    BucketsClient emptybs;
+    TEST_ASSERT(emptybs.isNull());
+    TEST_ASSERT(!emptybs);
+    TEST_ASSERT(emptybs.getOrgID("o") == "");
+    TEST_ASSERT(emptybs.createBucket("a").isNull());
+    TEST_ASSERT(emptybs.findBucket("a").isNull());
+    TEST_ASSERT(!emptybs.checkBucketExists("a"));
+    TEST_ASSERT(!emptybs.deleteBucket("a"));
+
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    BucketsClient buckets = client.getBucketsClient();
+    TEST_ASSERT(!buckets.isNull());
+    emptybs = buckets;
+    TEST_ASSERT(!emptybs.isNull());
+    TEST_ASSERT(emptybs);
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    String id = buckets.getOrgID("my-org");
+    TEST_ASSERTM( id == "e2e2d84ffb3c4f85", id.length()?id:buckets.getLastErrorMessage());
+    id = buckets.getOrgID("org");
+    TEST_ASSERT( id == "");
+
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-1"));
+    Bucket b = buckets.createBucket("bucket-1");
+    TEST_ASSERTM(!b.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERTM(isValidID(b.getID()), b.getID());
+    TEST_ASSERTM(!strcmp(b.getName(), "bucket-1"), b.getName());
+    TEST_ASSERTM(b.getExpire() == 0, String(b.getExpire()));
+    emptyb = b;
+    TEST_ASSERT(!emptyb.isNull());
+    TEST_ASSERT(emptyb);
+    TEST_ASSERTM(isValidID(emptyb.getID()), emptyb.getID());
+    TEST_ASSERTM(!strcmp(emptyb.getName(), "bucket-1"), emptyb.getName());
+    TEST_ASSERTM(emptyb.getExpire() == 0, String(emptyb.getExpire()));
+
+    TEST_ASSERT(buckets.checkBucketExists("bucket-1"));
+    TEST_ASSERT(buckets.deleteBucket(b.getID()));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-1"));
+    TEST_ASSERT(!buckets.deleteBucket("bucket-1"));
+    
+    uint32_t monthSec = 3600*24*30;
+    b = buckets.createBucket("bucket-2", monthSec);
+    TEST_ASSERTM(!b.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERT(buckets.checkBucketExists("bucket-2"));
+    TEST_ASSERTM(b.getExpire() == monthSec, String(b.getExpire()));
+    int len = 34 + strlen(b.getID()) + strlen(b.getName()) + 10 + 1; //10 is maximum length of string representation of expire
+    char *line = new char[len];
+    sprintf(line, "Bucket: ID %s, Name %s, expire %u", b.getID(),b.getName(), b.getExpire());
+    TEST_ASSERTM(b.toString() == line, b.toString());
+
+    uint32_t yearSec = 12*monthSec;
+    Bucket b2 = buckets.createBucket("bucket-3", yearSec);
+    TEST_ASSERTM(!b2.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERT(buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERTM(b2.getExpire() == yearSec, String(b2.getExpire()));
+
+    TEST_ASSERT(buckets.checkBucketExists("bucket-2"));
+    TEST_ASSERT(buckets.deleteBucket(b.getID()));
+    TEST_ASSERT(buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERT(buckets.deleteBucket(b2.getID()));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-2"));
+
+    TEST_END();
+}
+
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
-    client._serverUrl = serverUrl;
+    client._connInfo.serverUrl = serverUrl;
     client._service->_apiURL = serverUrl + "/api/v2/";
     client.setUrls();
 }
-
-
-Point *Test::createPoint(String measurement) {
-    Point *point = new Point(measurement);
-    point->addTag("SSID", WiFi.SSID());
-    point->addTag("device_name", deviceName);
-    point->addTag("device_id", chipId);
-    point->addField("temperature", random(-20, 40) * 1.1f);
-    point->addField("humidity", random(10, 90));
-    point->addField("code", random(10, 90));
-    point->addField("door", random(0, 10) > 5);
-    point->addField("status", random(0, 10) > 5 ? "ok" : "failed");
-    return point;
-}
-
-bool testAssertm(int line, bool state,String message) {
-  if(!state) {
-    ++Test::failures;
-    Serial.printf("Assert failure line %d%s%s\n", line, message.length()>0?": ":"",message.c_str());
-    return true;
-  }
-  return false;
-}
-
-bool testAssert(int line, bool state) {
-  return testAssertm(line, state, "");
-}
-

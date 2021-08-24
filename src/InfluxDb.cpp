@@ -36,12 +36,12 @@ Influxdb::Influxdb(String host, uint16_t port) {
   if(port == 443) {
     // this happens usualy when influxdb is behind fw/proxy. Mostly, when influxdb is switched to https, the port remains the same (8086)
     // port number shouldn't be qualificator for secure connection, either scheme or a flag
-    _serverUrl = "https://";
+    _connInfo.serverUrl = "https://";
   } else {
-    _serverUrl = "http://";
+    _connInfo.serverUrl = "http://";
   }
-  _serverUrl += host + ":" + String(port);
-  _dbVersion = 1;
+  _connInfo.serverUrl += host + ":" + String(port);
+  _connInfo.dbVersion = 1;
 }
 
 /**
@@ -49,16 +49,16 @@ Influxdb::Influxdb(String host, uint16_t port) {
  * @param db the Influx Database to be written to.
  */
 void Influxdb::setDb(String db) {
-  _bucket = db;
+  _connInfo.bucket = db;
 }
 
 /**
  * Set the database to be used with authentication.
  */
 void Influxdb::setDbAuth(String db, String user, String pass) {
-  _bucket = db;
-  _user = user;
-  _password = pass;
+  _connInfo.bucket = db;
+  _connInfo.user = user;
+  _connInfo.password = pass;
 }
 
 /**
@@ -66,7 +66,7 @@ void Influxdb::setDbAuth(String db, String user, String pass) {
  * @param bucket the InfluxDB Bucket which must already exist
  */
 void Influxdb::setBucket(String bucket) {
-  _bucket = bucket;
+  _connInfo.bucket = bucket;
 }
 
 /**
@@ -74,9 +74,9 @@ void Influxdb::setBucket(String bucket) {
  * @param port both v1.x and v3 use 8086
  */
 void Influxdb::setPort(uint16_t port){
-  int b = _serverUrl.indexOf(":",5);
+  int b = _connInfo.serverUrl.indexOf(":",5);
   if(b > 0) {
-    _serverUrl = _serverUrl.substring(0, b+1) + String(port);
+    _connInfo.serverUrl = _connInfo.serverUrl.substring(0, b+1) + String(port);
   }
 }
 /**
@@ -84,7 +84,7 @@ void Influxdb::setPort(uint16_t port){
  * @param org the Name of the organization unit to use which must already exist
  */
 void Influxdb::setOrg(String org){
-  _org = org;
+  _connInfo.org = org;
 }
 
 /**
@@ -92,7 +92,7 @@ void Influxdb::setOrg(String org){
  * @param token the Auth Token from InfluxDBv2 *required*
  */
 void Influxdb::setToken(String token){
-  _authToken = token;
+  _connInfo.authToken = token;
 }
 
 /**
@@ -100,7 +100,7 @@ void Influxdb::setToken(String token){
  * @param version accepts 1 for version 1.x or 2 for version 2.x
  */
 void Influxdb::setVersion(uint16_t version){
-  _dbVersion = version;
+  _connInfo.dbVersion = version;
 }
 
 #if defined(ESP8266)
@@ -109,7 +109,7 @@ void Influxdb::setVersion(uint16_t version){
  * @param fingerPrint server certificate finger print 
  */
 void Influxdb::setFingerPrint(const char *fingerPrint){
-  _certInfo = fingerPrint;
+  _connInfo.certInfo = fingerPrint;
 }
 #endif
 

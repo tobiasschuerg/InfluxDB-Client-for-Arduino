@@ -1,6 +1,7 @@
 const express = require('express');
 const readline = require('readline');
 var os = require('os');
+const e = require('express');
 
 const app = express();
 const mgmtApp = express();
@@ -193,6 +194,7 @@ app.post(prefix + '/write', (req,res) => {
                 switch(point.tags.direction) {
                     case 'delete-all':
                         pointsdb = [];
+                        buckets = [];
                         res.status(204).end(); 
                         break; 
                     case '400':
@@ -225,6 +227,7 @@ app.post(prefix + '/write', (req,res) => {
 app.post(prefix + '/api/v2/delete', (req,res) => {
     console.log('Deleteting points');
     pointsdb = [];
+    buckets = [];
     res.status(204).end(); 
 });
 
@@ -352,8 +355,245 @@ app.post(prefix+'/api/v2/query', (req,res) => {
         } else {
             res.status(status).end();
         }
+    } else {
+        res.status(400).send('invalid query request');
     }
 });
+
+const orgID = `e2e2d84ffb3c4f85`;
+const orgName = `my-org`;
+
+var buckets = []
+
+function bucketResp(bucket) {
+    return `{
+        "id": "${bucket.id}",
+        "orgID": "${bucket.orgID}",
+        "type": "user",
+        "name": "${bucket.name}",
+        "retentionRules": [
+            {
+                    "type": "expire",
+                    "everySeconds": ${bucket.expire},
+                    "shardGroupDurationSeconds": 604800
+            }
+        ],
+        "createdAt": "2021-08-24T07:53:17.2525733Z",
+        "updatedAt": "2021-08-24T07:53:17.2525734Z",
+        "links": {
+                "labels": "/api/v2/buckets/3eae77843acbebee/labels",
+                "members": "/api/v2/buckets/3eae77843acbebee/members",
+                "org": "/api/v2/orgs/e2e2d84ffb3c4f85",
+                "owners": "/api/v2/buckets/3eae77843acbebee/owners",
+                "self": "/api/v2/buckets/3eae77843acbebee",
+                "write": "/api/v2/write?org=e2e2d84ffb3c4f85\u0026bucket=3eae77843acbebee"
+        },
+        "labels": []
+    }
+   `
+}
+
+
+
+function bucketsResp(buckets){
+   return `{
+    "links": {
+            "self": "/api/v2/buckets?descending=false\u0026limit=20\u0026offset=0"
+    },
+    "buckets": [
+        ${buckets}
+    ]
+}
+`
+}
+
+const invalidIDResp = `{
+    "code": "invalid",
+    "message": "id must have a length of 16 bytes"
+}
+`
+
+const notfoundResp = `{
+    "code": "not found",
+    "message": "bucket not found"
+}`
+
+const orgNotFoundReps= `{
+    "code": "not found",
+    "message": "organization not found"
+}`
+
+app.get(prefix+'/api/v2/buckets', (req,res) => {
+    if(handleAuthentication(req, res)) {
+        var name = req.query['name'];
+        var id = req.query['id'];
+        res.set("Content-Type","application/json");
+        res.status(200);
+        if(name) { //filter by name
+            console.log("GET buckets name: " + name)
+            let b = buckets.find((value)=> {
+                return value.name === name
+            })
+            if(b) {
+                res.send(bucketResp(b))
+            } else { //invalid name
+                res.send(bucketsResp(''))
+            }
+        } else if(id) { //filter by id
+            console.log("GET buckets id: " + id)
+            if(id.length != 16) { //invalid name
+                res.status(400)
+                res.send(invalidIDResp)
+                return
+            }
+            let b = buckets.find((value)=> {
+                return value.id === id
+            })
+            if(b) {
+                res.send(bucketResp(b))
+            } else {
+                res.status(404)
+                res.send(notfoundResp)
+            }
+        } else { //return all buckets
+            console.log("GET all buckets")
+            bucketsJson = buckets.reduce((total, value, index) => {
+                return total + (index > 0?",\n":"") + bucketResp(value)
+            },'')
+            res.send(bucketsResp(bucketsJson))
+        }
+    }
+});
+
+
+function invalidJSONResp(err) {
+    return `{
+    "code": "invalid",
+    "message": "${err}"
+}`
+}
+
+function conflictBucketResp(bucket) {
+    return `{
+    "code": "conflict",
+    "message": "bucket with name ${bucket} already exists"
+}`
+}
+
+const idBase = '0123456789abcdef'
+
+function genID() {
+    let result = '';
+    for ( let i = 0; i < 16; i++ ) {
+        result += idBase.charAt(Math.floor(Math.random() * 16));
+    }
+    return result;
+}
+
+app.post(prefix+'/api/v2/buckets', (req,res) => {
+    console.log('Post buckets')
+    if(handleAuthentication(req, res)) {
+        let newBucket = undefined
+        try {
+            newBucket = JSON.parse(req.body)
+        } catch(err) {
+            res.status(400).send(invalidJSONResp(err))
+            return
+        } 
+        if(newBucket.orgID !== orgID ) {
+            res.status(404).send(orgNotFoundReps)
+            return
+        }
+        //console.log('Finding name ' + newBucket.name)
+        let b = buckets.find((value)=> {
+            //console.log('  testing ', value)
+            return value.name?value.name === newBucket.name: false;
+        })
+        if(b) {
+            res.status(422).send(conflictBucketResp(newBucket.name ))
+            return
+        }
+        expire = 0
+        if(newBucket.retentionRules && newBucket.retentionRules.length > 0) {
+            expire = newBucket.retentionRules[0].everySeconds
+        }
+        let bucket = {
+            "name": newBucket.name,
+            "orgID": orgID,
+            "expire": expire,
+            "id": genID()
+        }
+        buckets.push(bucket)
+        res.status(201).send(bucketResp(bucket))
+    }
+})
+
+app.delete(prefix+'/api/v2/buckets/:id', (req,res) => {
+    console.log('Delete buckets')
+    if(handleAuthentication(req, res)) {
+        let id = req.params['id']
+        if(!id) {
+            res.sendStatus(405)
+            return
+        }
+        //console.log('Finding id ' + id)
+        let i = buckets.findIndex((value)=> {
+            //console.log('  testing ', value)
+            return value.id?value.id === id:false
+        })
+        if(i<0) {
+            res.status(404).send(notfoundResp)
+            return
+        }
+        buckets.splice(i,1)
+        res.sendStatus(204)
+    }
+})
+
+function orgsResp(orgs) {
+    return `{
+	"links": {
+		"self": "/api/v2/orgs"
+	},
+	"orgs": [
+		${orgs}
+	]
+}`
+}
+
+const orgResp = `{
+    "links": {
+        "buckets": "/api/v2/buckets?org=my-org",
+        "dashboards": "/api/v2/dashboards?org=my-org",
+        "labels": "/api/v2/orgs/e2e2d84ffb3c4f85/labels",
+        "logs": "/api/v2/orgs/e2e2d84ffb3c4f85/logs",
+        "members": "/api/v2/orgs/e2e2d84ffb3c4f85/members",
+        "owners": "/api/v2/orgs/e2e2d84ffb3c4f85/owners",
+        "secrets": "/api/v2/orgs/e2e2d84ffb3c4f85/secrets",
+        "self": "/api/v2/orgs/e2e2d84ffb3c4f85",
+        "tasks": "/api/v2/tasks?org=my-org"
+    },
+    "id": "${orgID}",
+    "name": "${orgName}",
+    "description": "",
+    "createdAt": "2021-08-18T06:24:02.427946Z",
+    "updatedAt": "2021-08-18T06:24:02.427946Z"
+}`
+
+app.get(prefix+'/api/v2/orgs', (req,res) => {
+    if(handleAuthentication(req, res)) {
+        var name = req.query['org'];
+        if(name){
+            if(name === orgName) {
+                res.status(200).send(orgsResp(orgResp))
+            } else {
+                res.status(200).send(orgsResp(""))
+            }
+        } else {
+            res.status(200).send(orgsResp(orgResp))
+        }
+    }
+})
 
 function parsePoints(data) {
     var lines = data.split("\n");
@@ -396,24 +636,27 @@ function parsePoints(data) {
     }
 }
 
-const AuthToken = "Token 1234567890";
+const AuthToken = "Token my-token";
 function handleAuthentication(req, res) {
     var auth = req.get('Authorization');
     if(auth && auth != AuthToken) {
         res.status(401).send(`{"code":"unauthorized","message":"unauthorized access"}`);
         return false;
-    } else {
-        return true;
+    } 
+    let u = req.query['u']
+    let p = req.query['p']
+    if(u && p && (p != "my secret password" || u != "user")) {
+        res.status(401).send(`{"code":"unauthorized","message":"invalid user or password"}`);
+        return false;
     }
+    return true;
 }
 
 const AllowedPrecisions = ['ns','us','ms','s'];
 function checkWriteParams(req, res) {
-    var org = req.query['org'];
     var bucket = req.query['bucket'];
     var precision = req.query['precision'];
-    if(org != 'my-org') {
-        res.status(404).send(`{"code":"not found","message":"organization name \"${org}\" not found"}`);
+    if(!checkOrg(req, res)) {
         return false;
     } else if(bucket != 'my-bucket') {
         res.status(404).send(`{"code":"not found","message":"bucket \"${bucket}\" not found"}`);
@@ -446,8 +689,16 @@ function checkWriteParamsV1(req, res) {
 }
 
 function checkQueryParams(req, res) {
+    let org = req.query['org']
+    if(org) {
+        return checkOrg(req, res);
+    } 
+    return true
+}
+
+function checkOrg(req, res) {
     var org = req.query['org'];
-    if(org && org !== 'my-org') {
+    if(org !== 'my-org') {
         res.status(404).send(`{"code":"not found","message":"organization name \"${org}\" not found"}`);
         return false;
     } else {

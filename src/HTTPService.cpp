@@ -17,34 +17,33 @@ bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url);
 static const char *RetryAfter = "Retry-After";
 const char *TransferEncoding = "Transfer-Encoding";
 
-HTTPService::HTTPService(const String &serverUrl, const String &authToken, const char *certInfo, bool insecure) {
-  _authToken = authToken;
-  _apiURL = serverUrl;
+HTTPService::HTTPService(ConnectionInfo *pConnInfo):_pConnInfo(pConnInfo) {
+  _apiURL = pConnInfo->serverUrl;
   _apiURL += "/api/v2/";
-  bool https = serverUrl.startsWith("https");
+  bool https = pConnInfo->serverUrl.startsWith("https");
   if(https) {
 #if defined(ESP8266)         
     BearSSL::WiFiClientSecure *wifiClientSec = new BearSSL::WiFiClientSecure;
-    if (insecure) {
+    if (pConnInfo->insecure) {
       wifiClientSec->setInsecure();
-    } else if(certInfo && strlen_P(certInfo) > 0) {
-      if(strlen_P(certInfo) > 60 ) { //differentiate fingerprint and cert
-         _cert = new BearSSL::X509List(certInfo); 
+    } else if(pConnInfo->certInfo && strlen_P(pConnInfo->certInfo) > 0) {
+      if(strlen_P(pConnInfo->certInfo) > 60 ) { //differentiate fingerprint and cert
+         _cert = new BearSSL::X509List(pConnInfo->certInfo); 
          wifiClientSec->setTrustAnchors(_cert);
       } else {
-         wifiClientSec->setFingerprint(certInfo);
+         wifiClientSec->setFingerprint(pConnInfo->certInfo);
       }
     }
-    checkMFLN(wifiClientSec, serverUrl);
+    checkMFLN(wifiClientSec, pConnInfo->serverUrl);
 #elif defined(ESP32)
     WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
-    if (insecure) {
+    if (pConnInfo->insecure) {
 #ifndef ARDUINO_ESP32_RELEASE_1_0_4
       // This works only in ESP32 SDK 1.0.5 and higher
       wifiClientSec->setInsecure();
 #endif            
-    } else if(_certInfo && strlen_P(certInfo) > 0) { 
-      wifiClientSec->setCACert(certInfo);
+    } else if(pConnInfo->certInfo && strlen_P(pConnInfo->certInfo) > 0) { 
+      wifiClientSec->setCACert(pConnInfo->certInfo);
     }
 #endif    
     _wifiClient = wifiClientSec;
@@ -74,8 +73,6 @@ HTTPService::~HTTPService() {
     _cert = nullptr;
 }
 #endif
-  _lastStatusCode = 0;
-  _lastErrorResponse = "";
 }
 
 
@@ -139,11 +136,11 @@ bool checkMFLN(BearSSL::WiFiClientSecure  *client, String url) {
 
 bool HTTPService::beforeRequest(const char *url) {
    if(!_httpClient->begin(*_wifiClient, url)) {
-    _lastErrorResponse = F("begin failed");
+    _pConnInfo->lastError = F("begin failed");
     return false;
   }
-  if(_authToken.length() > 0) {
-    _httpClient->addHeader(F("Authorization"), "Token " + _authToken);
+  if(_pConnInfo->authToken.length() > 0) {
+    _httpClient->addHeader(F("Authorization"), "Token " + _pConnInfo->authToken);
   }
   const char * headerKeys[] = {RetryAfter, TransferEncoding} ;
   _httpClient->collectHeaders(headerKeys, 2);
@@ -171,6 +168,15 @@ bool HTTPService::doGET(const char *url, int expectedCode, httpResponseCallback 
   return afterRequest(expectedCode, cb, false);
 }
 
+bool HTTPService::doDELETE(const char *url, int expectedCode, httpResponseCallback cb) {
+  INFLUXDB_CLIENT_DEBUG("[D] DELETE - %s\n", url);
+  if(!beforeRequest(url)) {
+    return false;
+  }
+  _lastStatusCode = _httpClient->sendRequest("DELETE");
+  return afterRequest(expectedCode, cb, false);
+}
+
 bool HTTPService::afterRequest(int expectedStatusCode, httpResponseCallback cb,  bool modifyLastConnStatus) {
     if(modifyLastConnStatus) {
         _lastRequestTime = millis();
@@ -183,16 +189,16 @@ bool HTTPService::afterRequest(int expectedStatusCode, httpResponseCallback cb, 
             }
         }
     }
-    _lastErrorResponse = "";
+    _pConnInfo->lastError = (char *)nullptr;
     bool ret = _lastStatusCode == expectedStatusCode;
     bool endConnection = true;
     if(!ret) {
         if(_lastStatusCode > 0) {
-            _lastErrorResponse = _httpClient->getString();
-            INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", _lastErrorResponse.c_str());
+            _pConnInfo->lastError = _httpClient->getString();
+            INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", _pConnInfo->lastError.c_str());
         } else {
-            _lastErrorResponse = _httpClient->errorToString(_lastStatusCode);
-            INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _lastErrorResponse.c_str());
+            _pConnInfo->lastError = _httpClient->errorToString(_lastStatusCode);
+            INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _pConnInfo->lastError.c_str());
         }
     } else if(cb){
       endConnection = cb(_httpClient);

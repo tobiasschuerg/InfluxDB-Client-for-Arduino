@@ -147,3 +147,17 @@ String urlEncode(const char* src) {
    }
    return ret;
 }
+
+bool isValidID(const char *idString) {
+   if(strlen(idString) != 16) {
+     return false;
+   }
+   for(int i=0;i<16;i++) {
+     //0-9,a-f
+     if(!((idString[i] >= '0' && idString[i] <= '9') || (idString[i] >= 'a' && idString[i] <= 'f'))) {
+         return false;
+     }
+   }
+   return true;
+}
+

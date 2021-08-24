@@ -28,23 +28,13 @@
 #define _TEST_H_
 
 #include <Arduino.h>
-#include <InfluxDbClient.h>
-#include <InfluxDbCloud.h>
 
-class Test {
-public:
-    static const char * managementUrl;
-    static const char * apiUrl;
-    static const char * orgName;
-    static const char * bucketName;
-    static const char * dbName;
-    static const char * token;
-    static int failures;
+#include "TestBase.h"
+
+class Test : public  TestBase {
 public:
     static void run();
-    static void setup(const char * mgmtUrl, const char * apiUrl, const char * orgName, const char * bucketName, const char * dbName, const char * token);
 private: //helpers
-    static Point *createPoint(String measurement);
     static void setServerUrl(InfluxDBClient &client, String serverUrl);
 private: // tests
     static void testOptions();
@@ -78,9 +68,8 @@ private: // tests
     static void testDefaultTags();
     static void testUrlEncode();
     static void testRepeatedInit();
+    static void testIsValidID();
+    static void testBuckets();
 };
-
-bool testAssertm(int line, bool state,String message);
-bool testAssert(int line, bool state);
 
 #endif //_TEST_H_
