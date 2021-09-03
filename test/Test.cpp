@@ -27,54 +27,23 @@
 
 #include "Test.h"
 #include "TestSupport.h"
-#include <core_version.h>
 
-#if defined(ESP32)
-#include <WiFi.h>
-String chipId = String((unsigned long)ESP.getEfuseMac());
-String deviceName = "ESP32";
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-String chipId = String(ESP.getChipId());
-String deviceName = "ESP8266";
-#endif
+#include <Platform.h>
+#include "../src/Version.h"
+
 
 #define INFLUXDB_CLIENT_TESTING_BAD_URL "http://127.0.0.1:999"
 
-#define TEST_INIT(name)  int temp = failures;\
- const char *testName = name; \
- serverLog(Test::managementUrl, name); \
-  do { \
-  Serial.println(testName)
-#define TEST_END()  } while(0); \
- end: Serial.printf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
-#define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) goto end
-#define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) goto end
-
-const char * Test::managementUrl;
-const char * Test::apiUrl;
-const char * Test::orgName;
-const char * Test::bucketName;
-const char * Test::dbName;
-const char * Test::token;
-int Test::failures = 0;
-
-void Test::setup(const char *mgmtUrl, const char * apiUrl, const char * orgName, const char * bucketName, const char * dbName, const char * token) {
-    Test::managementUrl = mgmtUrl;
-    Test::apiUrl = apiUrl;
-    Test::orgName = orgName;
-    Test::bucketName = bucketName;
-    Test::dbName = dbName;
-    Test::token = token;
-}
-
 void Test::run() {
+    failures = 0;
+    Serial.println("Unit & Integration Tests");
     // Basic tests
     testOptions();
     testPoint();
     testLineProtocol();
     testEcaping();
     testUrlEncode();
+    testIsValidID();
     testFluxTypes();
     testFluxParserEmpty();
     testFluxParserSingleTable();
@@ -103,7 +72,8 @@ void Test::run() {
     testServerTempDownBatchsize5();
     testRetriesOnServerOverload();
     testRetryInterval();
-    Serial.printf("Test %s\n", failures ? "FAILED" : "SUCCEEDED");
+    testBuckets();    
+    Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
 }
 
 void Test::testOptions() {
@@ -144,10 +114,17 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._retryInterval == 5);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
-    TEST_ASSERT(!c._httpOptions._connectionReuse);
-    TEST_ASSERT(c._httpOptions._httpReadTimeout == 5000);
-
-    c.setWriteOptions(defWO);
+    //ConnectionInfo connInfo = { "http://localhost:8086", "","", "my-token", 2, "", "", nullptr, false, "" };
+    ConnectionInfo connInfo = {.serverUrl= "http://localhost:8086", .authToken = "my-token"};
+    HTTPService s(&connInfo);
+    TEST_ASSERT(!s._httpOptions._connectionReuse);
+    TEST_ASSERT(s._httpOptions._httpReadTimeout == 5000);
+    // Client has no params
+    TEST_ASSERT(!c.setWriteOptions(defWO));
+    TEST_ASSERT(c.getLastErrorMessage() == "Invalid parameters");
+    c.setConnectionParams("http://localhost:8086","my-org","my-bucket", "my-token");
+    
+    TEST_ASSERT(c.setWriteOptions(defWO));
     TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
     TEST_ASSERT(c._writeOptions._batchSize == 10);
     TEST_ASSERT(c._writeOptions._bufferSize == 20);
@@ -156,17 +133,18 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
 
-    c.setHTTPOptions(defHO);
-    TEST_ASSERT(c._httpOptions._connectionReuse);
-    TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+    
+    TEST_ASSERT(c.setHTTPOptions(defHO));
+    TEST_ASSERT(c._service->_httpOptions._connectionReuse);
+    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
 
     c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
     TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
     TEST_ASSERT(c._writeOptions._batchSize == 15);
     TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
     TEST_ASSERT(c._writeOptions._flushInterval == 70);
-    TEST_ASSERT(!c._httpOptions._connectionReuse);
-    TEST_ASSERT(c._httpOptions._httpReadTimeout == 20000);
+    TEST_ASSERT(!c._service->_httpOptions._connectionReuse);
+    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
 
     defWO = WriteOptions().batchSize(100).bufferSize(7000);
     c.setWriteOptions(defWO);
@@ -283,9 +261,9 @@ void Test::testPoint() {
     testLineTime = testLine + " " + snow + "123456789";
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
-
     now += 10;
-    snow = now;
+    snow = "";
+    snow.concat(now);
     p.setTime(snow);
     testLineTime = testLine + " " + snow;
     line = p.toLineProtocol();
@@ -296,7 +274,7 @@ void Test::testPoint() {
     int partsCount;
     String *parts = getParts(line, ' ', partsCount);
     TEST_ASSERTM(partsCount == 3, String("3 != ") + partsCount);
-    TEST_ASSERT(parts[2].length() == snow.length());
+    TEST_ASSERTM(parts[2].length() == snow.length(), parts[2] + "," + snow);
     delete[] parts;
 
     p.setTime(WritePrecision::MS);
@@ -395,7 +373,8 @@ void Test::testLineProtocol() {
     TEST_ASSERTM(line == testLineTime, line);
 
     now += 10;
-    snow = now;
+    snow = "";
+    snow += now;
     p.setTime(snow);
     testLineTime = testLine + " " + snow;
     line = client.pointToLineProtocol(p);
@@ -488,7 +467,7 @@ void Test::testInit() {
         InfluxDBClient client;
         TEST_ASSERT(!client.validateConnection());
         TEST_ASSERT(client.getLastStatusCode() == 0);
-        TEST_ASSERT(client.getLastErrorMessage() == "Unconfigured instance");
+        TEST_ASSERT(client.getLastErrorMessage() == "Invalid parameters");
 
     }
     {
@@ -496,16 +475,16 @@ void Test::testInit() {
         String rec = "a,a=1 a=3";
         TEST_ASSERT(!client.writeRecord(rec));
         TEST_ASSERT(client.getLastStatusCode() == 0);
-        TEST_ASSERT(client.getLastErrorMessage() == "Unconfigured instance");
+        TEST_ASSERT(client.getLastErrorMessage() == "Invalid parameters");
     }
     {
         InfluxDBClient client;
         String query = "select";
         FluxQueryResult q = client.query(query);
         TEST_ASSERT(!q.next());
-        TEST_ASSERT(q.getError() == "Unconfigured instance");
+        TEST_ASSERT(q.getError() == "Invalid parameters");
         TEST_ASSERT(client.getLastStatusCode() == 0);
-        TEST_ASSERT(client.getLastErrorMessage() == "Unconfigured instance");
+        TEST_ASSERT(client.getLastErrorMessage() == "Invalid parameters");
 
         client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
         String rec = "a,a=1 a=3";
@@ -519,17 +498,6 @@ void Test::testInit() {
     deleteAll(Test::apiUrl);
 }
 
-#define STRHELPER(x) #x
-#define STR(x) STRHELPER(x) // stringifier
-
-#if defined(ESP8266)
-# define INFLUXDB_CLIENT_PLATFORM "ESP8266"
-# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP8266_GIT_DESC)
-#elif defined(ESP32)
-# define INFLUXDB_CLIENT_PLATFORM "ESP32"
-# define INFLUXDB_CLIENT_PLATFORM_VERSION  STR(ARDUINO_ESP32_GIT_DESC)
-#endif
-
 
 void Test::testUserAgent() {
     TEST_INIT("testUserAgent");
@@ -538,8 +506,8 @@ void Test::testUserAgent() {
     waitServer(Test::managementUrl, true);
     TEST_ASSERT(client.validateConnection());
     String url = String(Test::apiUrl) + "/test/user-agent";
-    HTTPClient http;
     WiFiClient wifiClient;
+    HTTPClient http;
     TEST_ASSERT(http.begin(wifiClient, url));
     TEST_ASSERT(http.GET() == 200);
     String agent = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
@@ -617,14 +585,14 @@ void Test::testRetryOnFailedConnection() {
     Serial.println("Stop server!");
     waitServer(Test::managementUrl, false);
     TEST_ASSERT(!clientOk.validateConnection());
-    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
+    TEST_ASSERTM(clientOk._retryTime == 0, String(clientOk._retryTime));
     p = createPoint("test1");
     TEST_ASSERT(!clientOk.writePoint(*p));
-    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
+    TEST_ASSERTM(clientOk._retryTime == 0, String(clientOk._retryTime));
     delete p;
     p = createPoint("test1");
     TEST_ASSERT(!clientOk.writePoint(*p));
-    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
+    TEST_ASSERTM(clientOk._retryTime == 0, String(clientOk._retryTime));
     delete p;
 
     Serial.println("Start server!");
@@ -633,7 +601,7 @@ void Test::testRetryOnFailedConnection() {
     TEST_ASSERT(clientOk.validateConnection());
     p = createPoint("test1");
     TEST_ASSERT(clientOk.writePoint(*p));
-    TEST_ASSERTM(clientOk._lastRetryAfter == 0, String(clientOk._lastRetryAfter));
+    TEST_ASSERTM(clientOk._retryTime == 0, String(clientOk._retryTime));
     delete p;
     TEST_ASSERT(clientOk.isBufferEmpty());
     String query = "select";
@@ -741,7 +709,7 @@ void Test::testBufferOverwriteBatchsize1() {
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
     p->addField("index", 12);
-    TEST_ASSERT(client.writePoint(*p));
+    TEST_ASSERTM(client.writePoint(*p), client.getLastErrorMessage());
     TEST_ASSERT(client.isBufferEmpty());
 
     String query = "select";
@@ -782,7 +750,7 @@ void Test::testBufferOverwriteBatchsize5() {
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
     Point *p = createPoint("test1");
     p->addField("index", 39);
-    TEST_ASSERT(client.writePoint(*p));
+    TEST_ASSERTM(client.writePoint(*p), client.getLastErrorMessage());
     TEST_ASSERT(client.isBufferEmpty());
     //flushing of empty buffer is ok
     TEST_ASSERT(client.flushBuffer());
@@ -1187,7 +1155,6 @@ void Test::testTimestamp() {
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
         delete p;
     }
-    int count;
     String query = "";
     FluxQueryResult q = client.query(query);
     std::vector<String> lines = getLines(q);
@@ -1393,7 +1360,7 @@ void Test::testFluxParserEmpty() {
     InfluxDBClient client;
     flux = client.query("s");
     TEST_ASSERTM(!flux.next(),"!flux.next()");
-    TEST_ASSERTM(flux.getError() == "Unconfigured instance",flux.getError());
+    TEST_ASSERTM(flux.getError() == "Invalid parameters",flux.getError());
 
     flux.close();
 
@@ -1486,10 +1453,10 @@ end:
 }
 
 
-bool testTableColumns(FluxQueryResult flux,  const char *columns[], unsigned int columnsCount) {
+bool testTableColumns(FluxQueryResult flux,  const char *columns[], int columnsCount) {
     do {
         TEST_ASSERT(testStringVector(flux.getColumnsName(), columns, columnsCount));
-        for(unsigned int i=0;i<columnsCount;i++) {
+        for(int i=0;i<columnsCount;i++) {
             TEST_ASSERTM(flux.getColumnIndex(columns[i]) == i, columns[i]);
         }
         TEST_ASSERTM(flux.getColumnIndex("x") == -1, "flux.getColumnIndex(\"x\")");
@@ -1504,7 +1471,7 @@ void Test::testFluxParserSingleTable() {
     InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     TEST_ASSERT(waitServer(Test::managementUrl, true));
     FluxQueryResult flux = client.query("testquery-singleTable");
-    TEST_ASSERTM(flux.next(),"flux.next()");
+    TEST_ASSERTM(flux.next(),flux.getError());
     TEST_ASSERTM(flux.hasTableChanged(),"flux.hasTableChanged()");
     TEST_ASSERTM(flux.getError() == "",flux.getError());
 
@@ -1897,25 +1864,25 @@ void Test::testRetryInterval() {
     String rec = "test1,direction=permanent-set,x-code=502,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=0";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
-    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 1, String(client._writeBuffer[0]->retryCount));
     delay(2000);
     rec = "test1,direction=permanent-unset,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=2";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
-    TEST_ASSERTM(client._lastRetryAfter == 4, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._retryTime == 4, String(client._retryTime));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 2, String(client._writeBuffer[0]->retryCount));
     delay(4000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=3";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
-    TEST_ASSERTM(client._lastRetryAfter == 8, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._retryTime == 8, String(client._retryTime));
     TEST_ASSERTM(client._writeBuffer[0]->retryCount == 3, String(client._writeBuffer[0]->retryCount));
     delay(8000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=4";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
-    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
     TEST_ASSERT(!client._writeBuffer[0]);
     TEST_ASSERTM(client._writeBuffer[1]->retryCount == 0, String(client._writeBuffer[1]->retryCount));
 
@@ -1923,7 +1890,7 @@ void Test::testRetryInterval() {
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=5";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
-    TEST_ASSERTM(client._lastRetryAfter == 2, String(client._lastRetryAfter));
+    TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
     TEST_ASSERT(!client._writeBuffer[0]);
     TEST_ASSERTM(client._writeBuffer[1]->retryCount == 1, String(client._writeBuffer[1]->retryCount));
 
@@ -2021,35 +1988,96 @@ void Test::testUrlEncode() {
     TEST_END();
 }
 
+void Test::testIsValidID() {
+    TEST_INIT("testIsValidID");
+    TEST_ASSERT(isValidID("0123456789abcdef"));
+    TEST_ASSERT(isValidID("0000000000000000"));
+    TEST_ASSERT(isValidID("9999999999999999"));
+    TEST_ASSERT(isValidID("aaaaaaaaaaaaaaaa"));
+    TEST_ASSERT(isValidID("ffffffffffffffff"));
+    TEST_ASSERT(!isValidID("w123456789abcdef"));
+    TEST_ASSERT(!isValidID("ffffffffffffffffa"));
+    TEST_ASSERT(!isValidID("ffffffffffffffa"));
+    TEST_ASSERT(!isValidID("ffffffff-fffffff"));
+    TEST_END();
+}
+
+void Test::testBuckets() {
+    TEST_INIT("testBuckets");
+    Bucket emptyb;
+    TEST_ASSERT(emptyb.isNull());
+    TEST_ASSERT(!emptyb);
+    TEST_ASSERT(emptyb.getID() == nullptr);
+    TEST_ASSERT(emptyb.getName() == nullptr);
+    TEST_ASSERT(emptyb.getExpire() == 0);
+
+    BucketsClient emptybs;
+    TEST_ASSERT(emptybs.isNull());
+    TEST_ASSERT(!emptybs);
+    TEST_ASSERT(emptybs.getOrgID("o") == "");
+    TEST_ASSERT(emptybs.createBucket("a").isNull());
+    TEST_ASSERT(emptybs.findBucket("a").isNull());
+    TEST_ASSERT(!emptybs.checkBucketExists("a"));
+    TEST_ASSERT(!emptybs.deleteBucket("a"));
+
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    BucketsClient buckets = client.getBucketsClient();
+    TEST_ASSERT(!buckets.isNull());
+    emptybs = buckets;
+    TEST_ASSERT(!emptybs.isNull());
+    TEST_ASSERT(emptybs);
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    String id = buckets.getOrgID("my-org");
+    TEST_ASSERTM( id == "e2e2d84ffb3c4f85", id.length()?id:buckets.getLastErrorMessage());
+    id = buckets.getOrgID("org");
+    TEST_ASSERT( id == "");
+
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-1"));
+    Bucket b = buckets.createBucket("bucket-1");
+    TEST_ASSERTM(!b.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERTM(isValidID(b.getID()), b.getID());
+    TEST_ASSERTM(!strcmp(b.getName(), "bucket-1"), b.getName());
+    TEST_ASSERTM(b.getExpire() == 0, String(b.getExpire()));
+    emptyb = b;
+    TEST_ASSERT(!emptyb.isNull());
+    TEST_ASSERT(emptyb);
+    TEST_ASSERTM(isValidID(emptyb.getID()), emptyb.getID());
+    TEST_ASSERTM(!strcmp(emptyb.getName(), "bucket-1"), emptyb.getName());
+    TEST_ASSERTM(emptyb.getExpire() == 0, String(emptyb.getExpire()));
+
+    TEST_ASSERT(buckets.checkBucketExists("bucket-1"));
+    TEST_ASSERT(buckets.deleteBucket(b.getID()));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-1"));
+    TEST_ASSERT(!buckets.deleteBucket("bucket-1"));
+    
+    uint32_t monthSec = 3600*24*30;
+    b = buckets.createBucket("bucket-2", monthSec);
+    TEST_ASSERTM(!b.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERT(buckets.checkBucketExists("bucket-2"));
+    TEST_ASSERTM(b.getExpire() == monthSec, String(b.getExpire()));
+    int len = 34 + strlen(b.getID()) + strlen(b.getName()) + 10 + 1; //10 is maximum length of string representation of expire
+    char *line = new char[len];
+    sprintf(line, "Bucket: ID %s, Name %s, expire %u", b.getID(),b.getName(), b.getExpire());
+    TEST_ASSERTM(b.toString() == line, b.toString());
+
+    uint32_t yearSec = 12*monthSec;
+    Bucket b2 = buckets.createBucket("bucket-3", yearSec);
+    TEST_ASSERTM(!b2.isNull(), buckets.getLastErrorMessage());
+    TEST_ASSERT(buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERTM(b2.getExpire() == yearSec, String(b2.getExpire()));
+
+    TEST_ASSERT(buckets.checkBucketExists("bucket-2"));
+    TEST_ASSERT(buckets.deleteBucket(b.getID()));
+    TEST_ASSERT(buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERT(buckets.deleteBucket(b2.getID()));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-3"));
+    TEST_ASSERT(!buckets.checkBucketExists("bucket-2"));
+
+    TEST_END();
+}
+
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
-    client._serverUrl = serverUrl;
+    client._connInfo.serverUrl = serverUrl;
+    client._service->_apiURL = serverUrl + "/api/v2/";
     client.setUrls();
 }
-
-
-Point *Test::createPoint(String measurement) {
-    Point *point = new Point(measurement);
-    point->addTag("SSID", WiFi.SSID());
-    point->addTag("device_name", deviceName);
-    point->addTag("device_id", chipId);
-    point->addField("temperature", random(-20, 40) * 1.1f);
-    point->addField("humidity", random(10, 90));
-    point->addField("code", random(10, 90));
-    point->addField("door", random(0, 10) > 5);
-    point->addField("status", random(0, 10) > 5 ? "ok" : "failed");
-    return point;
-}
-
-bool testAssertm(int line, bool state,String message) {
-  if(!state) {
-    ++Test::failures;
-    Serial.printf("Assert failure line %d%s%s\n", line, message.length()>0?": ":"",message.c_str());
-    return true;
-  }
-  return false;
-}
-
-bool testAssert(int line, bool state) {
-  return testAssertm(line, state, "");
-}
-
