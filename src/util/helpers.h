@@ -50,6 +50,7 @@ String escapeValue(const char *value);
 String urlEncode(const char* src);
 // Returns true of string contains valid InfluxDB ID type
 bool isValidID(const char *idString);
-
+// Return "true" if val is true, otherwise "false"
+const char *bool2string(bool val);
 
 #endif //_INFLUXDB_CLIENT_HELPERS_H
