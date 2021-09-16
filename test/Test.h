@@ -70,6 +70,7 @@ private: // tests
     static void testRepeatedInit();
     static void testIsValidID();
     static void testBuckets();
+    static void testFlushing();
 };
 
 #endif //_TEST_H_

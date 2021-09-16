@@ -161,3 +161,6 @@ bool isValidID(const char *idString) {
    return true;
 }
 
+const char *bool2string(bool val) {
+    return (val?"true":"false");
+}

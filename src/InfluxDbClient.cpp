@@ -98,7 +98,7 @@ bool InfluxDBClient::init() {
     INFLUXDB_CLIENT_DEBUG("[D]  Org: %s\n", _connInfo.org.c_str());
     INFLUXDB_CLIENT_DEBUG("[D]  Bucket: %s\n", _connInfo.bucket.c_str());
     INFLUXDB_CLIENT_DEBUG("[D]  Token: %s\n", _connInfo.authToken.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D]  DB version: %d\n", _dbVersion);
+    INFLUXDB_CLIENT_DEBUG("[D]  DB version: %d\n", _connInfo.dbVersion);
     if(_connInfo.serverUrl.length() == 0 || (_connInfo.dbVersion == 2 && (_connInfo.org.length() == 0 || _connInfo.bucket.length() == 0 || _connInfo.authToken.length() == 0))) {
         INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
         _connInfo.lastError = F("Invalid parameters");
@@ -137,7 +137,7 @@ void InfluxDBClient::clean() {
         _service = nullptr;
     }
     _buckets = nullptr;
-    _lastFlushed = 0;
+    _lastFlushed = millis();
     _retryTime = 0;
 }
 
@@ -359,11 +359,14 @@ bool InfluxDBClient::checkBuffer() {
     // in case we (over)reach batchSize with non full buffer
     bool bufferReachedBatchsize = _writeBuffer[_batchPointer] && _writeBuffer[_batchPointer]->isFull();
     // or flush interval timed out
-    bool flushTimeout = _writeOptions._flushInterval > 0 && _lastFlushed > 0 && (millis()/1000 - _lastFlushed) > _writeOptions._flushInterval; 
+    bool flushTimeout = _writeOptions._flushInterval > 0 && ((millis() - _lastFlushed)/1000) >= _writeOptions._flushInterval; 
 
+    INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", 
+        bool2string(bufferReachedBatchsize),bool2string(flushTimeout), bool2string(isBufferFull()));
+    
     if(bufferReachedBatchsize || flushTimeout || isBufferFull() ) {
-        INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", bufferReachedBatchsize?"true":"false",flushTimeout?"true":"false", isBufferFull()?"true":"false");
-       return flushBufferInternal(true);
+        
+       return flushBufferInternal(!flushTimeout);
     } 
     return true;
 }
@@ -412,7 +415,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
             success = statusCode >= 200 && statusCode < 300;
             // advance even on message failure x e <300;429)
             if(success || !retry) {
-                _lastFlushed = millis()/1000;
+                _lastFlushed = millis();
                 dropCurrentBatch();
             } else if(retry) {
                 _writeBuffer[_batchPointer]->retryCount++;
@@ -542,7 +545,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
             String header = httpClient->header(TransferEncoding);
             chunked = header.equalsIgnoreCase("chunked");
         }
-        INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", chunked?"true":"false");
+        INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
         HttpStreamScanner *scanner = new HttpStreamScanner(httpClient, chunked);
         reader = new CsvReader(scanner);
         return false;

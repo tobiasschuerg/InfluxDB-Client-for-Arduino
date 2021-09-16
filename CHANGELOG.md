@@ -3,6 +3,7 @@
 ### Fixes
  - [#150](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/150) - `HTTPOptions::httpReadTimeout` is also set as the connect timeout for HTTP connection on ESP32. It doesn't work for HTTPS connection yet. 
  - [#156](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/156) - Correctly rounding _writeBufferSize_, when _bufferSize/batchSize >= 256_. 
+ - [#162](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/162) - Fixed flushing of not full buffer after to timeout.
 
 ## 3.8.0 [2021-04-01]
 ### Features

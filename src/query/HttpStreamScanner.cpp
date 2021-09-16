@@ -29,6 +29,7 @@
 // Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
+#include "util/helpers.h"
 
 HttpStreamScanner::HttpStreamScanner(HTTPClient *client, bool chunked)
 {
@@ -37,7 +38,7 @@ HttpStreamScanner::HttpStreamScanner(HTTPClient *client, bool chunked)
     _chunked = chunked;
     _chunkHeader = chunked;
     _len = client->getSize();
-    INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: chunked: %s, size: %d\n", _chunked?"true":"false", _len);
+    INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: chunked: %s, size: %d\n", bool2string(_chunked), _len);
 }
 
 bool HttpStreamScanner::next() {
