@@ -56,6 +56,7 @@ void Test::run() {
     testFluxParserMissingDatatype();
     testFluxParserErrorInRow();
     testBasicFunction();
+    testFlushing();
     testInit();
     testRepeatedInit();
     testV1();
@@ -2074,6 +2075,46 @@ void Test::testBuckets() {
     TEST_ASSERT(!buckets.checkBucketExists("bucket-2"));
 
     TEST_END();
+}
+
+void Test::testFlushing() {
+    TEST_INIT("testFlushing");
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    TEST_ASSERT(client.validateConnection());
+    TEST_ASSERT(!client.isBufferFull());
+    TEST_ASSERT(client.isBufferEmpty());
+    client.setWriteOptions(WriteOptions().batchSize(10).bufferSize(30).flushInterval(2));
+
+    for (int i = 0; i < 5; i++) {
+        Point *p = createPoint("test1");
+        p->addField("index", i);
+        TEST_ASSERT(client.writePoint(*p));
+        delete p;
+    }
+    TEST_ASSERT(!client.isBufferFull());
+    TEST_ASSERT(!client.isBufferEmpty());
+    client.checkBuffer();
+    TEST_ASSERT(!client.isBufferFull());
+    TEST_ASSERT(!client.isBufferEmpty());
+    String query = "select";
+    FluxQueryResult q = client.query(query);
+    int count = countLines(q);
+    TEST_ASSERTM(q.getError()=="", q.getError());
+    TEST_ASSERTM( count == 0, String(count) + " vs 0");  //5 points
+
+    delay(2100);
+    client.checkBuffer();
+    TEST_ASSERT(!client.isBufferFull());
+    TEST_ASSERT(client.isBufferEmpty());
+
+    q = client.query(query);
+    count = countLines(q);
+    TEST_ASSERTM(q.getError()=="", q.getError());
+    TEST_ASSERTM( count == 5, String(count) + " vs 0");  //5 points
+    
+    TEST_END();
+    deleteAll(Test::apiUrl);
 }
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
