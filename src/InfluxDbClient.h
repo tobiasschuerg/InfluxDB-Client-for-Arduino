@@ -200,7 +200,7 @@ class InfluxDBClient {
     // Index of bath start for next write
     uint8_t _batchPointer = 0;
     // Last time in sec buffer has been successfully flushed
-    uint32_t _lastFlushed = 0;
+    uint32_t _lastFlushed;
     // Bucket sub-client
     BucketsClient _buckets;
   protected:    
