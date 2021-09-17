@@ -10,6 +10,9 @@
  - [#156](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/156) - Correctly rounding _writeBufferSize_, when _bufferSize/batchSize >= 256_. 
  - [#162](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/162) - Fixed flushing of not full buffer after the flush timeout.
 
+ ### Documentation
+ - [#163](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/163) - More precise description of supported devices
+
 ## 3.8.0 [2021-04-01]
 ### Features
  - [#143](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/143) - `InfluxDBClient::setInsecure` now works also for ESP32. Requires Arduino ESP32 SDK 1.0.5 or higher
