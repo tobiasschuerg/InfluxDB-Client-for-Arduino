@@ -1,4 +1,8 @@
 # Changelog
+## unreleased
+### Features
+### Fixes
+
 ## 3.9.0 [2021-09-17]
 ### Features
  - [#147](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/147) - Updated InfluxDB 2 Cloud CA root certificate to _ISRG Root X1_.   
