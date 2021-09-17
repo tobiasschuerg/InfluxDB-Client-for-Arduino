@@ -8,8 +8,13 @@ Library supports both [InfluxDB 2](#basic-code-for-influxdb-2) and [InfluxDB 1](
 
 This is a new implementation and the API, [original API](#original-api) is still supported.
 
-Supported devices: ESP8266 (2.7+) and ESP32 (1.0.3+).
+Supported devices: 
+ - ESP8266 with [Arduino core for ESP8266](https://github.com/esp8266/Arduino) at least version [2.7.4](https://github.com/esp8266/Arduino/releases/tag/2.7.4). Version [3.0.2](https://github.com/esp8266/Arduino/releases/tag/3.0.2) is recommended.
+ - ESP32 with [Arduino core for the ESP32](https://github.com/espressif/arduino-esp32) at least version [1.0.3](https://github.com/espressif/arduino-esp32/releases/tag/1.0.3). Version [2.0.0](https://github.com/espressif/arduino-esp32/releases/tag/2.0.0) is recommended.
 
+This library doesn't support using those devices as a peripheral.
+
+## Table of contents
 - [InfluxDB Arduino Client](#influxdb-arduino-client)
   - [Basic code for InfluxDB 2](#basic-code-for-influxdb-2)
   - [Basic code for InfluxDB 1](#basic-code-for-influxdb-1)
