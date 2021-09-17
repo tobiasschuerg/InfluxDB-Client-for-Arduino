@@ -1,17 +1,17 @@
 # Changelog
-## [in progress]
+## 3.9.0 [2021-09-17]
 ### Features
  - [#147](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/147) - Updated InfluxDB 2 Cloud CA root certificate to _ISRG Root X1_.   
  Current InfluxDB 2 Cloud CA root certificate _DST Root CA X3_ expires on September 30th 2021!
  - [#157](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/157) - Added Buckets sub-client for managing buckets in InfluxDB 2. 
  
 ### Fixes
- - [#150](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/150) - `HTTPOptions::httpReadTimeout` is also set as the connect timeout for HTTP connection on ESP32. It also works for HTTPS connection since ESP32 Arduino SDK 2.0.0. 
+ - [#150](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/150) - `HTTPOptions::httpReadTimeout` is also set as the connect timeout for HTTP connection on ESP32. It also works for HTTPS connection since ESP32 Arduino Core 2.0.0. 
  - [#156](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/156) - Correctly rounding _writeBufferSize_, when _bufferSize/batchSize >= 256_. 
  - [#162](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/162) - Fixed flushing of not full buffer after the flush timeout.
 
  ### Documentation
- - [#163](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/163) - More precise description of supported devices
+ - [#163](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/163) - More precise description of supported devices.
 
 ## 3.8.0 [2021-04-01]
 ### Features
