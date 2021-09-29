@@ -36,6 +36,7 @@
 #include "util/helpers.h"
 #include "Options.h"
 #include "BucketsClient.h"
+#include "Version.h"
 
 #ifdef USING_AXTLS
 #error AxTLS does not work
