@@ -224,19 +224,21 @@ void Test::testPoint() {
     p.addField("fieldUInt", 23u);
     p.addField("fieldLong", 123456l);
     p.addField("fieldULong", 123456ul);
+    p.addField("fieldLongLong", 9123456789l);
+    p.addField("fieldULongLong", 9123456789ul);
     p.addField("fieldString", "text test");
     String line = p.toLineProtocol();
-    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
     String defaultTags="dtag=val";
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
 
@@ -332,21 +334,23 @@ void Test::testLineProtocol() {
     p.addField("fieldUInt", 23u);
     p.addField("fieldLong", 123456l);
     p.addField("fieldULong", 123456ul);
+    p.addField("fieldLongLong", 9123456789l);
+    p.addField("fieldULongLong", 9123456789ul);
     p.addField("fieldString", "text test");
 
     String line = client.pointToLineProtocol(p);
-    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
     client.setWriteOptions(WriteOptions().addDefaultTag("dtag","val"));
 
     line = client.pointToLineProtocol(p);
-    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
     line = client.pointToLineProtocol(p);
-    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldString=\"text test\"";
+    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
 
