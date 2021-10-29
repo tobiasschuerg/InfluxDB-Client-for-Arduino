@@ -52,6 +52,8 @@ friend class InfluxDBClient;
     void addField(String name, unsigned long value) { putField(name, String(value)+"i"); }
     void addField(String name, bool value)          { putField(name, bool2string(value)); }
     void addField(String name, String value)        { addField(name, value.c_str()); }
+    void addField(String name, long long value);
+    void addField(String name, unsigned long long value);
     void addField(String name, const char *value);
     // Set timestamp to `now()` and store it in specified precision, nanoseconds by default. Date and time must be already set. See `configTime` in the device API
     void setTime(WritePrecision writePrecision = WritePrecision::NS);

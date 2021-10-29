@@ -46,6 +46,18 @@ void Point::addTag(String name, String value) {
     _tags += escapeKey(value);
 }
 
+void Point::addField(String name, long long value) {
+  char buff[50];
+  snprintf(buff, 50, "%lld", value);
+  putField(name, String(buff)+"i");
+}
+
+void Point::addField(String name, unsigned long long value) {
+  char buff[50];
+  snprintf(buff, 50, "%llu", value);
+  putField(name, String(buff)+"i");
+}
+
 void Point::addField(String name, const char *value) { 
     putField(name, "\"" + escapeValue(value) + "\""); 
 }
