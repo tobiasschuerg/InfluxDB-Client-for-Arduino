@@ -1,7 +1,7 @@
 # Changelog
-## unreleased
-### Features
+## 3.9.1 [unreleased]
 ### Fixes
+ - [#f32](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/commit/f32a22c0906e6cfc6b20498fc53290bfb8720eed) _Version.h_ included in _InfluxDBClient.h_ to allow reading `INFLUXDB_CLIENT_VERSION` macro in an application.
 
 ## 3.9.0 [2021-09-17]
 ### Features

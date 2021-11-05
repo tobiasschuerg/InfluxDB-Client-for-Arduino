@@ -307,20 +307,32 @@ bool InfluxDBClient::Batch::append(String &line) {
     return isFull();
 }
 
-char * InfluxDBClient::Batch::createData() {
+char * InfluxDBClient::createData(Batch *batch) {
      int length = 0; 
      char *buff = nullptr;
-     for(int c=0; c < pointer; c++) {
-        length += buffer[c].length();
+     for(int c=0; c < batch->pointer; c++) {
+        length += batch->buffer[c].length();
         yield();
     }
     //create buffer for all lines including new line char and terminating char
     if(length) {
-        buff = new char[length + pointer + 1];
+#if defined(ESP8266)    
+        int max = ESP.getMaxFreeBlockSize();
+#elif defined(ESP32)
+        int max = ESP.getMaxAllocHeap();
+#endif
+        if(length > max ) {
+            _connInfo.lastError = F("Cannot allocate buffer: requested ");
+            _connInfo.lastError += String(length);
+            _connInfo.lastError += F(", available ");
+            _connInfo.lastError += String(max);
+            return nullptr;
+        }
+        buff = new char[length + batch->pointer + 1];
         if(buff) {
             buff[0] = 0;
-            for(int c=0; c < pointer; c++) {
-                strcat(buff+strlen(buff), buffer[c].c_str());
+            for(int c=0; c < batch->pointer; c++) {
+                strcat(buff+strlen(buff), batch->buffer[c].c_str());
                 strcat(buff+strlen(buff), "\n");
                 yield();
             }
@@ -398,7 +410,10 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
     while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
-        data = _writeBuffer[_batchPointer]->createData();
+        data = createData(_writeBuffer[_batchPointer]);
+        if(!data) {
+            return false;
+        }
         if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->retryCount == 0 ) { //do not increase pointer in case of retrying
             // points will be written so increase _bufferPointer as it happen when buffer is flushed when is full
             if(++_bufferPointer == _writeBufferSize) {

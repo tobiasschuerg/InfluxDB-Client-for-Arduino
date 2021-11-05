@@ -98,7 +98,7 @@ class InfluxDBClient {
     // Returns true if setting was successful. Otherwise check getLastErrorMessage() for an error.
     // Example: 
     //    client.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
-      bool setHTTPOptions(const HTTPOptions &httpOptions);
+    bool setHTTPOptions(const HTTPOptions &httpOptions);
     // Sets connection parameters for InfluxDB 2
     // Must be called before calling any method initiating a connection to server.
     // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:8086)
@@ -173,7 +173,6 @@ class InfluxDBClient {
         Batch(int size):_size(size) {  buffer = new String[size]; }
         ~Batch() { delete [] buffer; }
         bool append(String &line);
-        char *createData();
         bool isFull() const {
           return pointer == _size;
         }
@@ -217,6 +216,9 @@ class InfluxDBClient {
     //  flashOnlyFull - whether to flush only full batches
     // Returns true if successful, false in case of any error 
     bool flushBufferInternal(bool flashOnlyFull);
+    // Creates HTTP payload from batch
+    // Returns nullptr if batch is empty or memory cannot be allocated
+    char *createData(Batch *batch);
 };
 
 

@@ -71,6 +71,7 @@ private: // tests
     static void testIsValidID();
     static void testBuckets();
     static void testFlushing();
+    static void testSafeAlloc();
 };
 
 #endif //_TEST_H_

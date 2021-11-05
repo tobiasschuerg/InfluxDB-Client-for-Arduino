@@ -38,42 +38,43 @@ void Test::run() {
     failures = 0;
     Serial.println("Unit & Integration Tests");
     // Basic tests
-    testOptions();
-    testPoint();
-    testLineProtocol();
-    testEcaping();
-    testUrlEncode();
-    testIsValidID();
-    testFluxTypes();
-    testFluxParserEmpty();
-    testFluxParserSingleTable();
-    testFluxParserNilValue();
-    testFluxParserMultiTables(false);
-    testFluxParserMultiTables(true);
-    testFluxParserErrorDiffentColumnsNum();
-    testFluxParserFluxError();
-    testFluxParserInvalidDatatype();
-    testFluxParserMissingDatatype();
-    testFluxParserErrorInRow();
-    testBasicFunction();
-    testFlushing();
-    testInit();
-    testRepeatedInit();
-    testV1();
-    testUserAgent();
-    testHTTPReadTimeout();
-    testDefaultTags();
-    // Advanced tests
-    testFailedWrites();
-    testTimestamp();
-    testRetryOnFailedConnection();
-    testRetryOnFailedConnectionWithFlush();
-    testBufferOverwriteBatchsize1();
-    testBufferOverwriteBatchsize5();
-    testServerTempDownBatchsize5();
-    testRetriesOnServerOverload();
-    testRetryInterval();
-    testBuckets();    
+    // testOptions();
+    // testPoint();
+    // testLineProtocol();
+    // testEcaping();
+    // testUrlEncode();
+    // testIsValidID();
+    // testFluxTypes();
+    // testFluxParserEmpty();
+    // testFluxParserSingleTable();
+    // testFluxParserNilValue();
+    // testFluxParserMultiTables(false);
+    // testFluxParserMultiTables(true);
+    // testFluxParserErrorDiffentColumnsNum();
+    // testFluxParserFluxError();
+    // testFluxParserInvalidDatatype();
+    // testFluxParserMissingDatatype();
+    // testFluxParserErrorInRow();
+    // testBasicFunction();
+    // testFlushing();
+    // testInit();
+    // testRepeatedInit();
+    // testV1();
+    // testUserAgent();
+    // testHTTPReadTimeout();
+    // testDefaultTags();
+    // // Advanced tests
+    // testFailedWrites();
+    // testTimestamp();
+    // testRetryOnFailedConnection();
+    // testRetryOnFailedConnectionWithFlush();
+    // testBufferOverwriteBatchsize1();
+    // testBufferOverwriteBatchsize5();
+    // testServerTempDownBatchsize5();
+    // testRetriesOnServerOverload();
+    // testRetryInterval();
+    // testBuckets(); 
+    testSafeAlloc();   
     Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
 }
 
@@ -2115,6 +2116,65 @@ void Test::testFlushing() {
     
     TEST_END();
     deleteAll(Test::apiUrl);
+}
+
+void Test::testSafeAlloc() {
+    char *buff = nullptr;
+#if defined(ESP32)    
+    std::vector<char *> buffs;
+#endif    
+    TEST_INIT("testSafeAlloc");
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+#if defined(ESP8266)    
+    int max = ESP.getMaxFreeBlockSize();
+#elif defined(ESP32)
+    int max = ESP.getMaxAllocHeap();
+    int heap = ESP.getFreeHeap();
+    Serial.printf_P(PSTR("Heap %d, max alloc %d\n"), heap, max);
+    while(heap > 2*max) {
+        Serial.println(F("Allocating"));
+        char *c = new char[max];
+        Serial.println(F("Pushing"));
+        buffs.push_back(c);
+        max = ESP.getMaxAllocHeap();
+        heap = ESP.getFreeHeap();
+        Serial.printf_P(PSTR("Heap %d, max alloc %d\n"), heap, max);
+        yield();
+    }
+#endif
+    Serial.printf_P(PSTR("Max alloc %d\n"), max);
+    //decrease block by half
+    buff = new char[max/2];
+#if defined(ESP8266)    
+    max = ESP.getMaxFreeBlockSize();
+#elif defined(ESP32)
+    max = ESP.getMaxAllocHeap();
+#endif  
+    // use buffer to not be 
+    sprintf_P(buff, PSTR("New max alloc %d\n"), max);
+    Serial.print(buff);
+    Point *p = createPoint("test1");
+    int lineLength = p->toLineProtocol().length();
+    int lines = ((max/lineLength)*2)/3;
+    // point data gets duplicated, so fill only half of RAM
+    Serial.printf_P(PSTR("Line len %d. Will create %d lines\n"), lineLength, lines);
+    client.setWriteOptions(WriteOptions().batchSize(lines+1).bufferSize(lines*2));
+    delete p;
+    for(int i=0;i<lines;i++) {
+        p = createPoint("test1");
+        //Serial.printf_P(PSTR("Creating %d\n"), i);
+        TEST_ASSERTM(client.writePoint(*p), client.getLastErrorMessage());
+        delete p;
+    }
+    TEST_ASSERT(!client.flushBuffer());
+    Serial.println(client.getLastErrorMessage());
+    TEST_ASSERT(client.getLastErrorMessage().startsWith(F("Cannot allocate buffer:")));
+    TEST_END();
+    delete [] buff;
+#if defined(ESP32)    
+    std::for_each(buffs.begin(), buffs.end(), [](char *p){ delete [] p; });
+    buffs.clear();
+#endif       
 }
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
