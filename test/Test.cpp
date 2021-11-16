@@ -706,7 +706,7 @@ void Test::testBufferOverwriteBatchsize1() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=10i") > 0, client._writeBuffer[0]->buffer[0]);
+    TEST_ASSERTM(strstr(client._writeBuffer[0]->getBuffer(), "index=10i") > 0, client._writeBuffer[0]->getBuffer());
 
     setServerUrl(client,Test::apiUrl );
     
@@ -747,7 +747,7 @@ void Test::testBufferOverwriteBatchsize5() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=20i") > 0, client._writeBuffer[0]->buffer[0]);
+    TEST_ASSERTM(strstr(client._writeBuffer[0]->getBuffer(), "index=20i"), client._writeBuffer[0]->getBuffer());
 
     setServerUrl(client,Test::apiUrl );
 
@@ -1870,26 +1870,26 @@ void Test::testRetryInterval() {
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
-    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 1, String(client._writeBuffer[0]->retryCount));
+    TEST_ASSERTM(client._writeBuffer[0]->getRetryCount() == 1, String(client._writeBuffer[0]->getRetryCount()));
     delay(2000);
     rec = "test1,direction=permanent-unset,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=2";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 4, String(client._retryTime));
-    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 2, String(client._writeBuffer[0]->retryCount));
+    TEST_ASSERTM(client._writeBuffer[0]->getRetryCount() == 2, String(client._writeBuffer[0]->getRetryCount()));
     delay(4000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=3";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 8, String(client._retryTime));
-    TEST_ASSERTM(client._writeBuffer[0]->retryCount == 3, String(client._writeBuffer[0]->retryCount));
+    TEST_ASSERTM(client._writeBuffer[0]->getRetryCount() == 3, String(client._writeBuffer[0]->getRetryCount()));
     delay(8000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=4";
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
     TEST_ASSERT(!client._writeBuffer[0]);
-    TEST_ASSERTM(client._writeBuffer[1]->retryCount == 0, String(client._writeBuffer[1]->retryCount));
+    TEST_ASSERTM(client._writeBuffer[1]->getRetryCount() == 0, String(client._writeBuffer[1]->getRetryCount()));
 
     delay(2000);
     rec = "test1,SSID=bonitoo.io,device_name=ESP32,device_id=4272205360 temperature=28.60,humidity=86i,code=69i,door=false,status=\"failed\",index=5";
@@ -1897,7 +1897,7 @@ void Test::testRetryInterval() {
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
     TEST_ASSERT(!client._writeBuffer[0]);
-    TEST_ASSERTM(client._writeBuffer[1]->retryCount == 1, String(client._writeBuffer[1]->retryCount));
+    TEST_ASSERTM(client._writeBuffer[1]->getRetryCount() == 1, String(client._writeBuffer[1]->getRetryCount()));
 
     delay(2000);
     TEST_ASSERT(client.canSendRequest());

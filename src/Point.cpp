@@ -54,8 +54,8 @@ void Point::addField(String name, long long value) {
 
 void Point::addField(String name, unsigned long long value) {
   char buff[50];
-  snprintf(buff, 50, "%llu", value);
-  putField(name, String(buff)+"i");
+  snprintf(buff, 50, "%llui", value);
+  putField(name, buff);
 }
 
 void Point::addField(String name, const char *value) { 

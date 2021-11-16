@@ -165,17 +165,22 @@ class InfluxDBClient {
   protected:
     class Batch {
       private:
-        uint8_t _size = 0;
+        uint16_t _bufferSize = 0;
+        uint16_t _bufferPointer = 0;
+        uint8_t _batchSize = 0;
+        char *_buffer = nullptr;
+        uint8_t _linePointer = 0;
+        uint8_t _retryCount = 0;
       public:
-        uint8_t pointer = 0;
-        String *buffer = nullptr;
-        uint8_t retryCount = 0;
-        Batch(int size):_size(size) {  buffer = new String[size]; }
-        ~Batch() { delete [] buffer; }
+        Batch(int size):_batchSize(size) {  }
+        ~Batch() { delete [] _buffer; }
+        uint8_t getLinePointer() const { return _linePointer; }
+        uint8_t getRetryCount() const { return _retryCount; }
+        void incRetryCount()  { ++_retryCount; }
+        char *getBuffer() { return _buffer; }
         bool append(String &line);
-        char *createData();
         bool isFull() const {
-          return pointer == _size;
+          return _linePointer == _batchSize;
         }
     };
   friend class Test;

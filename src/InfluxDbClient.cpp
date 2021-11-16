@@ -295,39 +295,37 @@ bool InfluxDBClient::writePoint(Point & point) {
 }
 
 bool InfluxDBClient::Batch::append(String &line) {
-    if(pointer == _size) {
-        //overwriting, clean buffer
-        for(int i=0;i< _size; i++) {
-            buffer[i] = (const char *)nullptr; 
-        }
-        pointer = 0;
+    if(!_buffer) {
+        // estimate buffers size assuming lines will have similar length + reserve for line end char
+        _bufferSize = _batchSize * line.length() + _batchSize+1;
+        //INFLUXDB_CLIENT_DEBUG("[I] Append: allocating new buffer size %d\n", _bufferSize);
+        //Serial.printf("[I] Append: allocating new buffer size %d\n", _bufferSize);
+        _buffer = new char[_bufferSize];
+    }
+    if(_linePointer == _batchSize) {
+        //overwriting, reset buffer
+        _linePointer = 0;
+        _bufferPointer = 0;
     } 
-    buffer[pointer] = line;
-    ++pointer;
+    if(_bufferPointer + line.length() +1 >= _bufferSize ) {
+        // how far we are form batch size?
+        uint8_t diff = _batchSize - _linePointer;
+        uint16_t newSize =  _bufferSize + diff * line.length() + diff + 1;
+        //INFLUXDB_CLIENT_DEBUG("[I] Append: Re allocating buffer from %d to %d\n", _bufferSize, newSize);
+        //Serial.printf("[I] Append: Re allocating buffer from %d to %d\n", _bufferSize, newSize);
+        char *newBuff = new char[newSize];
+        strcpy(newBuff, _buffer);
+        delete [] _buffer;
+        _buffer = newBuff;
+    }
+    strcpy(_buffer+_bufferPointer, line.c_str());
+    _bufferPointer += line.length();
+    strcpy(_buffer+_bufferPointer, "\n");
+    _bufferPointer++;
+    _linePointer++;
     return isFull();
 }
 
-char * InfluxDBClient::Batch::createData() {
-     int length = 0; 
-     char *buff = nullptr;
-     for(int c=0; c < pointer; c++) {
-        length += buffer[c].length();
-        yield();
-    }
-    //create buffer for all lines including new line char and terminating char
-    if(length) {
-        buff = new char[length + pointer + 1];
-        if(buff) {
-            buff[0] = 0;
-            for(int c=0; c < pointer; c++) {
-                strcat(buff+strlen(buff), buffer[c].c_str());
-                strcat(buff+strlen(buff), "\n");
-                yield();
-            }
-        }
-    }
-    return buff;
-}
 
 bool InfluxDBClient::writeRecord(String &record) {
     if(!_writeBuffer[_bufferPointer]) {
@@ -394,22 +392,18 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
         _connInfo.lastError += "s";
         return false;
     }
-    char *data;
     bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
     while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
-        data = _writeBuffer[_batchPointer]->createData();
-        if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->retryCount == 0 ) { //do not increase pointer in case of retrying
+        if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->getRetryCount() == 0 ) { //do not increase pointer in case of retrying
             // points will be written so increase _bufferPointer as it happen when buffer is flushed when is full
             if(++_bufferPointer == _writeBufferSize) {
                 _bufferPointer = 0;
             }
         }
-
-        INFLUXDB_CLIENT_DEBUG("[D] Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->pointer);
-        if(data) {
-            int statusCode = postData(data);
-            delete [] data;
+        INFLUXDB_CLIENT_DEBUG("[D] Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->getLinePointer());
+        if(_writeBuffer[_batchPointer]->getBuffer()) {
+            int statusCode = postData(_writeBuffer[_batchPointer]->getBuffer());
             // retry on unsuccessfull connection or retryable status codes
             bool retry = statusCode < 0 || statusCode >= 429;
             success = statusCode >= 200 && statusCode < 300;
@@ -418,16 +412,16 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 _lastFlushed = millis();
                 dropCurrentBatch();
             } else if(retry) {
-                _writeBuffer[_batchPointer]->retryCount++;
+                _writeBuffer[_batchPointer]->incRetryCount();
                 if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
-                    if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
+                    if(_writeBuffer[_batchPointer]->getRetryCount() > _writeOptions._maxRetryAttempts) {
                         INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
                         dropCurrentBatch();
                     }
                     if(!_retryTime) {
                         _retryTime = _writeOptions._retryInterval;
                         if(_writeBuffer[_batchPointer]) {
-                            for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
+                            for(int i=1;i<_writeBuffer[_batchPointer]->getRetryCount();i++) {
                                 _retryTime *= _writeOptions._retryInterval;
                             }
                             if(_retryTime > _writeOptions._maxRetryInterval) {
