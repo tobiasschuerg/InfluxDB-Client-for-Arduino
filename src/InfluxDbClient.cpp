@@ -296,24 +296,24 @@ bool InfluxDBClient::writePoint(Point & point) {
 
 bool InfluxDBClient::Batch::append(String &line) {
     if(!_buffer) {
-        // estimate buffers size assuming lines will have similar length + reserve for line end char
+        // estimate buffers size assuming lines will have similar length : include reserve for line end char and string termination char
         _bufferSize = _batchSize * line.length() + _batchSize+1;
-        //INFLUXDB_CLIENT_DEBUG("[I] Append: allocating new buffer size %d\n", _bufferSize);
-        //Serial.printf("[I] Append: allocating new buffer size %d\n", _bufferSize);
+        INFLUXDB_CLIENT_DEBUG("[I] Append: allocating new buffer size %d\n", _bufferSize);
         _buffer = new char[_bufferSize];
     }
+    _dropped = false;
     if(_linePointer == _batchSize) {
         //overwriting, reset buffer
-        _linePointer = 0;
-        _bufferPointer = 0;
+        reset();
     } 
-    if(_bufferPointer + line.length() +1 >= _bufferSize ) {
+    // check enough space
+    if(_bufferPointer + line.length() + 1 >= _bufferSize ) {
         // how far we are form batch size?
         uint8_t diff = _batchSize - _linePointer;
         uint16_t newSize =  _bufferSize + diff * line.length() + diff + 1;
-        //INFLUXDB_CLIENT_DEBUG("[I] Append: Re allocating buffer from %d to %d\n", _bufferSize, newSize);
-        //Serial.printf("[I] Append: Re allocating buffer from %d to %d\n", _bufferSize, newSize);
+        INFLUXDB_CLIENT_DEBUG("[I] Append: Re allocating buffer from %d to %d\n", _bufferSize, newSize);
         char *newBuff = new char[newSize];
+        _bufferSize = newSize;
         strcpy(newBuff, _buffer);
         delete [] _buffer;
         _buffer = newBuff;
@@ -394,7 +394,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     }
     bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
-    while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
+    while(_writeBuffer[_batchPointer] && !_writeBuffer[_batchPointer]->isDropped() && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
         if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->getRetryCount() == 0 ) { //do not increase pointer in case of retrying
             // points will be written so increase _bufferPointer as it happen when buffer is flushed when is full
             if(++_bufferPointer == _writeBufferSize) {
@@ -420,7 +420,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                     }
                     if(!_retryTime) {
                         _retryTime = _writeOptions._retryInterval;
-                        if(_writeBuffer[_batchPointer]) {
+                        if(_writeBuffer[_batchPointer] && !_writeBuffer[_batchPointer]->isDropped()) {
                             for(int i=1;i<_writeBuffer[_batchPointer]->getRetryCount();i++) {
                                 _retryTime *= _writeOptions._retryInterval;
                             }
@@ -438,8 +438,8 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
        yield();
     }
     //Have we emptied the buffer?
-    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer]_%p\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
-    if(_batchPointer == _bufferPointer && !_writeBuffer[_bufferPointer]) {
+    INFLUXDB_CLIENT_DEBUG("[D] Success: %d, _bufferPointer: %d, _batchPointer: %d, _writeBuffer[_bufferPointer] %p\n",success,_bufferPointer,_batchPointer, _writeBuffer[_bufferPointer]);
+    if(_batchPointer == _bufferPointer && (!_writeBuffer[_bufferPointer] || _writeBuffer[_bufferPointer]->isDropped())) {
         _bufferPointer = 0;
         _batchPointer = 0;
         _bufferCeiling = 0;
@@ -449,8 +449,13 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
 }
 
 void  InfluxDBClient::dropCurrentBatch() {
-    delete _writeBuffer[_batchPointer];
-    _writeBuffer[_batchPointer] = nullptr;
+    if(_batchPointer > 0) {
+        delete _writeBuffer[_batchPointer];
+        _writeBuffer[_batchPointer] = nullptr;
+    } else {
+        // save batch 0 to avoid relocation
+        _writeBuffer[_batchPointer]->drop();
+    }
     _batchPointer++;
     //did we got over top?
     if(_batchPointer == _writeBufferSize) {

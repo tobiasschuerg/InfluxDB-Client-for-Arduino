@@ -136,7 +136,7 @@ class InfluxDBClient {
     // Returns true if points buffer is full. Usefull when server is overloaded and we may want increase period of write points or decrease number of points
     bool isBufferFull() const  { return _bufferCeiling == _writeBufferSize; };
     // Returns true if buffer is empty. Usefull when going to sleep and check if there is sth in write buffer (it can happens when batch size if bigger than 1). Call flushBuffer() then.
-    bool isBufferEmpty() const { return _bufferCeiling == 0 && !_writeBuffer[0]; };
+    bool isBufferEmpty() const { return _bufferCeiling == 0 && (!_writeBuffer[0] || _writeBuffer[0]->isDropped()); };
     // Checks points buffer status and flushes if number of points reached batch size or flush interval runs out.
     // Returns true if successful, false in case of any error
     bool checkBuffer();
@@ -164,6 +164,7 @@ class InfluxDBClient {
     void clean();
   protected:
     class Batch {
+friend class Test; 
       private:
         uint16_t _bufferSize = 0;
         uint16_t _bufferPointer = 0;
@@ -171,6 +172,7 @@ class InfluxDBClient {
         char *_buffer = nullptr;
         uint8_t _linePointer = 0;
         uint8_t _retryCount = 0;
+        bool _dropped = false;
       public:
         Batch(int size):_batchSize(size) {  }
         ~Batch() { delete [] _buffer; }
@@ -179,9 +181,12 @@ class InfluxDBClient {
         void incRetryCount()  { ++_retryCount; }
         char *getBuffer() { return _buffer; }
         bool append(String &line);
+        void reset() { _linePointer = 0; _bufferPointer = 0; }
         bool isFull() const {
           return _linePointer == _batchSize;
         }
+        bool isDropped() const { return _dropped; }
+        void drop() { _dropped = true; reset(); }
     };
   friend class Test;
     ConnectionInfo _connInfo;  

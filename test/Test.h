@@ -40,6 +40,7 @@ private: // tests
     static void testOptions();
     static void testEcaping();
     static void testPoint();
+    static void testBatch();
     static void testLineProtocol();
     static void testFluxTypes();
     static void testFluxParserEmpty();

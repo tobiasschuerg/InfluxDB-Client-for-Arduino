@@ -40,6 +40,7 @@ void Test::run() {
     // Basic tests
     testOptions();
     testPoint();
+    testBatch();
     testLineProtocol();
     testEcaping();
     testUrlEncode();
@@ -418,6 +419,76 @@ void Test::testLineProtocol() {
     TEST_END();
 }
 
+void Test::testBatch() {
+    TEST_INIT("testBatch");
+    InfluxDBClient::Batch *b = new InfluxDBClient::Batch(1);
+    TEST_ASSERT(b->_batchSize == 1);
+    TEST_ASSERT(b->_linePointer == 0);
+    TEST_ASSERT(b->_bufferPointer == 0);
+    String line = "line1";
+    TEST_ASSERT(b->append(line));
+    TEST_ASSERT(b->isFull());
+    TEST_ASSERT(b->_batchSize == 1);
+    TEST_ASSERT(b->_linePointer == 1);
+    TEST_ASSERT(b->_bufferSize == 7 );
+    TEST_ASSERT(b->_bufferPointer == 6);
+    b->drop();
+    TEST_ASSERT(b->_linePointer == 0);
+    TEST_ASSERT(b->_bufferPointer == 0);
+    TEST_ASSERT(b->_bufferSize == 7 );
+    line = "line2";
+    TEST_ASSERT(b->append(line));
+    TEST_ASSERT(b->_linePointer == 1);
+    TEST_ASSERT(b->_bufferSize == 7 );
+    TEST_ASSERT(b->_bufferPointer == 6);
+    b->drop();
+    TEST_ASSERT(b->_linePointer == 0);
+    TEST_ASSERT(b->_bufferPointer == 0);
+    TEST_ASSERT(b->_bufferSize == 7 );
+    line = "line12";
+    TEST_ASSERT(b->append(line));
+    TEST_ASSERT(b->_linePointer == 1);
+    TEST_ASSERT(b->_bufferSize == 15 );
+    TEST_ASSERT(b->_bufferPointer == 7);
+    delete b;
+
+    b = new InfluxDBClient::Batch(5);
+    line = "line1";
+    TEST_ASSERT(!b->append(line));
+    TEST_ASSERT(!b->isFull());
+    TEST_ASSERT(b->_batchSize == 5);
+    TEST_ASSERT(b->_linePointer == 1);
+    TEST_ASSERT(b->_bufferSize == 31 );
+    TEST_ASSERT(b->_bufferPointer == 6);
+    line = "line2";
+    TEST_ASSERT(!b->append(line));
+    TEST_ASSERT(b->_batchSize == 5);
+    TEST_ASSERT(b->_linePointer == 2);
+    TEST_ASSERT(b->_bufferSize == 31 );
+    TEST_ASSERT(b->_bufferPointer == 12);
+    line = "line3";
+    TEST_ASSERT(!b->append(line));
+    TEST_ASSERT(b->_batchSize == 5);
+    TEST_ASSERT(b->_linePointer == 3);
+    TEST_ASSERT(b->_bufferSize == 31 );
+    TEST_ASSERT(b->_bufferPointer == 18);
+    line = "line4";
+    TEST_ASSERT(!b->append(line));
+    TEST_ASSERT(b->_batchSize == 5);
+    TEST_ASSERT(b->_linePointer == 4);
+    TEST_ASSERT(b->_bufferSize == 31 );
+    TEST_ASSERT(b->_bufferPointer == 24);
+    line = "line5";
+    TEST_ASSERT(b->append(line));
+    TEST_ASSERT(b->isFull());
+    TEST_ASSERT(b->_batchSize == 5);
+    TEST_ASSERT(b->_linePointer == 5);
+    TEST_ASSERT(b->_bufferSize == 31 );
+    TEST_ASSERT(b->_bufferPointer == 30);
+    
+    TEST_END();
+}
+
 void Test::testBasicFunction() {
     TEST_INIT("testBasicFunction");
 
@@ -446,6 +517,7 @@ void Test::testBasicFunction() {
         delete p;
     }
     TEST_ASSERT(client.isBufferEmpty());
+    TEST_ASSERT(client._writeBuffer[0] && client._writeBuffer[0]->isDropped());
     String query = "select";
     FluxQueryResult q = client.query(query);
     int count = countLines(q);
@@ -1888,7 +1960,7 @@ void Test::testRetryInterval() {
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
-    TEST_ASSERT(!client._writeBuffer[0]);
+    TEST_ASSERT(client._writeBuffer[0] && client._writeBuffer[0]->isDropped());
     TEST_ASSERTM(client._writeBuffer[1]->getRetryCount() == 0, String(client._writeBuffer[1]->getRetryCount()));
 
     delay(2000);
@@ -1896,7 +1968,7 @@ void Test::testRetryInterval() {
     TEST_ASSERT(!client.writeRecord(rec));
     TEST_ASSERT(!client.canSendRequest());
     TEST_ASSERTM(client._retryTime == 2, String(client._retryTime));
-    TEST_ASSERT(!client._writeBuffer[0]);
+    TEST_ASSERT(client._writeBuffer[0] && client._writeBuffer[0]->isDropped());
     TEST_ASSERTM(client._writeBuffer[1]->getRetryCount() == 1, String(client._writeBuffer[1]->getRetryCount()));
 
     delay(2000);
