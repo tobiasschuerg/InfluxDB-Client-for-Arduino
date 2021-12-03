@@ -1,7 +1,8 @@
 # Changelog
 ## unreleased
 ### Features
-### Fixes
+ - [167](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/167) - Added `InfluxDBClient::writeRecord(const char *record)`.
+ - [167](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/167) - Added possibility to disable retrying by setting `maxRetryAttempts` to zero: `client.setWriteOptions(WriteOptions().maxRetryAttempts(0));` 
 
 ## 3.9.0 [2021-09-17]
 ### Features

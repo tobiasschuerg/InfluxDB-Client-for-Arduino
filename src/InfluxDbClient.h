@@ -123,6 +123,7 @@ class InfluxDBClient {
     // Writes record in InfluxDB line protocol format to write buffer.
     // Returns true if successful, false in case of any error 
     bool writeRecord(String &record);
+    bool writeRecord(const char *record);
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
@@ -172,7 +173,7 @@ class InfluxDBClient {
         uint8_t retryCount = 0;
         Batch(int size):_size(size) {  buffer = new String[size]; }
         ~Batch() { delete [] buffer; }
-        bool append(String &line);
+        bool append(const char *line);
         char *createData();
         bool isFull() const {
           return pointer == _size;

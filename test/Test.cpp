@@ -68,6 +68,7 @@ void Test::run() {
     testTimestamp();
     testRetryOnFailedConnection();
     testRetryOnFailedConnectionWithFlush();
+    testNonRetry();
     testBufferOverwriteBatchsize1();
     testBufferOverwriteBatchsize5();
     testServerTempDownBatchsize5();
@@ -566,7 +567,7 @@ void Test::testRepeatedInit() {
     } while(0);
     uint32_t endRAM = ESP.getFreeHeap();
     long diff = endRAM-startRAM;
-    TEST_ASSERTM(diff>-100,String(diff));
+    TEST_ASSERTM(diff>-300,String(diff));
     TEST_END();
 }
 
@@ -2120,6 +2121,60 @@ void Test::testFlushing() {
     TEST_END();
     deleteAll(Test::apiUrl);
 }
+
+#define WS_DEBUG_RAM(text) { Serial.printf_P(PSTR(text ": free_heap %d, max_alloc_heap %d, heap_fragmentation  %d\n"), ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation()); }
+
+
+void Test::testNonRetry() {
+    TEST_INIT("testNonRetry");
+    const char *lines[] = {
+        "device_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng free_heap=16568i,max_alloc_heap=11336i,heap_fragmentation=29i,uptime=28821.23,wifi_disconnects=0i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=location state=3i,before_mem_free=36232i,before_mem_max_free_block=17544i,before_mem_framentation=49i,after_mem_free=35792i,after_mem_max_free_block=17544i,after_mem_framentation=48i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=clock state=2i,before_mem_free=16704i,before_mem_max_free_block=11336i,before_mem_framentation=30i,after_mem_free=16704i,after_mem_max_free_block=11336i,after_mem_framentation=30i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=update state=0i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=astronomy state=2i,before_mem_free=16376i,before_mem_max_free_block=11336i,before_mem_framentation=28i,after_mem_free=16376i,after_mem_max_free_block=11336i,after_mem_framentation=28i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=current_weather state=2i,before_mem_free=16728i,before_mem_max_free_block=11336i,before_mem_framentation=30i,after_mem_free=16376i,after_mem_max_free_block=11336i,after_mem_framentation=28i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=forecast state=2i,before_mem_free=16704i,before_mem_max_free_block=11336i,before_mem_framentation=30i,after_mem_free=16376i,after_mem_max_free_block=11336i,after_mem_framentation=28i",
+        "service_status,clientId=WS-E09806011111,Device=WS-ESP8266,Version=0.58-rc3,Location=Prague\\,CZ,WiFi=Bonitoo-ng,service=iot_center state=0i",
+    };
+    WriteOptions wo;
+    WS_DEBUG_RAM("Before inst");
+    InfluxDBClient *client = new InfluxDBClient(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    WS_DEBUG_RAM("after inst");
+
+    //TEST not keeping batch for retry
+    Serial.println("Stop server");
+    TEST_ASSERT(waitServer(Test::managementUrl, false));
+    client->setHTTPOptions(HTTPOptions().httpReadTimeout(500));
+    TEST_ASSERT(!client->validateConnection());
+    // Disable retry
+    wo.maxRetryAttempts(0);
+    client->setWriteOptions(wo);
+    client->setHTTPOptions(HTTPOptions().connectionReuse(true));
+    TEST_ASSERT(!client->writeRecord(lines[0]));
+    TEST_ASSERT(!client->_writeBuffer[0]);
+
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    TEST_ASSERT(client->validateConnection());
+   
+    uint8_t size = sizeof(lines)/sizeof(lines[0]);
+    uint16_t batchSize = size +1;
+    wo.batchSize(batchSize).bufferSize(batchSize);
+    client->setWriteOptions(wo); 
+
+    WS_DEBUG_RAM("Before");
+    for(int i=0;i<size;i++) {
+        TEST_ASSERTM(client->writeRecord(lines[i]), client->getLastErrorMessage());
+        WS_DEBUG_RAM("After write Line");
+    }
+    TEST_ASSERTM(client->flushBuffer(), client->getLastErrorMessage());
+    WS_DEBUG_RAM("After flush");
+    delete client;
+    WS_DEBUG_RAM("After delete");
+    TEST_END();
+    deleteAll(Test::apiUrl);
+}
+
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
     client._connInfo.serverUrl = serverUrl;
