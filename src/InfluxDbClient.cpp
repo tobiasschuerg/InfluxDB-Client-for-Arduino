@@ -294,7 +294,7 @@ bool InfluxDBClient::writePoint(Point & point) {
     return false;
 }
 
-bool InfluxDBClient::Batch::append(String &line) {
+bool InfluxDBClient::Batch::append(const char *line) {
     if(pointer == _size) {
         //overwriting, clean buffer
         for(int i=0;i< _size; i++) {
@@ -330,6 +330,10 @@ char * InfluxDBClient::Batch::createData() {
 }
 
 bool InfluxDBClient::writeRecord(String &record) {
+    return writeRecord(record.c_str());
+}
+
+bool InfluxDBClient::writeRecord(const char *record) {    
     if(!_writeBuffer[_bufferPointer]) {
         _writeBuffer[_bufferPointer] = new Batch(_writeOptions._batchSize);
     }
@@ -411,7 +415,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
             int statusCode = postData(data);
             delete [] data;
             // retry on unsuccessfull connection or retryable status codes
-            bool retry = statusCode < 0 || statusCode >= 429;
+            bool retry = (statusCode < 0 || statusCode >= 429) && _writeOptions._maxRetryAttempts > 0;
             success = statusCode >= 200 && statusCode < 300;
             // advance even on message failure x e <300;429)
             if(success || !retry) {
