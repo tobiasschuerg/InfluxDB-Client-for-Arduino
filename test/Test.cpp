@@ -40,6 +40,7 @@ void Test::run() {
     // Basic tests
     testOptions();
     testPoint();
+    testBatch();
     testLineProtocol();
     testEcaping();
     testUrlEncode();
@@ -64,6 +65,7 @@ void Test::run() {
     testHTTPReadTimeout();
     testDefaultTags();
     // Advanced tests
+    testLargeBatch();  
     testFailedWrites();
     testTimestamp();
     testRetryOnFailedConnection();
@@ -74,7 +76,7 @@ void Test::run() {
     testServerTempDownBatchsize5();
     testRetriesOnServerOverload();
     testRetryInterval();
-    testBuckets();    
+    testBuckets(); 
     Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
 }
 
@@ -90,9 +92,17 @@ void Test::testOptions() {
     TEST_ASSERT(defWO._maxRetryAttempts == 3);
     TEST_ASSERT(defWO._defaultTags.length() == 0);
 
-    defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(10).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
+    //Test max batch size
+//    defWO = WriteOptions().batchSize(1<<14);
+// #if defined(ESP8266)
+//     TEST_ASSERT(defWO._batchSize == 255);
+// #elif defined(ESP32)
+//     TEST_ASSERT(defWO._batchSize == 2047);
+// #endif
+
+    defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(32000).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
     TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
-    TEST_ASSERT(defWO._batchSize == 10);
+    TEST_ASSERT(defWO._batchSize == 32000);
     TEST_ASSERT(defWO._bufferSize == 20);
     TEST_ASSERT(defWO._flushInterval == 120);
     TEST_ASSERT(defWO._retryInterval == 1);
@@ -128,8 +138,8 @@ void Test::testOptions() {
     
     TEST_ASSERT(c.setWriteOptions(defWO));
     TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
-    TEST_ASSERT(c._writeOptions._batchSize == 10);
-    TEST_ASSERT(c._writeOptions._bufferSize == 20);
+    TEST_ASSERT(c._writeOptions._batchSize == 32000);
+    TEST_ASSERT(c._writeOptions._bufferSize == 64000);
     TEST_ASSERT(c._writeOptions._flushInterval == 120);
     TEST_ASSERT(c._writeOptions._retryInterval == 1);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
@@ -315,6 +325,51 @@ void Test::testPoint() {
     p.addField("nan", (double)NAN);
     TEST_ASSERT(!p.hasFields());
 
+    TEST_END();
+}
+
+void Test::testBatch() {
+    TEST_INIT("testBatch");
+    InfluxDBClient::Batch batch(2);
+    TEST_ASSERT(batch._size == 2);
+    TEST_ASSERT(batch.pointer == 0);
+    TEST_ASSERT(!batch.buffer[0]);
+    TEST_ASSERT(batch.isEmpty());
+    TEST_ASSERT(!batch.isFull());
+    const char *line = "air,location=Zdiby,sensor=STH31 temp=22.1,hum=44";
+    TEST_ASSERT(!batch.append(line));
+    TEST_ASSERT(!batch.isEmpty());
+    TEST_ASSERT(!batch.isFull());
+    TEST_ASSERT(batch.append(line));
+    TEST_ASSERT(!batch.isEmpty());
+    TEST_ASSERT(batch.isFull());
+    TEST_ASSERT(batch.pointer == 2);
+
+    InfluxDBClient::BatchStreamer str(&batch);
+    int len = strlen(line);
+    TEST_ASSERT(str.available() == len*2+2);
+    int size = str.available()+1;
+    char *buff = new char[size];
+    TEST_ASSERT(str.readBytes(buff, len+1) == len+1);
+    TEST_ASSERT(str.peek() == 'a');
+    TEST_ASSERT(str.available() == len+1);
+    TEST_ASSERT(str.readBytes(buff+len+1, len) == len);
+    TEST_ASSERT(str.peek() == '\n');
+    TEST_ASSERT(str.available() == 1);
+    TEST_ASSERT(str.readBytes(buff+2*len+1, 1) == 1);
+    TEST_ASSERT(str.peek() == -1);
+    TEST_ASSERT(str.available() == 0);
+    buff[size-1] = 0;
+    Serial.println(buff);
+    int i;
+    for(i=0;i<strlen(line);i++) {
+        TEST_ASSERT(buff[i] == line[i]);
+    }
+    TEST_ASSERT(buff[i++] == '\n');
+    for(int j=0;j<strlen(line);j++) {
+        TEST_ASSERT(buff[i++] == line[j]);
+    }
+    TEST_ASSERT(buff[i++] == '\n');
     TEST_END();
 }
 
@@ -707,7 +762,7 @@ void Test::testBufferOverwriteBatchsize1() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=10i") > 0, client._writeBuffer[0]->buffer[0]);
+    TEST_ASSERTM(strstr(client._writeBuffer[0]->buffer[0], "index=10i"), client._writeBuffer[0]->buffer[0]);
 
     setServerUrl(client,Test::apiUrl );
     
@@ -748,7 +803,7 @@ void Test::testBufferOverwriteBatchsize5() {
         delete p;
     }
     TEST_ASSERT(client.isBufferFull());
-    TEST_ASSERTM(client._writeBuffer[0]->buffer[0].indexOf("index=20i") > 0, client._writeBuffer[0]->buffer[0]);
+    TEST_ASSERTM(strstr(client._writeBuffer[0]->buffer[0], "index=20i"), client._writeBuffer[0]->buffer[0]);
 
     setServerUrl(client,Test::apiUrl );
 
@@ -2122,7 +2177,12 @@ void Test::testFlushing() {
     deleteAll(Test::apiUrl);
 }
 
+#if defined(ESP8266)
 #define WS_DEBUG_RAM(text) { Serial.printf_P(PSTR(text ": free_heap %d, max_alloc_heap %d, heap_fragmentation  %d\n"), ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation()); }
+#elif defined(ESP32)
+#define WS_DEBUG_RAM(text) { Serial.printf_P(PSTR(text ": free_heap %d, max_alloc_heap %d\n"), ESP.getFreeHeap(), ESP.getMaxAllocHeap()); }
+#endif
+
 
 
 void Test::testNonRetry() {
@@ -2175,6 +2235,48 @@ void Test::testNonRetry() {
     deleteAll(Test::apiUrl);
 }
 
+void Test::testLargeBatch() {
+    TEST_INIT("testLargeBatch");
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    WS_DEBUG_RAM("Before");
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    client.setStreamWrite(true);
+
+    WS_DEBUG_RAM("After init");
+    const char *line = "test1,SSID=Bonitoo-ng,deviceId=4288982576 temperature=17,humidity=28i";
+    uint32_t free = ESP.getFreeHeap(); 
+#if defined(ESP8266)
+    int batchSize = 330;
+#elif defined(ESP32)
+    int batchSize = 2047;
+#endif
+    int len =strlen(line); 
+    int points = free/len;
+    Serial.printf("Free ram: %lu, line len: %d, max points: %d\n", free, len, points);
+    client.setWriteOptions(WriteOptions().batchSize(batchSize));
+    WS_DEBUG_RAM("After options");
+    TEST_ASSERT(client.validateConnection());
+    WS_DEBUG_RAM("After validate");
+    if(points < client._writeOptions._batchSize) {
+         Serial.printf("warning, cannot create full batchsize %d\n",client._writeOptions._batchSize);
+         client.setWriteOptions(WriteOptions().batchSize(points));
+    }
+    for(int i=0;i<client._writeOptions._batchSize; i++) {
+        if(i == client._writeOptions._batchSize - 1) {
+            WS_DEBUG_RAM("Full batch");
+        }
+        TEST_ASSERTM(client.writeRecord(line),client.getLastErrorMessage());
+    }
+    WS_DEBUG_RAM("Data sent");
+    String query = "select";
+    FluxQueryResult q = client.query(query);
+    int count = countLines(q);
+    WS_DEBUG_RAM("After query");
+    TEST_ASSERTM(q.getError()=="", q.getError());
+    TEST_ASSERTM( count == client._writeOptions._batchSize, String(count));  
+    TEST_END();
+    deleteAll(Test::apiUrl);
+}
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {
     client._connInfo.serverUrl = serverUrl;

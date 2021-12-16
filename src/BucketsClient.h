@@ -97,10 +97,8 @@ friend class E2ETest;
     // Returns true if a bucket exists
     bool checkBucketExists(const char *bucketName);
     // Returns a Bucket instance if a bucket is found.
-    // Returned instance must be manually deleted at the end of usage.
     Bucket findBucket(const char *bucketName);
     // Creates a bucket with given name and optional retention policy. 0 means infinite.
-    // Returned instance must be manually deleted at the end of usage.
     Bucket createBucket(const char *bucketName, uint32_t expiresSec = 0);
     // Delete a bucket with given id. Use findBucket to get a bucket with id.
     bool deleteBucket(const char *id);

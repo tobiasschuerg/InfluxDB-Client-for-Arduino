@@ -39,7 +39,9 @@ void setup() {
 #else
     Serial.begin(115200);
 #endif    
-
+    delay(2000);
+    Serial.println("Initializing tests");
+    Serial.println(" Compiled on "  __DATE__ " " __TIME__);
     //Serial.setDebugOutput(true);
     randomSeed(123);
 
@@ -82,7 +84,7 @@ void initInet() {
     int i = 0,j = 0;
     bool wifiOk = false;
     while(!wifiOk && j<3) {
-        Serial.print("Connecting to wifi ");
+        Serial.print("Connecting to wifi " INFLUXDB_CLIENT_TESTING_SSID);
         WiFi.begin(INFLUXDB_CLIENT_TESTING_SSID, INFLUXDB_CLIENT_TESTING_PASS);
         while ((WiFi.status() != WL_CONNECTED) && (i < 30)) {
             Serial.print(".");
@@ -92,16 +94,16 @@ void initInet() {
         Serial.println();
         wifiOk = WiFi.status() == WL_CONNECTED;
         if(!wifiOk) {
-            WiFi.disconnect();
+            WiFi.disconnect(true);
         }
         j++;
     }
     if (!wifiOk) {
         Serial.println("Wifi connection failed");
-        Serial.println("Restating");
+        Serial.println("Restarting");
         ESP.restart();
     } else {
-        Serial.printf("Connected to: %s (%d)\n", WiFi.SSID().c_str(), WiFi.RSSI());
+        Serial.printf("Connected to: %s - %d(%d)\n", WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI());
         Serial.print("Ip: ");
         Serial.println(WiFi.localIP());
 

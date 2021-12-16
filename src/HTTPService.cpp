@@ -159,6 +159,18 @@ bool HTTPService::doPOST(const char *url, const char *data, const char *contentT
   return afterRequest(expectedCode, cb);
 }
 
+bool HTTPService::doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb) {
+  INFLUXDB_CLIENT_DEBUG("[D] POST request - %s, data: %dbytes, type %s\n", url, stream->available(), contentType);
+  if(!beforeRequest(url)) {
+    return false;
+  }
+  if(contentType) {
+    _httpClient->addHeader(F("Content-Type"), FPSTR(contentType));
+  }
+  _lastStatusCode = _httpClient->sendRequest("POST", stream, stream->available());
+  return afterRequest(expectedCode, cb);
+}
+
 bool HTTPService::doGET(const char *url, int expectedCode, httpResponseCallback cb) {
   INFLUXDB_CLIENT_DEBUG("[D] GET request - %s\n", url);
   if(!beforeRequest(url)) {

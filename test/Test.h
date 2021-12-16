@@ -40,6 +40,7 @@ private: // tests
     static void testOptions();
     static void testEcaping();
     static void testPoint();
+    static void testBatch();
     static void testLineProtocol();
     static void testFluxTypes();
     static void testFluxParserEmpty();
@@ -72,6 +73,7 @@ private: // tests
     static void testBuckets();
     static void testFlushing();
     static void testNonRetry();
+    static void testLargeBatch();
 };
 
 #endif //_TEST_H_

@@ -23,6 +23,8 @@ This library doesn't support using those devices as a peripheral.
     - [Timestamp](#timestamp)
     - [Configure Time](#configure-time)
     - [Batch Size](#batch-size)
+    - [Large Batch Size](#large-batch-size)
+    - [Write Modes](#write-modes)
   - [Buffer Handling and Retrying](#buffer-handling-and-retrying)
   - [Write Options](#write-options)
   - [HTTP Options](#http-options)
@@ -176,7 +178,7 @@ client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::MS));
 When a write precision is configured, the client will automatically assign the current time to the timestamp of each written point which doesn't have a timestamp assigned.
 
 If you want to manage timestamp on your own, there are several ways to set the timestamp explicitly.
-- `setTime(WritePrecision writePrecision)` - Sets the timestamp to the actual time in the desired precision
+- `setTime(WritePrecision writePrecision)` - Sets the timestamp to the actual time in the desired precision. The same precision must set in WriteOptions.
 - `setTime(unsigned long long timestamp)` -  Sets the timestamp to an offset since the epoch. Correct precision must be set InfluxDBClient::setWriteOptions.
 - `setTime(String timestamp)` - Sets the timestamp to an offset since the epoch. Correct precision must be set InfluxDBClient::setWriteOptions.
 
@@ -229,13 +231,13 @@ void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2
 Setting batch size depends on data gathering and DB updating strategy.
 
 If data is written in short periods (seconds), the batch size should be set according to your expected write periods and update frequency requirements.
-For example, if you would like to see updates (on the dashboard or in processing) each minute and you are measuring a single value (1 point) every 10s (6 points per minute), the batch size should be 6. If it is sufficient to update each hour and you are creating 1 point each minute, your batch size should be 60. The maximum recommended batch size is 200. Maximum batch size depends on the RAM of the device (80KB for ESP8266 and 512KB for ESP32).
+For example, if you would like to see updates (on the dashboard or in processing) each minute and you are measuring a single value (1 point) every 10s (6 points per minute), the batch size should be 6. If it is sufficient to update each hour and you are creating 1 point each minute, your batch size should be 60. 
 
 In cases where the data should be written in longer periods and gathered data consists of several points, the batch size should be set to the expected number of points to be gathered.
 
 To set the batch size we use `WriteOptions` object and  [setWriteOptions](#write-options) function:
 ```cpp
-// Enable messages batching
+// Enable lines batching
 client.setWriteOptions(WriteOptions().batchSize(10));
 ```
 Writing the point will add a point to the underlying buffer until the batch size is reached:
@@ -256,6 +258,28 @@ if(!client.writePoint(point10)) {
 ```
 
 In case cases where the number of points is not always the same, set the batch size to the maximum number of points and use the `flushBuffer()` function to force writing to the database. See [Buffer Handling](#buffer-handling-and-retrying) for more details.
+
+### Large batch size
+The maximum batch size depends on the available RAM of the device (~45KB for ESP8266 and ~260KB for ESP32). Larger batch size, >100 for ESP8255, >2000 for ESP32, must be chosen carefully to not crash the app with out of memory error. The Stream write mode must be used, see [Write Modes](#write-modes)
+
+Always determine your typical line length using `client.pointToLineProtocol(point).length()`. For example, ESP32 can handle 2048 lines with an average length of 69. When the length of line or batch size is increased, the device becomes unstable, even there is more than 76k, it cannot send data or even crashes. ESP8266 handles successfully 330 of such lines. 
+
+:warning: Thoroughly test your app when using large batch files. 
+
+### Write Modes
+Client has two modes of writing:
+ - Buffer (default)
+ - Stream
+
+Writing is performed the way that client keeps written lines (points) separately and when a batch is completed, it allocates a data buffer for sending to a server via WiFi Client.
+This is the fastest way to write data but requires some amount of free memory. Thus a big batch size cannot be used.
+
+Another way of writing is *stream write*. 
+```cpp
+  // Enables stream write
+  client.setStreamWrite(true);
+```
+In this mode client continuously streams lines from batch to WiFi Client. No buffer allocation. As lines are allocated separately, it avoids problems with max allocable block size. The downside is, that writing is about 50% slower than in the Buffer mode.
 
 ## Buffer Handling and Retrying
 InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server back-pressure and connection failure.
@@ -300,12 +324,15 @@ Writing points can be controlled via `WriteOptions`, which is set in the `setWri
 | batchSize | `1` | Number of points that will be written to the database at once |
 | bufferSize | `5` | Maximum number of points in buffer. Buffer contains new data that will be written to the database and also data that failed to be written due to network failure or server overloading |
 | flushInterval | `60` | Maximum time(in seconds) data will be held in buffer before points are written to the db |
+| retryInterval | `5` | Default retry interval in sec, if not sent by server. Value `0` disables retrying |
+| maxRetryInterval | `300` |  Maximum retry interval in sec |
+| maxRetryAttempts | `3` | Maximum count of retry attempts of failed writes |
 
 ## HTTP Options
 `HTTPOptions` controls some aspects of HTTP communication and they are set via `setHTTPOptions` function:
 | Parameter | Default Value | Meaning |
 |-----------|---------------|---------|
-| reuseConnection | `false` | Whether HTTP connection should be kept open after initial communication. Usable for frequent writes/queries. |
+| connectionReuse | `false` | Whether HTTP connection should be kept open after initial communication. Usable for frequent writes/queries. |
 | httpReadTimeout | `5000` | Timeout (ms) for reading server response |
 
 ## Secure Connection

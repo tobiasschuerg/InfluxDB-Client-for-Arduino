@@ -50,6 +50,7 @@ static String precisionToString(WritePrecision precision, uint8_t version = 2) {
     }
 }
 
+
 InfluxDBClient::InfluxDBClient() { 
    resetBuffer();
 }
@@ -122,6 +123,9 @@ bool InfluxDBClient::init() {
 
 InfluxDBClient::~InfluxDBClient() {
      if(_writeBuffer) {
+        for(int i=0;i<_writeBufferSize;i++) {
+            delete _writeBuffer[i];
+        }
         delete [] _writeBuffer;
         _writeBuffer = nullptr;
         _bufferPointer = 0;
@@ -294,15 +298,34 @@ bool InfluxDBClient::writePoint(Point & point) {
     return false;
 }
 
+InfluxDBClient::Batch::Batch(uint16_t size):_size(size) {  
+    buffer = new char*[size]; 
+    for(int i=0;i< _size; i++) {
+        buffer[i] = nullptr; 
+    }
+}
+
+
+InfluxDBClient::Batch::~Batch() { 
+    clear();
+    delete [] buffer; 
+    buffer = nullptr;
+}
+
+void InfluxDBClient::Batch::clear() {
+    for(int i=0;i< _size; i++) {
+        free(buffer[i]);
+        buffer[i] = nullptr; 
+    }
+}
+
 bool InfluxDBClient::Batch::append(const char *line) {
     if(pointer == _size) {
         //overwriting, clean buffer
-        for(int i=0;i< _size; i++) {
-            buffer[i] = (const char *)nullptr; 
-        }
+        clear();
         pointer = 0;
     } 
-    buffer[pointer] = line;
+    buffer[pointer] = strdup(line);
     ++pointer;
     return isFull();
 }
@@ -311,7 +334,7 @@ char * InfluxDBClient::Batch::createData() {
      int length = 0; 
      char *buff = nullptr;
      for(int c=0; c < pointer; c++) {
-        length += buffer[c].length();
+        length += strlen(buffer[c]);
         yield();
     }
     //create buffer for all lines including new line char and terminating char
@@ -320,7 +343,7 @@ char * InfluxDBClient::Batch::createData() {
         if(buff) {
             buff[0] = 0;
             for(int c=0; c < pointer; c++) {
-                strcat(buff+strlen(buff), buffer[c].c_str());
+                strcat(buff+strlen(buff), buffer[c]);
                 strcat(buff+strlen(buff), "\n");
                 yield();
             }
@@ -402,7 +425,6 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
     bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
     while(_writeBuffer[_batchPointer] && (!flashOnlyFull ||  _writeBuffer[_batchPointer]->isFull())) {
-        data = _writeBuffer[_batchPointer]->createData();
         if(!_writeBuffer[_batchPointer]->isFull() && _writeBuffer[_batchPointer]->retryCount == 0 ) { //do not increase pointer in case of retrying
             // points will be written so increase _bufferPointer as it happen when buffer is flushed when is full
             if(++_bufferPointer == _writeBufferSize) {
@@ -411,9 +433,15 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
         }
 
         INFLUXDB_CLIENT_DEBUG("[D] Writing batch, batchpointer: %d, size %d\n", _batchPointer, _writeBuffer[_batchPointer]->pointer);
-        if(data) {
-            int statusCode = postData(data);
-            delete [] data;
+        if(!_writeBuffer[_batchPointer]->isEmpty()) {
+            int statusCode = 0;
+            if(_streamWrite) {
+                statusCode = postData(_writeBuffer[_batchPointer]);
+            } else {
+                data = _writeBuffer[_batchPointer]->createData();
+                statusCode = postData(data);
+                delete [] data;
+            }
             // retry on unsuccessfull connection or retryable status codes
             bool retry = (statusCode < 0 || statusCode >= 429) && _writeOptions._maxRetryAttempts > 0;
             success = statusCode >= 200 && statusCode < 300;
@@ -490,7 +518,11 @@ bool InfluxDBClient::validateConnection() {
     }
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
-    return _service->doGET(url.c_str(), 200, nullptr);
+    bool ret = _service->doGET(url.c_str(), 200, nullptr);
+    if(!ret) {
+        INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+    }
+    return ret;
 }
 
 int InfluxDBClient::postData(const char *data) {
@@ -500,14 +532,35 @@ int InfluxDBClient::postData(const char *data) {
     if(data) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
         INFLUXDB_CLIENT_DEBUG("[D] Sending:\n%s\n", data);       
-
-        _service->doPOST(_writeUrl.c_str(), data, PSTR("text/plain"), 204, nullptr);
+        if(!_service->doPOST(_writeUrl.c_str(), data, PSTR("text/plain"), 204, nullptr)) {
+            INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+        }
         _retryTime = _service->getLastRetryAfter();
         return _service->getLastStatusCode();
     } 
     return 0;
 }
 
+int InfluxDBClient::postData(Batch *batch) {
+    if(!_service && !init()) {
+        return 0;
+    }
+
+    BatchStreamer *bs = new BatchStreamer(batch);
+    INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] Sending:\n");       
+    
+    if(!_service->doPOST(_writeUrl.c_str(), bs, PSTR("text/plain"), 204, nullptr)) {
+        INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
+    }
+    delete bs;
+    _retryTime = _service->getLastRetryAfter();
+    return _service->getLastStatusCode();
+}
+
+void InfluxDBClient::setStreamWrite(bool enable) {
+    _streamWrite = enable;
+}
 
 
 static const char QueryDialect[] PROGMEM = "\
@@ -597,4 +650,79 @@ static String escapeJSONString(String &value) {
         }
     }
     return ret;
+}
+
+InfluxDBClient::BatchStreamer::BatchStreamer(InfluxDBClient::Batch *batch) {
+    _batch = batch;
+    _read = 0;
+    _length = 0;
+    _pointer = 0;
+    _linePointer = 0;
+    for(int i=0;i<_batch->pointer;i++) {
+    _length += strlen(_batch->buffer[i])+1;
+    }
+}
+
+int InfluxDBClient::BatchStreamer::available() {
+    return _length-_read;
+}
+
+int InfluxDBClient::BatchStreamer::availableForWrite() {
+    return 0;
+}
+
+#if defined(ESP8266)        
+int InfluxDBClient::BatchStreamer::read(uint8_t* buffer, size_t len) {
+    INFLUXDB_CLIENT_DEBUG("BatchStream::read %d\n", len);
+    return readBytes((char *)buffer, len);
+}
+#endif
+size_t InfluxDBClient::BatchStreamer::readBytes(char* buffer, size_t len) {
+
+    INFLUXDB_CLIENT_DEBUG("BatchStream::readBytes %d\n", len);
+    int r=0;
+    for(int i=0;i<len;i++) {
+        if(available()) {
+            buffer[i] = read();
+            r++;
+        } else {
+            break;
+        }
+    }
+    return r;
+}
+
+int InfluxDBClient::BatchStreamer::read()  {
+    int r = peek();
+    if(r > 0) {
+        ++_read;
+        ++_linePointer;
+        if(!_batch->buffer[_pointer][_linePointer-1]) {
+            ++_pointer;
+            _linePointer = 0;
+        }
+    }
+    return r;
+}
+
+int InfluxDBClient::BatchStreamer::peek() {
+    if(_pointer == _batch->pointer) {
+        //This should not happen
+        return -1;
+    }
+    
+    int r;
+    if(!_batch->buffer[_pointer][_linePointer]) {
+        r = '\n';
+    } else {
+        r = _batch->buffer[_pointer][_linePointer];
+    }
+    // #ifdef INFLUXDB_CLIENT_DEBUG_ENABLE
+    //     Serial.printf_P(PSTR("%c"), r);
+    // #endif
+    return r;
+}
+
+size_t InfluxDBClient::BatchStreamer::write(uint8_t data)  {
+    return 0;
 }

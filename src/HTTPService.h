@@ -113,6 +113,8 @@ public:
     HTTPOptions &getHTTPOptions() { return _httpOptions; }
     // Performs HTTP POST by sending data. On success calls response call back  
     bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb);
+    // Performs HTTP POST by sending stream. On success calls response call back  
+    bool doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb);
     // Performs HTTP GET. On success calls response call back    
     bool doGET(const char *url, int expectedCode, httpResponseCallback cb);
     // Performs HTTP DELETE. On success calls response call back    

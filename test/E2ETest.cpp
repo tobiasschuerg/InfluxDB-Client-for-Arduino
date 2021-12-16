@@ -65,11 +65,16 @@ void E2ETest::testWriteAndQuery() {
     time_t start = time(nullptr);
     BucketsClient buckets = client.getBucketsClient();
     TEST_ASSERT(!buckets.isNull());
+    Bucket t = buckets.findBucket(TestBucket);
+    if(!t.isNull()) {
+        Serial.println(F("Bucket already exists, deleting."));
+        TEST_ASSERTM(buckets.deleteBucket(t.getID()), buckets.getLastErrorMessage());
+    }
     TEST_ASSERT(!buckets.checkBucketExists(TestBucket));
     Bucket b = buckets.createBucket(TestBucket);
     TEST_ASSERTM(!b.isNull(), buckets.getLastErrorMessage());
 
-    
+    delay(1000);
     for (int i = 0; i < 5; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
