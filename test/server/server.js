@@ -37,8 +37,13 @@ mgmtApp.get('/start', (req,res) => {
             server = undefined;
             console.log('Server closed');
         });
+        server.on('clientError', (err, socket) => {
+            console.log("client error", err);
+            socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+        });
         res.status(201).send(`Listening on http://${server.address().address}:${server.address().port}`);
     } else {
+        server.
         res.status(204).end();
     };
 });

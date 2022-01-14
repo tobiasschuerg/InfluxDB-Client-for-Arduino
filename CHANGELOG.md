@@ -3,6 +3,8 @@
 ### Features
  - [167](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/167) - Added `InfluxDBClient::writeRecord(const char *record)`.
  - [167](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/167) - Added possibility to disable retrying by setting `maxRetryAttempts` to zero: `client.setWriteOptions(WriteOptions().maxRetryAttempts(0));` 
+ - [172](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/170) - Added directly streaming batch for write. It can be enable by `InfluxDBClient::setStreamWrite(bool enable = true)`. Writing by streaming lines of batch saves RAM as it sends data without allocating a buffer. On the other hand, this way of writing is about half times slower than the classic way, when allocating the buffer for writing the whole batch. 
+  - [172](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/170) - Allowing larger batch size, > 255.
 
 ## 3.9.0 [2021-09-17]
 ### Features

@@ -54,7 +54,8 @@ private:
     // Maximum number of seconds points can be held in buffer before are written to the db. 
     // Buffer is flushed when it reaches batch size or when flush interval runs out. 
     uint16_t _flushInterval;
-    // Default retry interval in sec, if not sent by server. Default 5s
+    // Default retry interval in sec, if not sent by server. Default 5s. 
+    // Setting to zero disables retrying.
     uint16_t _retryInterval;
     // Maximum retry interval in sec, default 5min (300s)
     uint16_t _maxRetryInterval;

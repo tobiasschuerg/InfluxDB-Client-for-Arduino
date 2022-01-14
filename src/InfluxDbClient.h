@@ -27,10 +27,9 @@
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
 
-
 #include <Arduino.h>
 #include "HTTPService.h"
-#include "Point.h"
+#include "Point.h"  
 #include "WritePrecision.h"
 #include "query/FluxParser.h"
 #include "util/helpers.h"
@@ -157,6 +156,9 @@ class InfluxDBClient {
     uint32_t getRemainingRetryTime();
     // Returns sub-client for managing buckets
     BucketsClient getBucketsClient();
+    // Enables/disables streaming write. This allows sending large batches without allocating buffer.
+    // It is about 50% slower than writing by allocated buffer (default);
+    void setStreamWrite(bool enable = true);
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
@@ -165,19 +167,52 @@ class InfluxDBClient {
     void clean();
   protected:
     class Batch {
+    friend class Test;
       private:
-        uint8_t _size = 0;
+        uint16_t _size = 0;
       public:
-        uint8_t pointer = 0;
-        String *buffer = nullptr;
+        uint16_t pointer = 0;
+        char **buffer = nullptr;
         uint8_t retryCount = 0;
-        Batch(int size):_size(size) {  buffer = new String[size]; }
-        ~Batch() { delete [] buffer; }
+        Batch(uint16_t size);
+        ~Batch();
         bool append(const char *line);
         char *createData();
+        void clear();
         bool isFull() const {
           return pointer == _size;
         }
+        bool isEmpty() const {
+          return pointer == 0 && !buffer[0];
+        }
+    };
+    class BatchStreamer : public Stream {
+      private:
+        Batch *_batch;
+        int _length;
+        int _read;
+        uint16_t _pointer; //points to the item in batch
+        uint16_t _linePointer; //pointes to char in line of batch
+      public:
+        BatchStreamer(Batch *batch) ;
+        virtual ~BatchStreamer() {};
+
+          // Stream overrides
+        virtual int available() override;
+
+        virtual int availableForWrite() override;
+
+        virtual int read() override;
+#if defined(ESP8266)        
+        virtual int read(uint8_t* buffer, size_t len) override;
+#endif
+        virtual size_t readBytes(char* buffer, size_t len) override;
+
+        virtual void flush() override {};
+        virtual int peek()  override;
+
+        virtual size_t write(uint8_t data) override;
+
     };
   friend class Test;
     ConnectionInfo _connInfo;  
@@ -205,10 +240,13 @@ class InfluxDBClient {
     uint32_t _lastFlushed;
     // Bucket sub-client
     BucketsClient _buckets;
+    // Write using buffer or stream
+    bool _streamWrite = false;
   protected:    
     // Sends POST request with data in body
     int postData(const char *data);
-    // Sets cached InfluxDB server API URLs
+    int postData(Batch *batch);
+      // Sets cached InfluxDB server API URLs
     bool setUrls();
     // Ensures buffer has required size
     void reserveBuffer(int size);
