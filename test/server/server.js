@@ -313,6 +313,8 @@ var queryRes = {
 "empty":``
 };
 
+
+
 function sleep(milliseconds) {
     const date = Date.now();
     let currentDate = null;
@@ -334,6 +336,9 @@ app.post(prefix+'/api/v2/query', (req,res) => {
                 status = 400;
             }
             data = queryRes[qi];
+        } else if(queryObj["query"] === 'echo') {
+            status = 444;
+            data = JSON.stringify(queryObj);
         } else if(pointsdb.length > 0) {
             console.log('query: ' + pointsdb.length + ' points');
             data = convertToCSV(pointsdb);

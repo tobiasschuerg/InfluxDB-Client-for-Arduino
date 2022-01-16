@@ -33,6 +33,7 @@ This library doesn't support using those devices as a peripheral.
     - [InfluxDb 1](#influxdb-1)
     - [Skipping certificate validation](#skipping-certificate-validation)
   - [Querying](#querying)
+    - [Parametrized Queries](#parametrized-queries)
   - [Original API](#original-api)
     - [Initialization](#initialization)
     - [Sending a single measurement](#sending-a-single-measurement)
@@ -523,6 +524,87 @@ if(result.getError() != "") {
 }
 ```
 Complete source code is available in [QueryAggregated example](examples/QueryAggregated/QueryAggregated.ino).
+
+### Parametrized Queries
+InfluxDB Cloud supports [Parameterized Queries](https://docs.influxdata.com/influxdb/cloud/query-data/parameterized-queries/)
+that let you dynamically change values in a query using the InfluxDB API. Parameterized queries make Flux queries more
+reusable and can also be used to help prevent injection attacks.
+
+InfluxDB Cloud inserts the params object into the Flux query as a Flux record named `params`. Use dot or bracket
+notation to access parameters in the `params` record in your Flux query. Parameterized Flux queries support only `int`
+, `float`, and `string` data types. To convert the supported data types into
+other [Flux basic data types, use Flux type conversion functions](https://docs.influxdata.com/influxdb/cloud/query-data/parameterized-queries/#supported-parameter-data-types).
+
+Parameterized query example:
+> :warning: Parameterized Queries are supported only in InfluxDB Cloud, currently there is no support in InfluxDB OSS.
+
+```cpp
+// Prepare query parameters
+QueryParams params;
+params.add("bucket", INFLUXDB_BUCKET);
+params.add("since", "-5m");
+params.add("device", DEVICE);
+params.add("rssiThreshold", -50);
+
+// Construct a Flux query using parameters
+// Parameters are accessed via the 'params' Flux object
+// Flux only supports only string, float and int as parameters. Duration can be converted from string.
+// Query will find RSSI less than defined threshold
+String query = "from(bucket: params.bucket) |> range(start: duration(v: params.since)) \
+  |> filter(fn: (r) => r._measurement == \"wifi_status\") \
+  |> filter(fn: (r) => r._field == \"rssi\") \
+  |> filter(fn: (r) => r.device == params.device) \
+  |> filter(fn: (r) => r._value < params.rssiThreshold)";
+
+// Print ouput header
+// Print composed query
+Serial.print("Querying with: ");
+Serial.println(query);
+
+// Send query to the server and get result
+FluxQueryResult result = client.query(query, params);
+
+//Print header
+Serial.printf("%10s %20s %5s\n","Time","SSID","RSSI");
+
+for(int i=0;i<37;i++) {
+  Serial.print('-');
+}
+Serial.println();
+
+// Iterate over rows. Even there is just one row, next() must be called at least once.
+int c = 0;
+while (result.next()) {
+  // Get converted value for flux result column 'SSID'
+  String ssid = result.getValueByName("SSID").getString();
+  
+  // Get converted value for flux result column '_value' where there is RSSI value
+  long rssi = result.getValueByName("_value").getLong();
+
+  // Get converted value for the _time column
+  FluxDateTime time = result.getValueByName("_time").getDateTime();
+
+  // Format date-time for printing
+  // Format string according to http://www.cplusplus.com/reference/ctime/strftime/
+  String timeStr = time.format("%F %T");
+  // Print formatted row
+  Serial.printf("%20s %10s %5d\n", timeStr.c_str(), ssid.c_str() ,rssi);
+  c++;
+}
+if(!c) {
+  Serial.println(" No data found");
+}
+
+// Check if there was an error
+if(result.getError() != "") {
+  Serial.print("Query result error: ");
+  Serial.println(result.getError());
+}
+
+// Close the result
+result.close();
+```
+Complete source code is available in [QueryParams example](examples/QueryParams/QueryParams.ino).
 
 ## Original API
 

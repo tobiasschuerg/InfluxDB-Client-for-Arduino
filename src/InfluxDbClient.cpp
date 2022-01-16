@@ -572,9 +572,16 @@ static const char QueryDialect[] PROGMEM = "\
 \"header\": true,\
 \"delimiter\": \",\",\
 \"commentPrefix\": \"#\"\
-}}";
+}";
+
+static const char Params[] PROGMEM = ",\
+\"params\": {";
 
 FluxQueryResult InfluxDBClient::query(String fluxQuery) {
+    return query(fluxQuery, QueryParams());
+}
+
+FluxQueryResult InfluxDBClient::query(String fluxQuery, QueryParams params) {
     uint32_t rwt = getRemainingRetryTime();
     if(rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
@@ -590,12 +597,28 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery) {
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
 
-    String body = F("{\"type\":\"flux\",\"query\":\"");
-    body += escapeJSONString(fluxQuery) + "\",";
+    String queryEsc = escapeJSONString(fluxQuery);
+    String body;
+    body.reserve(150 + queryEsc.length() + params.size()*30);
+    body = F("{\"type\":\"flux\",\"query\":\"");
+    body +=  queryEsc;
+    body += "\",";
     body += FPSTR(QueryDialect);
-
+    if(params.size()) {
+        body += FPSTR(Params);
+        body += params.jsonString(0);
+        for(int i=1;i<params.size();i++) {
+            body +=",";
+            char *js = params.jsonString(i);
+            body += js;
+            delete [] js;
+        }
+        body += '}';
+    }
+    body += '}';
     CsvReader *reader = nullptr;
     _retryTime = 0;
+    INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
     if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPClient *httpClient){
         bool chunked = false;
         if(httpClient->hasHeader(TransferEncoding)) {

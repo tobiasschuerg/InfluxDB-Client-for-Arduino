@@ -59,6 +59,7 @@ public:
     virtual ~FluxBase();
     String getRawValue() const { return _rawValue; }
     virtual const char *getType() = 0;
+    virtual char *jsonString() = 0;
 };
 
 // Represents flux long
@@ -67,6 +68,7 @@ public:
     FluxLong(String rawValue, long value);
     long value;
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 // Represents flux unsignedLong
@@ -75,14 +77,19 @@ public:
     FluxUnsignedLong(String rawValue, unsigned long value);
     unsigned long value;
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 // Represents flux double
 class FluxDouble : public FluxBase {
 public:
     FluxDouble(String rawValue, double value);
+    FluxDouble(String rawValue, double value, int precision);
     double value;
+    // For JSON serialization
+    int precision;
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 // Represents flux bool
@@ -91,6 +98,7 @@ public:
     FluxBool(String rawValue, bool value);
     bool value;
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 // Represents flux dateTime:RFC3339 and dateTime:RFC3339Nano
@@ -110,6 +118,7 @@ public:
     // Format string must be compatible with the http://www.cplusplus.com/reference/ctime/strftime/
     String format(String formatString);
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 // Represents flux string, duration, base64binary
@@ -118,8 +127,10 @@ protected:
     const char *_type;
 public:
     FluxString(String rawValue, const char *type);
+    FluxString(String rawValue, String value, const char *type);
     String value;
     virtual const char *getType() override;
+    virtual char *jsonString() override;
 };
 
 /** 
@@ -133,7 +144,7 @@ public:
  *  * getDouble() - double
  * 
  * Calling improper type getter will result in zero (empty) value.
- * Check for null value usig isNull().
+ * Check for null value using isNull().
  * Use getRawValue() for getting original string form.
  * 
  **/

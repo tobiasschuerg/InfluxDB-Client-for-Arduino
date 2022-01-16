@@ -164,3 +164,12 @@ bool isValidID(const char *idString) {
 const char *bool2string(bool val) {
     return (val?"true":"false");
 }
+
+uint8_t getNumLength(long long l) {
+    uint8_t c = 0;
+    do {
+        c++;
+        l /=10;
+    } while(l);
+    return c;
+}

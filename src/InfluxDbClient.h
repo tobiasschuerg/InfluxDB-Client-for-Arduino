@@ -32,6 +32,7 @@
 #include "Point.h"  
 #include "WritePrecision.h"
 #include "query/FluxParser.h"
+#include "query/Params.h"
 #include "util/helpers.h"
 #include "Options.h"
 #include "BucketsClient.h"
@@ -130,6 +131,10 @@ class InfluxDBClient {
     // Use FluxQueryResult::next() method to iterate over lines of the query result.
     // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
     FluxQueryResult query(String fluxQuery);
+    // Sends Flux query with params and returns FluxQueryResult object for subsequently reading flux query response.
+    // Use FluxQueryResult::next() method to iterate over lines of the query result.
+    // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
+    FluxQueryResult query(String fluxQuery, QueryParams params);
     // Forces writing of all points in buffer, even the batch is not full.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();

@@ -26,6 +26,7 @@
 */
 
 #include "FluxTypes.h"
+#include "util/helpers.h"
 
 const char	*FluxDatatypeString     = "string";
 const char	*FluxDatatypeDouble     = "double";
@@ -53,6 +54,14 @@ const char *FluxLong::getType() {
     return FluxDatatypeLong;
 }
 
+char *FluxLong::jsonString() {
+    int len  =_rawValue.length()+3+getNumLength(value)+2;
+    char *json = new char[len+1];
+    snprintf_P(json, len, PSTR("\"%s\":%ld"), _rawValue.c_str(), value);
+    return json;
+}
+
+
 FluxUnsignedLong::FluxUnsignedLong(String rawValue, unsigned long value):FluxBase(rawValue),value(value) {
 }
 
@@ -60,12 +69,31 @@ const char *FluxUnsignedLong::getType() {
     return FluxDatatypeUnsignedLong;
 }
 
-FluxDouble::FluxDouble(String rawValue, double value):FluxBase(rawValue),value(value) {
+char *FluxUnsignedLong::jsonString() {
+  int len  =_rawValue.length()+3+getNumLength(value)+2;
+  char *json = new char[len+1];
+  snprintf_P(json,len, PSTR("\"%s\":%lu"), _rawValue.c_str(), value);
+  return json;
+}
+
+FluxDouble::FluxDouble(String rawValue, double value):FluxDouble(rawValue, value, 0) {
    
 }
 
+FluxDouble::FluxDouble(String rawValue, double value, int precision):FluxBase(rawValue),
+  value(value),precision(precision) {}
+
 const char *FluxDouble::getType() {
     return FluxDatatypeDouble;
+}
+
+char *FluxDouble::jsonString() {
+    int len = _rawValue.length()+3+getNumLength(value)+precision+2;
+    char *json = new char[len+1];
+    char format[10];
+    sprintf_P(format, PSTR("\"%%s\":%%.%df"), precision);
+    snprintf(json, len, format , _rawValue.c_str(), value);
+    return json;
 }
 
 FluxBool::FluxBool(String rawValue, bool value):FluxBase(rawValue),value(value) {   
@@ -73,6 +101,13 @@ FluxBool::FluxBool(String rawValue, bool value):FluxBase(rawValue),value(value) 
 
 const char *FluxBool::getType() {
     return FluxDatatypeBool;
+}
+
+char *FluxBool::jsonString() {
+    int len = _rawValue.length()+9;
+    char *json = new char[len+1];
+    snprintf_P(json, len, PSTR("\"%s\":%s"), _rawValue.c_str(), bool2string(value));
+    return json;
 }
 
 
@@ -93,12 +128,36 @@ String FluxDateTime::format(String formatString) {
   return str;
 }
 
-FluxString::FluxString(String rawValue, const char *type):FluxBase(rawValue),_type(type),value(_rawValue) {
+char *FluxDateTime::jsonString() {
+  int len = _rawValue.length()+3+21+(microseconds?10:0); 
+  char *buff = new char[len+1];
+  snprintf_P(buff, len, PSTR("\"%s\":\""), _rawValue.c_str());
+  strftime(buff+strlen(buff), len-strlen(buff), "%FT%T",&value);
+  if(microseconds) {
+    snprintf_P(buff+strlen(buff), len - strlen(buff), PSTR(".%06luZ"), microseconds); 
+  }
+  strcat(buff+strlen(buff), "\""); 
+  return buff;
+}
+
+FluxString::FluxString(String rawValue, const char *type):FluxString(rawValue, rawValue, type) {
+
+}
+
+FluxString::FluxString(String rawValue, String value, const char *type):FluxBase(rawValue),value(value),_type(type)
+{
 
 }
 
 const char *FluxString::getType() {
-    return _type;
+  return _type;
+}
+
+char *FluxString::jsonString() {
+  int len = _rawValue.length()+value.length()+7;
+  char *buff = new char[len+1];
+  snprintf(buff, len, "\"%s\":\"%s\"", _rawValue.c_str(), value.c_str());
+  return buff;
 }
 
 

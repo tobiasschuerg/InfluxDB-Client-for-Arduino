@@ -86,8 +86,8 @@ public:
     // Descructor
     ~FluxQueryResult();
 protected:
-    FluxBase *convertValue(String value, String dataType);
-    static FluxDateTime *convertRfc3339(String value, const char *type);
+    FluxBase *convertValue(String &value, String &dataType);
+    static FluxDateTime *convertRfc3339(String &value, const char *type);
     void clearValues();
     void clearColumns();
 private:
