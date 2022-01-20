@@ -27,6 +27,6 @@
 #ifndef _VERSION_H_
 #define _VERSION_H_
 
-#define INFLUXDB_CLIENT_VERSION "3.9.0"
+#define INFLUXDB_CLIENT_VERSION "3.10.0"
 
 #endif //_VERSION_H_

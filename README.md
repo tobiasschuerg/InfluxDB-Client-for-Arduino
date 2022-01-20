@@ -536,7 +536,7 @@ notation to access parameters in the `params` record in your Flux query. Paramet
 other [Flux basic data types, use Flux type conversion functions](https://docs.influxdata.com/influxdb/cloud/query-data/parameterized-queries/#supported-parameter-data-types).
 
 Parameterized query example:
-> :warning: Parameterized Queries are supported only in InfluxDB Cloud, currently there is no support in InfluxDB OSS.
+> :warning: Parameterized Queries are supported only in InfluxDB Cloud. There is no support in InfluxDB OSS currently.
 
 ```cpp
 // Prepare query parameters
