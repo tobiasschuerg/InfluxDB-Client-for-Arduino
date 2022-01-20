@@ -202,7 +202,7 @@ readRow:
 	return true;
 }
 
-FluxDateTime *FluxQueryResult::convertRfc3339(String value, const char *type) {
+FluxDateTime *FluxQueryResult::convertRfc3339(String &value, const char *type) {
     tm t = {0,0,0,0,0,0,0,0,0};
     // has the time part
     int zet = value.indexOf('Z');
@@ -240,7 +240,7 @@ FluxDateTime *FluxQueryResult::convertRfc3339(String value, const char *type) {
     return new FluxDateTime(value, type, t, fracts);
 }
 
-FluxBase *FluxQueryResult::convertValue(String value, String dataType) {
+FluxBase *FluxQueryResult::convertValue(String &value, String &dataType) {
     FluxBase *ret = nullptr;
     if(dataType.equals(FluxDatatypeDatetimeRFC3339) || dataType.equals(FluxDatatypeDatetimeRFC3339Nano)) {
         const char *type = FluxDatatypeDatetimeRFC3339;

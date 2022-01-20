@@ -38,6 +38,7 @@ void Test::run() {
     failures = 0;
     Serial.println("Unit & Integration Tests");
     // Basic tests
+    testUtils();
     testOptions();
     testPoint();
     testBatch();
@@ -46,6 +47,7 @@ void Test::run() {
     testUrlEncode();
     testIsValidID();
     testFluxTypes();
+    testFluxTypesSerialization();
     testFluxParserEmpty();
     testFluxParserSingleTable();
     testFluxParserNilValue();
@@ -56,6 +58,7 @@ void Test::run() {
     testFluxParserInvalidDatatype();
     testFluxParserMissingDatatype();
     testFluxParserErrorInRow();
+    testQueryParams();
     testBasicFunction();
     testFlushing();
     testInit();
@@ -77,7 +80,19 @@ void Test::run() {
     testRetriesOnServerOverload();
     testRetryInterval();
     testBuckets(); 
+    testQueryWithParams();
     Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
+}
+
+void Test::testUtils() {
+    TEST_INIT("testUtils");
+    int d = getNumLength(12345678901);
+    TEST_ASSERTM(d == 11, String(d));
+    d = getNumLength(1);
+    TEST_ASSERTM(d == 1, String(d));
+    d = getNumLength(12);
+    TEST_ASSERTM(d == 2, String(d));
+    TEST_END();
 }
 
 void Test::testOptions() {
@@ -617,7 +632,7 @@ void Test::testRepeatedInit() {
         InfluxDBClient client;
         for(int i = 0; i<20;i++) {
             client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
-            TEST_ASSERT(client.validateConnection());
+            TEST_ASSERTM(client.validateConnection(),client.getLastErrorMessage());
         }
     } while(0);
     uint32_t endRAM = ESP.getFreeHeap();
@@ -1400,6 +1415,111 @@ void Test::testFluxTypes() {
     TEST_ASSERTM(val10.getLong() == 0,"val10.getLong");
     TEST_ASSERTM(val10.getRawValue() == "ZGF0YWluYmFzZTY0","val10.getRawValue");
     TEST_ASSERTM(val10.getString() == "ZGF0YWluYmFzZTY0","val10.getString()");
+    TEST_END();
+}
+
+void Test::testFluxTypesSerialization() {
+    TEST_INIT("testFluxTypesSerialization");
+
+    struct strTest {
+        FluxBase *fb;
+        const char *json;
+    };
+
+    strTest tests[] = {
+        { new FluxLong("long", -2020123456), "\"long\":-2020123456" },
+        { new FluxUnsignedLong("ulong", 2020123456), "\"ulong\":2020123456" },
+        { new FluxBool("bool", false),  "\"bool\":false"},
+        { new FluxDouble("double", 28.3, 1), "\"double\":28.3"},
+        { new FluxDateTime("dateTime", FluxDatatypeDatetimeRFC3339Nano, {15,34,9,22,4,120,0,0,0}, 123456), "\"dateTime\":\"2020-05-22T09:34:15.123456Z\""},
+        { new FluxString("string", "my text", FluxDatatypeString), "\"string\":\"my text\""},
+        { new FluxDouble("double", 21328.3132213,5), "\"double\":21328.31322"}
+    };
+
+    for(int i=0;i<7;i++) {
+        char *buff = tests[i].fb->jsonString();
+        delete tests[i].fb;
+        String json = buff;
+        delete [] buff;
+        TEST_ASSERTM(json == tests[i].json , json);
+    }
+
+    TEST_END();
+}
+
+void Test::testQueryParams() {
+    TEST_INIT("testQueryParams");
+    QueryParams params;
+    TEST_ASSERT(params.size() == 0);
+
+    params
+        .add("long", -2020123456l)
+        .add("ulong", 2020123456)
+        .add("bool", false)
+        .add("double", 28.3, 1)
+        .add("dateTime", {15,34,9,22,4,120,0,0,0}, 123456)
+        .add("string", "my text");
+    TEST_ASSERT(params.size() == 6);
+
+    const char *jsons[] = {
+        "\"long\":-2020123456",
+        "\"ulong\":2020123456",
+        "\"bool\":false",
+        "\"double\":28.3",
+        "\"dateTime\":\"2020-05-22T09:34:15.123456Z\"",
+        "\"string\":\"my text\""
+    };
+    for(int i=0;i<params.size();i++) {
+        char *buff = params.jsonString(i);
+        String json = buff;
+        delete [] buff;
+        TEST_ASSERTM(json == jsons[i], json);
+    }
+
+    params.remove("double");
+    TEST_ASSERT(params.size() == 5);
+
+    TEST_ASSERT(params.get(3)->getRawValue() == "dateTime");
+
+    QueryParams params2;
+    params2.add("char", '1');
+    params2.add("uchar", (unsigned char)1);
+    params2.add("int", -1);
+    params2.add("uint", 1u);
+    params2.add("long", -1l);
+    params2.add("ulong", 1lu);
+    params2.add("longlong", -1ll);
+    params2.add("ulonglong", 1llu);
+    params2.add("float", 1.1f);
+    params2.add("double", 1.1);
+    params2.add("bool", true);
+    params2.add("cstring", "text");
+    params2.add("dateTime", {15,34,9,22,4,120,0,0,0});
+    String s = "string";
+    params2.add("string", s);
+    TEST_ASSERT(params2.size() == 14);
+
+    const char *types[] = {
+        FluxDatatypeString,
+        FluxDatatypeUnsignedLong,
+        FluxDatatypeLong,
+        FluxDatatypeUnsignedLong,
+        FluxDatatypeLong,
+        FluxDatatypeUnsignedLong,
+        FluxDatatypeLong,
+        FluxDatatypeUnsignedLong,
+        FluxDatatypeDouble,
+        FluxDatatypeDouble,
+        FluxDatatypeBool,
+        FluxDatatypeString,
+        FluxDatatypeDatetimeRFC3339Nano,
+        FluxDatatypeString
+    };
+
+    for(int i=0;i<params2.size();i++) {
+        TEST_ASSERTM(params2.get(i)->getType() == types[i], String(i) + " " + types[i]);
+    }
+
     TEST_END();
 }
 
@@ -2252,7 +2372,7 @@ void Test::testLargeBatch() {
 #endif
     int len =strlen(line); 
     int points = free/len;
-    Serial.printf("Free ram: %lu, line len: %d, max points: %d\n", free, len, points);
+    Serial.printf("Free ram: %u, line len: %d, max points: %d\n", free, len, points);
     client.setWriteOptions(WriteOptions().batchSize(batchSize));
     WS_DEBUG_RAM("After options");
     TEST_ASSERT(client.validateConnection());
@@ -2276,6 +2396,25 @@ void Test::testLargeBatch() {
     TEST_ASSERTM( count == client._writeOptions._batchSize, String(count));  
     TEST_END();
     deleteAll(Test::apiUrl);
+}
+
+void Test::testQueryWithParams() {
+    TEST_INIT("testQueryWithParams");
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+
+    QueryParams params;
+    params.add("long", -12345);
+    params.add("ulong", 12345);
+    params.add("bool", false);
+    params.add("string", "my text");
+    params.add("double", 12345.6789, 4);
+    params.add("dateTime", {15,34,9,22,4,120,0,0,0}, 12345);
+    FluxQueryResult q = client.query("echo", params);
+    TEST_ASSERT(!q.next());
+    TEST_ASSERTM(client.getLastStatusCode()==444,String(client.getLastStatusCode()));
+    TEST_ASSERTM(q.getError() == "{\"type\":\"flux\",\"query\":\"echo\",\"dialect\":{\"annotations\":[\"datatype\"],\"dateTimeFormat\":\"RFC3339\",\"header\":true,\"delimiter\":\",\",\"commentPrefix\":\"#\"},\"params\":{\"long\":-12345,\"ulong\":12345,\"bool\":false,\"string\":\"my text\",\"double\":12345.6789,\"dateTime\":\"2020-05-22T09:34:15.012345Z\"}}", q.getError());
+    TEST_END();
 }
 
 void Test::setServerUrl(InfluxDBClient &client, String serverUrl) {

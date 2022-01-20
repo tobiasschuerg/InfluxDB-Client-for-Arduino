@@ -37,12 +37,14 @@ public:
 private: //helpers
     static void setServerUrl(InfluxDBClient &client, String serverUrl);
 private: // tests
+    static void testUtils();
     static void testOptions();
     static void testEcaping();
     static void testPoint();
     static void testBatch();
     static void testLineProtocol();
     static void testFluxTypes();
+    static void testFluxTypesSerialization();
     static void testFluxParserEmpty();
     static void testFluxParserSingleTable();
     static void testFluxParserNilValue();
@@ -71,9 +73,11 @@ private: // tests
     static void testRepeatedInit();
     static void testIsValidID();
     static void testBuckets();
+    static void testQueryParams();
     static void testFlushing();
     static void testNonRetry();
     static void testLargeBatch();
+    static void testQueryWithParams();
 };
 
 #endif //_TEST_H_
