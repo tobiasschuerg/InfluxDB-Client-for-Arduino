@@ -1,4 +1,11 @@
 # Changelog
+## unreleased
+### Features
+ - [174](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/174) - All API methods with a string param allow specifying string by all basic types of :
+  - Arduino `String` class
+  - C `char *` or `char[]` 
+  - Flash string using `F`,`PSTR` or `FPSTR` macros
+
 ## 3.10.0 [2022-01-20]
 ### Features
  - [167](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/167) - Added `InfluxDBClient::writeRecord(const char *record)`.

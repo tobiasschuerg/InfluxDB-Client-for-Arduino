@@ -74,7 +74,7 @@ String timeStampToString(unsigned long long timestamp) {
     return String(buff);
 }
 
-String escapeKey(String key, bool escapeEqual) {
+String escapeKey(const String &key, bool escapeEqual) {
     String ret;
     ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
 
@@ -103,7 +103,8 @@ String escapeKey(String key, bool escapeEqual) {
 String escapeValue(const char *value) {
     String ret;
     int len = strlen_P(value);
-    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
+    ret.reserve(len+7); //5 is estimate of max chars needs to escape,
+    ret += '"';
     for(int i=0;i<len;i++)
     {
         switch (value[i])
@@ -116,6 +117,7 @@ String escapeValue(const char *value) {
 
         ret += value[i];
     }
+    ret += '"';
     return ret;
 }
 

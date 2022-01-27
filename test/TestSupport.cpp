@@ -41,7 +41,7 @@ void printFreeHeap() {
   Serial.println(ESP.getFreeHeap());
 }
 
-int httpPOST(String url, String mess) {
+int httpPOST(const String &url, String mess) {
   httpClient.setReuse(false);
   int code = 0;
   WiFiClient client;
@@ -52,7 +52,7 @@ int httpPOST(String url, String mess) {
   return code;
 }
 
-int httpGET(String url) {
+int httpGET(const String &url) {
   httpClient.setReuse(false);
   int code = 0;
   WiFiClient client;
@@ -68,20 +68,20 @@ int httpGET(String url) {
   return code;
 }
 
-bool deleteAll(String url) {
+bool deleteAll(const String &url) {
   return httpPOST(url + "/api/v2/delete","") == 204;
 }
 
-bool serverLog(String url, String mess) {
+bool serverLog(const String &url, String mess) {
   return httpPOST(url + "/log", mess) == 204;
 }
 
-bool isServerUp(String url) {
+bool isServerUp(const String &url) {
     return httpGET(url + "/status") == 200;
 }
 
 
-int countParts(String &str, char separator) {
+int countParts(const String &str, char separator) {
   int lines = 0;
   int i,from = 0;
   while((i = str.indexOf(separator, from)) >= 0) {
@@ -95,7 +95,7 @@ int countParts(String &str, char separator) {
   return lines;
 }
 
-String *getParts(String &str, char separator, int &count) {
+String *getParts(const String &str, char separator, int &count) {
   count = countParts(str, separator);
   String *ret = new String[count];
   int i,from = 0,p=0;
@@ -142,12 +142,12 @@ bool compareTm(tm &tm1, tm &tm2) {
     return difftime(t1, t2) == 0;
 } 
 
-bool waitServer(const char *url, bool state) {
+bool waitServer(const String &url, bool state) {
     int i = 0;
     while(isServerUp(url) != state && i<10 ) {
         if(!i) {
             Serial.println(state?"[TD] Starting server":"[TD] Shuting down server");
-            httpGET(String(url) + (state?"/start":"/stop"));
+            httpGET(url + (state?"/start":"/stop"));
         }
         delay(500);
         i++;

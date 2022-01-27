@@ -122,7 +122,7 @@ class InfluxDBClient {
     bool validateConnection();
     // Writes record in InfluxDB line protocol format to write buffer.
     // Returns true if successful, false in case of any error 
-    bool writeRecord(String &record);
+    bool writeRecord(const String &record);
     bool writeRecord(const char *record);
     // Writes record represented by Point to buffer
     // Returns true if successful, false in case of any error 
@@ -130,11 +130,11 @@ class InfluxDBClient {
     // Sends Flux query and returns FluxQueryResult object for subsequently reading flux query response.
     // Use FluxQueryResult::next() method to iterate over lines of the query result.
     // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
-    FluxQueryResult query(String fluxQuery);
+    FluxQueryResult query(const String &fluxQuery);
     // Sends Flux query with params and returns FluxQueryResult object for subsequently reading flux query response.
     // Use FluxQueryResult::next() method to iterate over lines of the query result.
     // Always call of FluxQueryResult::close() when reading is finished. Check FluxQueryResult doc for more info.
-    FluxQueryResult query(String fluxQuery, QueryParams params);
+    FluxQueryResult query(const String &fluxQuery, QueryParams params);
     // Forces writing of all points in buffer, even the batch is not full.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();

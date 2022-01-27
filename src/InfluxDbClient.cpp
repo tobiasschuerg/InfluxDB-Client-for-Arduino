@@ -34,7 +34,7 @@
 
 static const char TooEarlyMessage[] PROGMEM = "Cannot send request yet because of applied retry strategy. Remaining ";
 
-static String escapeJSONString(String &value);
+static String escapeJSONString(const String &value);
 static String precisionToString(WritePrecision precision, uint8_t version = 2) {
     switch(precision) {
         case WritePrecision::US:
@@ -352,7 +352,7 @@ char * InfluxDBClient::Batch::createData() {
     return buff;
 }
 
-bool InfluxDBClient::writeRecord(String &record) {
+bool InfluxDBClient::writeRecord(const String &record) {
     return writeRecord(record.c_str());
 }
 
@@ -577,11 +577,11 @@ static const char QueryDialect[] PROGMEM = "\
 static const char Params[] PROGMEM = ",\
 \"params\": {";
 
-FluxQueryResult InfluxDBClient::query(String fluxQuery) {
+FluxQueryResult InfluxDBClient::query(const String &fluxQuery) {
     return query(fluxQuery, QueryParams());
 }
 
-FluxQueryResult InfluxDBClient::query(String fluxQuery, QueryParams params) {
+FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams params) {
     uint32_t rwt = getRemainingRetryTime();
     if(rwt > 0) {
         INFLUXDB_CLIENT_DEBUG("[W] Cannot query yet, pause %ds, %ds yet\n", _retryTime, rwt);
@@ -638,7 +638,7 @@ FluxQueryResult InfluxDBClient::query(String fluxQuery, QueryParams params) {
 }
 
 
-static String escapeJSONString(String &value) {
+static String escapeJSONString(const String &value) {
     String ret;
     int d = 0;
     int i,from = 0;

@@ -48,37 +48,39 @@ class QueryParams {
     // Descructor
     ~QueryParams();
     // Adds param with a float value. A number of decimal places can be optionally set.
-    QueryParams &add(const char *name, float value, int decimalPlaces = 2);
+    QueryParams &add(const String &name, float value, int decimalPlaces = 2);
     // Adds param with a double value. A number of decimal places can be optionally set.
-    QueryParams &add(const char *name, double value, int decimalPlaces = 2); 
+    QueryParams &add(const String &name, double value, int decimalPlaces = 2); 
     // Adds param with a character value.
-    QueryParams &add(const char *name, char value);
+    QueryParams &add(const String &name, char value);
     // Adds param with an unsigned character value. It is added as a number.
-    QueryParams &add(const char *name, unsigned char value);
+    QueryParams &add(const String &name, unsigned char value);
     // Adds param with an integer value.
-    QueryParams &add(const char *name, int value);
+    QueryParams &add(const String &name, int value);
     // Adds param with an unsigned integer value.
-    QueryParams &add(const char *name, unsigned int value);
+    QueryParams &add(const String &name, unsigned int value);
     // Adds param with a long value.
-    QueryParams &add(const char *name, long value);
+    QueryParams &add(const String &name, long value);
     // Adds param with an unsigned long value.
-    QueryParams &add(const char *name, unsigned long value);
+    QueryParams &add(const String &name, unsigned long value);
     // Adds param with a boolen value.
-    QueryParams &add(const char *name, bool value);
+    QueryParams &add(const String &name, bool value);
     // Adds param with a String value.
-    QueryParams &add(const char *name, String &value);
+    QueryParams &add(const String &name, const String &value);
+    // Adds param with a progmem string value.
+    QueryParams &add(const String &name, const __FlashStringHelper *pstr);
     // Adds param with a long long value. It is converted to long.
-    QueryParams &add(const char *name, long long value);
+    QueryParams &add(const String &name, long long value);
     // Adds param with an unsigned long long value. It is converted to long.
-    QueryParams &add(const char *name, unsigned long long value);
+    QueryParams &add(const String &name, unsigned long long value);
     // Adds param with a string value.
-    QueryParams &add(const char *name, const char *value);
+    QueryParams &add(const String &name, const char *value);
     // Adds param as a string representation of date-time value in UTC timezone, e.g. "2022-01-12T23:12:30.124Z"
     // Micros is fractional part of seconds up to microseconds precision. E.g. if millisecond are provided
     // it must be converted to microseconds: micros = 1000*millis
-    QueryParams &add(const char *name, struct tm tm, unsigned long micros = 0);
+    QueryParams &add(const String &name, struct tm tm, unsigned long micros = 0);
     // Removed a param
-    void remove(const char *name);
+    void remove(const String &name);
     // Returns i-th param
     FluxBase *get(int i);
     // Returns params count

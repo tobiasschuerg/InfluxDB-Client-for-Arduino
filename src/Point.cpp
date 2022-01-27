@@ -28,7 +28,7 @@
 #include "Point.h"
 #include "util/helpers.h"
 
-Point::Point(String measurement):
+Point::Point(const String & measurement):
     _measurement(escapeKey(measurement, false)),
     _tags(""),
     _fields(""),
@@ -37,7 +37,7 @@ Point::Point(String measurement):
 
 }
 
-void Point::addTag(String name, String value) {
+void Point::addTag(const String &name, String value) {
     if(_tags.length() > 0) {
         _tags += ',';
     }
@@ -46,23 +46,67 @@ void Point::addTag(String name, String value) {
     _tags += escapeKey(value);
 }
 
-void Point::addField(String name, long long value) {
+void Point::addField(const String &name, long long value) {
   char buff[50];
   snprintf(buff, 50, "%lld", value);
   putField(name, String(buff)+"i");
 }
 
-void Point::addField(String name, unsigned long long value) {
+void Point::addField(const String &name, unsigned long long value) {
   char buff[50];
   snprintf(buff, 50, "%llu", value);
   putField(name, String(buff)+"i");
 }
 
-void Point::addField(String name, const char *value) { 
-    putField(name, "\"" + escapeValue(value) + "\""); 
+void Point::addField(const String &name, const char *value) { 
+    putField(name, escapeValue(value)); 
 }
 
-void Point::putField(String name, String value) {
+void Point::addField(const String &name, const __FlashStringHelper *pstr) {
+    addField(name, String(pstr));
+}
+
+void Point::addField(const String &name, float value, int decimalPlaces) { 
+    if(!isnan(value)) putField(name, String(value, decimalPlaces)); 
+}
+
+void Point::addField(const String &name, double value, int decimalPlaces) {
+    if(!isnan(value)) putField(name, String(value, decimalPlaces)); 
+}
+
+void Point::addField(const String &name, char value) { 
+    addField(name, String(value).c_str()); 
+}
+
+void Point::addField(const String &name, unsigned char value) {
+    putField(name, String(value)+"i"); 
+}
+
+void Point::addField(const String &name, int value) { 
+    putField(name, String(value)+"i"); 
+}
+
+void Point::addField(const String &name, unsigned int value) { 
+    putField(name, String(value)+"i"); 
+}
+
+void Point::addField(const String &name, long value)  { 
+    putField(name, String(value)+"i"); 
+}
+
+void Point::addField(const String &name, unsigned long value) { 
+    putField(name, String(value)+"i"); 
+}
+
+void Point::addField(const String &name, bool value)  { 
+    putField(name, bool2string(value)); 
+}
+
+void Point::addField(const String &name, const String &value)  { 
+    addField(name, value.c_str()); 
+}
+
+void Point::putField(const String &name, const String &value) {
     if(_fields.length() > 0) {
         _fields += ',';
     }
@@ -71,11 +115,11 @@ void Point::putField(String name, String value) {
     _fields += value;
 }
 
-String Point::toLineProtocol(String includeTags) const {
+String Point::toLineProtocol(const String &includeTags) const {
     return createLineProtocol(includeTags);
 }
 
-String Point::createLineProtocol(String &incTags) const {
+String Point::createLineProtocol(const String &incTags) const {
     String line;
     line.reserve(_measurement.length() + 1 + incTags.length() + 1 + _tags.length() + 1 + _fields.length() + 1 + _timestamp.length());
     line += _measurement;
@@ -125,7 +169,7 @@ void  Point::setTime(unsigned long long timestamp) {
     _timestamp = timeStampToString(timestamp);
 }
 
-void  Point::setTime(String timestamp) {
+void  Point::setTime(const String &timestamp) {
     _timestamp = timestamp;
 }
 

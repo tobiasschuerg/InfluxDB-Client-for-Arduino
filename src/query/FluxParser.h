@@ -54,7 +54,7 @@ public:
     // Constructor for reading result
     FluxQueryResult(CsvReader *reader);
     // Constructor for error result
-    FluxQueryResult(String error);
+    FluxQueryResult(const String &error);
     // Copy constructor
     FluxQueryResult(const FluxQueryResult &other);
     // Assignment operator
@@ -64,11 +64,11 @@ public:
     // or an error. Call getError() and check non empty value
     bool next();
     // Returns index of the column, or -1 if not found
-    int getColumnIndex(String columnName);
+    int getColumnIndex(const String &columnName);
     // Returns a converted value by index, or nullptr in case of missing value or wrong index
     FluxValue getValueByIndex(int index);
     // Returns a result value by column name, or nullptr in case of missing value or wrong column name
-    FluxValue getValueByName(String columnName);
+    FluxValue getValueByName(const String &columnName);
     // Returns flux datatypes of all columns
     std::vector<String> getColumnsDatatype() { return _data->_columnDatatypes; }
     // Returns names of all columns

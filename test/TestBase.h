@@ -53,7 +53,7 @@ public:
     static int failures;
 public:
     static void setup(const char * mgmtUrl, const char * apiUrl, const char *e2eApiUrl, const char * orgName, const char * bucketName, const char * dbName, const char * token);
-    static Point *createPoint(String measurement);
+    static Point *createPoint(const String &measurement);
 };
 
 bool testAssertm(int line, bool state,String message);
