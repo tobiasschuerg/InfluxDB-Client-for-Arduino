@@ -235,7 +235,11 @@ void Test::testPoint() {
     Point p("test");
     TEST_ASSERT(!p.hasTags());
     TEST_ASSERT(!p.hasFields());
+    String name = "tag3";
+    String value = "tagvalue3";
     p.addTag("tag1", "tagvalue");
+    p.addTag(F("tag2"), F("tagvalue2"));
+    p.addTag(name, value);
     TEST_ASSERT(p.hasTags());
     TEST_ASSERT(!p.hasFields());
     p.addField("fieldInt", -23);
@@ -243,8 +247,9 @@ void Test::testPoint() {
     p.addField("fieldBool", true);
     p.addField("fieldFloat1", 1.123f);
     p.addField("fieldFloat2", 1.12345f, 5);
-    p.addField("fieldDouble1", 1.123);
-    p.addField("fieldDouble2", 1.12345, 5);
+    p.addField(F("fieldDouble1"), 1.123);
+    name = "fieldDouble2";
+    p.addField(name, 1.12345, 5);
     p.addField("fieldChar", 'A');
     p.addField("fieldUChar", (unsigned char)1);
     p.addField("fieldUInt", 23u);
@@ -253,18 +258,22 @@ void Test::testPoint() {
     p.addField("fieldLongLong", 9123456789l);
     p.addField("fieldULongLong", 9123456789ul);
     p.addField("fieldString", "text test");
+    p.addField(F("fieldString2"), F("text test2"));
+    name = "fieldString3";
+    value = "text test3";
+    p.addField(name, value);
     String line = p.toLineProtocol();
-    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+    String testLine = "test,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
     TEST_ASSERTM(line == testLine, line);
 
     String defaultTags="dtag=val";
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+    testLine = "test,dtag=val,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
     TEST_ASSERTM(line == testLine, line);
 
 
@@ -1484,8 +1493,8 @@ void Test::testQueryParams() {
     QueryParams params2;
     params2.add("char", '1');
     params2.add("uchar", (unsigned char)1);
-    params2.add("int", -1);
-    params2.add("uint", 1u);
+    params2.add(String("int"), -1);
+    params2.add(F("uint"), 1u);
     params2.add("long", -1l);
     params2.add("ulong", 1lu);
     params2.add("longlong", -1ll);
@@ -1494,10 +1503,11 @@ void Test::testQueryParams() {
     params2.add("double", 1.1);
     params2.add("bool", true);
     params2.add("cstring", "text");
+    params2.add(F("fstring"), F("text"));
     params2.add("dateTime", {15,34,9,22,4,120,0,0,0});
     String s = "string";
     params2.add("string", s);
-    TEST_ASSERT(params2.size() == 14);
+    TEST_ASSERT(params2.size() == 15);
 
     const char *types[] = {
         FluxDatatypeString,
@@ -1512,12 +1522,13 @@ void Test::testQueryParams() {
         FluxDatatypeDouble,
         FluxDatatypeBool,
         FluxDatatypeString,
+        FluxDatatypeString,
         FluxDatatypeDatetimeRFC3339Nano,
         FluxDatatypeString
     };
 
     for(int i=0;i<params2.size();i++) {
-        TEST_ASSERTM(params2.get(i)->getType() == types[i], String(i) + " " + types[i]);
+        TEST_ASSERTM(params2.get(i)->getType() == types[i], String(i) + " " + params2.get(i)->getType());
     }
 
     TEST_END();

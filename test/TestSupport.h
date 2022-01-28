@@ -32,20 +32,20 @@
 
 void printFreeHeap();
 
-int httpPOST(String url, String mess);
+int httpPOST(const String &url, String mess);
 
-int httpGET(String url);
+int httpGET(const String &url);
 
-bool deleteAll(String url) ;
+bool deleteAll(const String &url) ;
 
-bool serverLog(String url, String mess);
+bool serverLog(const String &url, String mess);
 
-bool isServerUp(String url);
+bool isServerUp(const String &url);
 
 
-int countParts(String &str, char separator);
+int countParts(const String &str, char separator);
 
-String *getParts(String &str, char separator, int &count);
+String *getParts(const String &str, char separator, int &count);
 
 int countLines(FluxQueryResult flux) ;
 
@@ -54,6 +54,6 @@ std::vector<String> getLines(FluxQueryResult flux);
 
 bool compareTm(tm &tm1, tm &tm2);
 // Waits for server in desired state (up - true, down - false)
-bool waitServer(const char *url, bool state);
+bool waitServer(const String &url, bool state);
 
 #endif //_TEST_SUPPORT_H_

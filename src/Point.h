@@ -38,29 +38,30 @@
 class Point {
 friend class InfluxDBClient;
   public:
-    Point(String measurement);
+    Point(const String &measurement);
     // Adds string tag 
-    void addTag(String name, String value);
+    void addTag(const String &name, String value);
     // Add field with various types
-    void addField(String name, float value, int decimalPlaces = 2)         { if(!isnan(value)) putField(name, String(value, decimalPlaces)); }
-    void addField(String name, double value, int decimalPlaces = 2)        { if(!isnan(value)) putField(name, String(value, decimalPlaces)); }
-    void addField(String name, char value)          { addField(name, String(value).c_str()); }
-    void addField(String name, unsigned char value) { putField(name, String(value)+"i"); }
-    void addField(String name, int value)           { putField(name, String(value)+"i"); }
-    void addField(String name, unsigned int value)  { putField(name, String(value)+"i"); }
-    void addField(String name, long value)          { putField(name, String(value)+"i"); }
-    void addField(String name, unsigned long value) { putField(name, String(value)+"i"); }
-    void addField(String name, bool value)          { putField(name, bool2string(value)); }
-    void addField(String name, String value)        { addField(name, value.c_str()); }
-    void addField(String name, long long value);
-    void addField(String name, unsigned long long value);
-    void addField(String name, const char *value);
+    void addField(const String &name, float value, int decimalPlaces = 2);
+    void addField(const String &name, double value, int decimalPlaces = 2);
+    void addField(const String &name, char value);
+    void addField(const String &name, unsigned char value);
+    void addField(const String &name, int value);
+    void addField(const String &name, unsigned int value);
+    void addField(const String &name, long value);
+    void addField(const String &name, unsigned long value);
+    void addField(const String &name, bool value);
+    void addField(const String &name, const String &value);
+    void addField(const String &name, const __FlashStringHelper *pstr);
+    void addField(const String &name, long long value);
+    void addField(const String &name, unsigned long long value);
+    void addField(const String &name, const char *value);
     // Set timestamp to `now()` and store it in specified precision, nanoseconds by default. Date and time must be already set. See `configTime` in the device API
     void setTime(WritePrecision writePrecision = WritePrecision::NS);
     // Set timestamp in offset since epoch (1.1.1970). Correct precision must be set InfluxDBClient::setWriteOptions.
     void setTime(unsigned long long timestamp);
     // Set timestamp in offset since epoch (1.1.1970 00:00:00). Correct precision must be set InfluxDBClient::setWriteOptions.
-    void setTime(String timestamp);
+    void setTime(const String &timestamp);
     // Clear all fields. Usefull for reusing point  
     void clearFields();
     // Clear tags
@@ -72,7 +73,7 @@ friend class InfluxDBClient;
     // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol with optionally added tags
-    String toLineProtocol(String includeTags = "") const;
+    String toLineProtocol(const String &includeTags = "") const;
     // returns current timestamp
     String getTime() const { return _timestamp; } 
   protected:
@@ -82,8 +83,8 @@ friend class InfluxDBClient;
     String _timestamp;
   protected:    
     // method for formating field into line protocol
-    void putField(String name, String value);
+    void putField(const String &name, const String &value);
     // Creates line protocol string
-    String createLineProtocol(String &incTags) const;
+    String createLineProtocol(const String &incTags) const;
 };
 #endif //_POINT_H_

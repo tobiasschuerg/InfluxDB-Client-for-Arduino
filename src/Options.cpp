@@ -28,7 +28,7 @@
 #include "Options.h"
 #include "util/helpers.h"
 
-WriteOptions& WriteOptions::addDefaultTag(String name, String value) { 
+WriteOptions& WriteOptions::addDefaultTag(const String &name, const String &value) { 
     if(_defaultTags.length() > 0) {
         _defaultTags += ',';
     }

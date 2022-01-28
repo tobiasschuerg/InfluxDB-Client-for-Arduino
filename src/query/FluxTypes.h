@@ -55,7 +55,7 @@ class FluxBase {
 protected:
     String _rawValue;
 public:
-    FluxBase(String rawValue);
+    FluxBase(const String &rawValue);
     virtual ~FluxBase();
     String getRawValue() const { return _rawValue; }
     virtual const char *getType() = 0;
@@ -65,7 +65,7 @@ public:
 // Represents flux long
 class FluxLong : public FluxBase {
 public:
-    FluxLong(String rawValue, long value);
+    FluxLong(const String &rawValue, long value);
     long value;
     virtual const char *getType() override;
     virtual char *jsonString() override;
@@ -74,7 +74,7 @@ public:
 // Represents flux unsignedLong
 class FluxUnsignedLong : public FluxBase {
 public:
-    FluxUnsignedLong(String rawValue, unsigned long value);
+    FluxUnsignedLong(const String &rawValue, unsigned long value);
     unsigned long value;
     virtual const char *getType() override;
     virtual char *jsonString() override;
@@ -83,8 +83,8 @@ public:
 // Represents flux double
 class FluxDouble : public FluxBase {
 public:
-    FluxDouble(String rawValue, double value);
-    FluxDouble(String rawValue, double value, int precision);
+    FluxDouble(const String &rawValue, double value);
+    FluxDouble(const String &rawValue, double value, int precision);
     double value;
     // For JSON serialization
     int precision;
@@ -95,7 +95,7 @@ public:
 // Represents flux bool
 class FluxBool : public FluxBase {
 public:
-    FluxBool(String rawValue, bool value);
+    FluxBool(const String &rawValue, bool value);
     bool value;
     virtual const char *getType() override;
     virtual char *jsonString() override;
@@ -109,14 +109,14 @@ class FluxDateTime : public FluxBase {
 protected:
     const char *_type;
 public:    
-    FluxDateTime(String rawValue, const char *type, struct tm value, unsigned long microseconds);
+    FluxDateTime(const String &rawValue, const char *type, struct tm value, unsigned long microseconds);
     // Struct tm for date and time
     struct tm value;
     // microseconds part
     unsigned long microseconds;
     // Formats the value part to string according to the given format. Microseconds are skipped.
     // Format string must be compatible with the http://www.cplusplus.com/reference/ctime/strftime/
-    String format(String formatString);
+    String format(const String &formatString);
     virtual const char *getType() override;
     virtual char *jsonString() override;
 };
@@ -126,8 +126,8 @@ class FluxString : public FluxBase {
 protected:
     const char *_type;
 public:
-    FluxString(String rawValue, const char *type);
-    FluxString(String rawValue, String value, const char *type);
+    FluxString(const String &rawValue, const char *type);
+    FluxString(const String &rawValue, const String &value, const char *type);
     String value;
     virtual const char *getType() override;
     virtual char *jsonString() override;

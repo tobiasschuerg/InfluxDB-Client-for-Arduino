@@ -38,7 +38,7 @@ const char	*FluxBinaryDataTypeBase64         = "base64Binary";
 const char	*FluxDatatypeDatetimeRFC3339      = "dateTime:RFC3339";
 const char	*FluxDatatypeDatetimeRFC3339Nano  = "dateTime:RFC3339Nano";
 
-FluxBase::FluxBase(String rawValue) {
+FluxBase::FluxBase(const String &rawValue) {
     _rawValue = rawValue;
 }
 
@@ -46,7 +46,7 @@ FluxBase::~FluxBase() {
 }
 
 
-FluxLong::FluxLong(String rawValue, long value):FluxBase(rawValue),value(value) {
+FluxLong::FluxLong(const String &rawValue, long value):FluxBase(rawValue),value(value) {
 
 }
 
@@ -62,7 +62,7 @@ char *FluxLong::jsonString() {
 }
 
 
-FluxUnsignedLong::FluxUnsignedLong(String rawValue, unsigned long value):FluxBase(rawValue),value(value) {
+FluxUnsignedLong::FluxUnsignedLong(const String &rawValue, unsigned long value):FluxBase(rawValue),value(value) {
 }
 
 const char *FluxUnsignedLong::getType() {
@@ -76,11 +76,11 @@ char *FluxUnsignedLong::jsonString() {
   return json;
 }
 
-FluxDouble::FluxDouble(String rawValue, double value):FluxDouble(rawValue, value, 0) {
+FluxDouble::FluxDouble(const String &rawValue, double value):FluxDouble(rawValue, value, 0) {
    
 }
 
-FluxDouble::FluxDouble(String rawValue, double value, int precision):FluxBase(rawValue),
+FluxDouble::FluxDouble(const String &rawValue, double value, int precision):FluxBase(rawValue),
   value(value),precision(precision) {}
 
 const char *FluxDouble::getType() {
@@ -96,7 +96,7 @@ char *FluxDouble::jsonString() {
     return json;
 }
 
-FluxBool::FluxBool(String rawValue, bool value):FluxBase(rawValue),value(value) {   
+FluxBool::FluxBool(const String &rawValue, bool value):FluxBase(rawValue),value(value) {   
 }
 
 const char *FluxBool::getType() {
@@ -111,7 +111,7 @@ char *FluxBool::jsonString() {
 }
 
 
-FluxDateTime::FluxDateTime(String rawValue, const char *type, struct tm value, unsigned long microseconds):FluxBase(rawValue),_type(type),value(value), microseconds(microseconds) {
+FluxDateTime::FluxDateTime(const String &rawValue, const char *type, struct tm value, unsigned long microseconds):FluxBase(rawValue),_type(type),value(value), microseconds(microseconds) {
 
 }
 
@@ -119,7 +119,7 @@ const char *FluxDateTime::getType() {
     return _type;
 }
 
-String FluxDateTime::format(String formatString) {
+String FluxDateTime::format(const String &formatString) {
   int len = formatString.length() + 20; //+20 for safety
   char *buff = new char[len];
   strftime(buff,len, formatString.c_str(),&value);
@@ -140,11 +140,11 @@ char *FluxDateTime::jsonString() {
   return buff;
 }
 
-FluxString::FluxString(String rawValue, const char *type):FluxString(rawValue, rawValue, type) {
+FluxString::FluxString(const String &rawValue, const char *type):FluxString(rawValue, rawValue, type) {
 
 }
 
-FluxString::FluxString(String rawValue, String value, const char *type):FluxBase(rawValue),value(value),_type(type)
+FluxString::FluxString(const String &rawValue, const String &value, const char *type):FluxBase(rawValue),value(value),_type(type)
 {
 
 }

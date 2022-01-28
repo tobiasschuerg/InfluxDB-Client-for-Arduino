@@ -30,7 +30,7 @@ void TestBase::setup(const char * mgmtUrl, const char * apiUrl, const char *e2eA
     TestBase::token = token;
 }
 
-Point *TestBase::createPoint(String measurement) {
+Point *TestBase::createPoint(const String &measurement) {
     Point *point = new Point(measurement);
     point->addTag("SSID", WiFi.SSID());
     point->addTag("device_name", deviceName);

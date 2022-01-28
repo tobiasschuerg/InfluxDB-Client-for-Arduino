@@ -81,7 +81,7 @@ public:
     WriteOptions& retryInterval(uint16_t retryIntervalSec) { _retryInterval = retryIntervalSec; return *this; }
     WriteOptions& maxRetryInterval(uint16_t maxRetryIntervalSec) { _maxRetryInterval = maxRetryIntervalSec; return *this; }
     WriteOptions& maxRetryAttempts(uint16_t maxRetryAttempts) { _maxRetryAttempts = maxRetryAttempts; return *this; }
-    WriteOptions& addDefaultTag(String name, String value);
+    WriteOptions& addDefaultTag(const String &name, const String &value);
     WriteOptions& clearDefaultTags() { _defaultTags = (char *)nullptr; return *this; }
 };
 

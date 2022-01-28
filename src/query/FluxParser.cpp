@@ -34,7 +34,7 @@ FluxQueryResult::FluxQueryResult(CsvReader *reader) {
     _data = std::make_shared<Data>(reader);
 }
 
-FluxQueryResult::FluxQueryResult(String error):FluxQueryResult((CsvReader *)nullptr) {
+FluxQueryResult::FluxQueryResult(const String &error):FluxQueryResult((CsvReader *)nullptr) {
     _data->_error = error;
 }
 
@@ -51,7 +51,7 @@ FluxQueryResult &FluxQueryResult::operator=(const FluxQueryResult &other) {
 FluxQueryResult::~FluxQueryResult() {
 }
 
-int FluxQueryResult::getColumnIndex(String columnName) {
+int FluxQueryResult::getColumnIndex(const String &columnName) {
     int i = -1;
     std::vector<String>::iterator it = find(_data->_columnNames.begin(), _data->_columnNames.end(), columnName);
     if (it != _data->_columnNames.end()) {
@@ -68,7 +68,7 @@ FluxValue FluxQueryResult::getValueByIndex(int index) {
     return ret;
 }
 
-FluxValue FluxQueryResult::getValueByName(String columnName) {
+FluxValue FluxQueryResult::getValueByName(const String &columnName) {
     FluxValue ret;
     int i = getColumnIndex(columnName);
     if(i > -1) {

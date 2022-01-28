@@ -42,7 +42,7 @@ unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits = 3);
 String timeStampToString(unsigned long long timestamp);
 
 // Escape invalid chars in measurement, tag key, tag value and field key
-String escapeKey(String key, bool escapeEqual = true);
+String escapeKey(const String &key, bool escapeEqual = true);
 
 // Escape invalid chars in field value
 String escapeValue(const char *value);
