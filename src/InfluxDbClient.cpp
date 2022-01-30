@@ -681,8 +681,8 @@ InfluxDBClient::BatchStreamer::BatchStreamer(InfluxDBClient::Batch *batch) {
     _length = 0;
     _pointer = 0;
     _linePointer = 0;
-    for(int i=0;i<_batch->pointer;i++) {
-    _length += strlen(_batch->buffer[i])+1;
+    for(uint16_t i=0;i<_batch->pointer;i++) {
+        _length += strlen(_batch->buffer[i])+1;
     }
 }
 
@@ -703,8 +703,8 @@ int InfluxDBClient::BatchStreamer::read(uint8_t* buffer, size_t len) {
 size_t InfluxDBClient::BatchStreamer::readBytes(char* buffer, size_t len) {
 
     INFLUXDB_CLIENT_DEBUG("BatchStream::readBytes %d\n", len);
-    int r=0;
-    for(int i=0;i<len;i++) {
+    unsigned int r=0;
+    for(unsigned int i=0;i<len;i++) {
         if(available()) {
             buffer[i] = read();
             r++;
@@ -740,12 +740,9 @@ int InfluxDBClient::BatchStreamer::peek() {
     } else {
         r = _batch->buffer[_pointer][_linePointer];
     }
-    // #ifdef INFLUXDB_CLIENT_DEBUG_ENABLE
-    //     Serial.printf_P(PSTR("%c"), r);
-    // #endif
     return r;
 }
 
-size_t InfluxDBClient::BatchStreamer::write(uint8_t data)  {
+size_t InfluxDBClient::BatchStreamer::write(uint8_t)  {
     return 0;
 }

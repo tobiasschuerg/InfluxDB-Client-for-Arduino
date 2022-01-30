@@ -52,7 +52,7 @@ QueryParams &QueryParams::operator=(const QueryParams &other) {
 }
 
 QueryParams &QueryParams::add(const String &name, float value, int decimalPlaces) {
-  return add(name, (double)value);
+  return add(name, (double)value, decimalPlaces);
 }
 
 QueryParams &QueryParams::add(const String &name, double value, int decimalPlaces) {
