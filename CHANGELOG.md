@@ -5,6 +5,8 @@
   - Arduino `String` class
   - C `char *` or `char[]` 
   - Flash string using `F`,`PSTR` or `FPSTR` macros
+### Fixes 
+ - [176](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/176) - Cleared all compiler warnings
 
 ## 3.10.0 [2022-01-20]
 ### Features

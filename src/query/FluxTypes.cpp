@@ -38,8 +38,7 @@ const char	*FluxBinaryDataTypeBase64         = "base64Binary";
 const char	*FluxDatatypeDatetimeRFC3339      = "dateTime:RFC3339";
 const char	*FluxDatatypeDatetimeRFC3339Nano  = "dateTime:RFC3339Nano";
 
-FluxBase::FluxBase(const String &rawValue) {
-    _rawValue = rawValue;
+FluxBase::FluxBase(const String &rawValue):_rawValue(rawValue) {
 }
 
 FluxBase::~FluxBase() {
@@ -144,7 +143,7 @@ FluxString::FluxString(const String &rawValue, const char *type):FluxString(rawV
 
 }
 
-FluxString::FluxString(const String &rawValue, const String &value, const char *type):FluxBase(rawValue),value(value),_type(type)
+FluxString::FluxString(const String &rawValue, const String &value, const char *type):FluxBase(rawValue),_type(type),value(value)
 {
 
 }
