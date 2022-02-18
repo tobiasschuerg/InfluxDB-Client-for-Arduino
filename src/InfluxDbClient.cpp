@@ -55,14 +55,14 @@ InfluxDBClient::InfluxDBClient() {
    resetBuffer();
 }
 
-InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *db):InfluxDBClient() {
+InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &db):InfluxDBClient() {
     setConnectionParamsV1(serverUrl, db);
 }
 
-InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken):InfluxDBClient(serverUrl, org, bucket, authToken, nullptr) { 
+InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken):InfluxDBClient(serverUrl, org, bucket, authToken, nullptr) { 
 }
 
-InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert):InfluxDBClient() {
+InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *serverCert):InfluxDBClient() {
     setConnectionParams(serverUrl, org, bucket, authToken, serverCert);
 }
 
@@ -70,7 +70,7 @@ void InfluxDBClient::setInsecure(bool value){
   _connInfo.insecure = value;
 }
 
-void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
+void InfluxDBClient::setConnectionParams(const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *certInfo) {
     clean();
     _connInfo.serverUrl = serverUrl;
     _connInfo.bucket = bucket;
@@ -80,7 +80,7 @@ void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org,
     _connInfo.dbVersion = 2;
 }
 
-void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db, const char *user, const char *password, const char *certInfo) {
+void InfluxDBClient::setConnectionParamsV1(const String &serverUrl, const String &db, const String &user, const String &password, const char *certInfo) {
     clean();
     _connInfo.serverUrl = serverUrl;
     _connInfo.bucket = db;
