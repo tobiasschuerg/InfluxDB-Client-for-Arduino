@@ -141,8 +141,12 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._retryInterval == 5);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
-    //ConnectionInfo connInfo = { "http://localhost:8086", "","", "my-token", 2, "", "", nullptr, false, "" };
-    ConnectionInfo connInfo = {.serverUrl= "http://localhost:8086", .authToken = "my-token"};
+    ConnectionInfo connInfo = {
+            serverUrl: "http://localhost:8086", 
+            bucket: "",
+            org: "",
+            authToken: "my-token"
+    };
     HTTPService s(&connInfo);
     TEST_ASSERT(!s._httpOptions._connectionReuse);
     TEST_ASSERT(s._httpOptions._httpReadTimeout == 5000);
