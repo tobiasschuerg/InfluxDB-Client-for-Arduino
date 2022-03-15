@@ -129,6 +129,8 @@ public:
     uint32_t getLastRequestTime() const { return _lastRequestTime; }
     // Returns response of last failed call.
     String getLastErrorMessage() const { return _pConnInfo->lastError; }
+    // Returns true if HTTP connection is kept open
+    bool isConnected() const { return _httpClient && _httpClient->connected(); }
 };
 
 #endif //_HTTP_SERVICE_H_
