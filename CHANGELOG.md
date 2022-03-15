@@ -1,4 +1,8 @@
 # Changelog
+## Unreleased
+### Features
+- [185](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/185) - Added diagnostic connection state getter `bool InfluxDBClient::isConnected()`
+
 ## 3.11.0 [2022-02-18]
 ### Features
  - [174](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/174),[181](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/181) - All API methods with a string param allow specifying string by all basic types:

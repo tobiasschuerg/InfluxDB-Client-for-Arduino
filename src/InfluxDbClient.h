@@ -164,7 +164,8 @@ class InfluxDBClient {
     // Enables/disables streaming write. This allows sending large batches without allocating buffer.
     // It is about 50% slower than writing by allocated buffer (default);
     void setStreamWrite(bool enable = true);
-    // 
+    // Returns true if HTTP connection is kept open (connection reuse must be set to true)
+    bool isConnected() const { return _service && _service->isConnected(); }
   protected:
     // Checks params and sets up security, if needed.
     // Returns true in case of success, otherwise false
