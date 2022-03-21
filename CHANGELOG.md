@@ -1,7 +1,7 @@
 # Changelog
-## Unreleased
+## 3.12.0 [2022-03-21]
 ### Features
-- [185](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/185) - Added diagnostic connection state getter `bool InfluxDBClient::isConnected()`
+- [185](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/185) - Added diagnostic server connection state getter `bool InfluxDBClient::isConnected()`
 
 ## 3.11.0 [2022-02-18]
 ### Features
