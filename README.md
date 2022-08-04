@@ -14,7 +14,9 @@ Supported devices:
  - ESP8266 with [Arduino core for ESP8266](https://github.com/esp8266/Arduino) at least version [3.0.2](https://github.com/esp8266/Arduino/releases/tag/3.0.2).
  - ESP32 with [Arduino core for the ESP32](https://github.com/espressif/arduino-esp32) at least version [2.0.2](https://github.com/espressif/arduino-esp32/releases/tag/2.0.2). 
 
-This library doesn't support using those devices as a peripheral.
+This library doesn't support using those devices as a peripheral. 
+
+:warning: Only connection over internal WiFi capability is supported for now.
 
 ## Table of contents
 - [InfluxDB Arduino Client](#influxdb-arduino-client)
