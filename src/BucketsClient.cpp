@@ -27,7 +27,6 @@
 #include "BucketsClient.h"
 #include "util/helpers.h"
 
-//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 static const char *propTemplate PROGMEM = "\"%s\":";

@@ -676,10 +676,10 @@ boolean success = influx.write();
 ## Troubleshooting
 All db methods return status. Value `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
 
-When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/InfluxDBClient.cpp` uncomment line 32:
+When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/util/debug.h` uncomment line 33:
 ```cpp
 // Uncomment bellow in case of a problem and rebuild sketch
-#define INFLUXDB_CLIENT_DEBUG
+#define INFLUXDB_CLIENT_DEBUG_ENABLE
 ```
 Then upload your sketch again and see the debug output in the Serial Monitor.
 
