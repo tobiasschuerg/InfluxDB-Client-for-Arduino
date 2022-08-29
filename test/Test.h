@@ -60,6 +60,7 @@ private: // tests
     static void testUserAgent();
     static void testFailedWrites();
     static void testTimestamp();
+    static void testTimestampAdjustment();
     static void testHTTPReadTimeout();
     static void testRetryOnFailedConnection();
     static void testRetryOnFailedConnectionWithFlush();

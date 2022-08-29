@@ -34,11 +34,7 @@
 #include "E2ETest.h"
 
 void setup() {
-#if defined(ESP8266)
-    Serial.begin(74880);
-#else
     Serial.begin(115200);
-#endif    
     delay(2000);
     Serial.println("Initializing tests");
     Serial.println(" Compiled on "  __DATE__ " " __TIME__);

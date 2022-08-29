@@ -68,36 +68,34 @@ unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits) {
     return tsVal;
 }
 
-String timeStampToString(unsigned long long timestamp) {
-    static char buff[50];
-    snprintf(buff, 50, "%llu", timestamp);
-    return String(buff);
+char *timeStampToString(unsigned long long timestamp, int extraCharsSpace) {
+    //22 is max long long string length (18)
+    char *buff = new char[22+extraCharsSpace+1];
+    snprintf(buff, 22, "%llu", timestamp);
+    return buff;
 }
 
-String escapeKey(const String &key, bool escapeEqual) {
-    String ret;
-    ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
+static char escapeChars[] = "=\r\n\t ,";
 
-    for (char c: key)
-    {
-        switch (c)
-        {
-            case '\r':
-            case '\n':
-            case '\t':
-            case ' ':
-            case ',':
-                ret += '\\';
-                break;
-            case '=':
-                if(escapeEqual) {
-                    ret += '\\';
-                }
-                break;
+char *escapeKey(const String &key, bool escapeEqual) {
+    char c,*ret,*d,*s = (char *)key.c_str();
+    int n = 0;
+    while ((c = *s++)) {
+        if(strchr(escapeEqual?escapeChars:escapeChars+1, c)) {
+            n++;
         }
-        ret += c;
     }
-    return ret;
+    ret = new char[key.length()+n+1];
+    s = (char *)key.c_str();
+    d = ret;
+    while ((c = *s++)) {
+       if (strchr(escapeEqual?escapeChars:escapeChars+1,c)) {
+           *d++ = '\\';
+      }
+      *d++ = c;
+   }
+   *d = 0;
+   return ret;
 }
 
 String escapeValue(const char *value) {
@@ -174,4 +172,17 @@ uint8_t getNumLength(long long l) {
         l /=10;
     } while(l);
     return c;
+}
+
+char *cloneStr(const char *str) {
+  char *ret = new char[strlen(str)+1];
+  strcpy(ret, str);
+  return ret;
+}
+
+size_t strLen(const char *str) {
+    if(!str) {
+        return 0;
+    }
+    return strlen(str);
 }

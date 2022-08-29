@@ -29,6 +29,9 @@
 
 #include <Arduino.h>
 
+// Uncomment bellow in case of a problem and rebuild sketch
+//#define INFLUXDB_CLIENT_DEBUG_ENABLE
+
 #ifdef INFLUXDB_CLIENT_DEBUG_ENABLE
 # define INFLUXDB_CLIENT_DEBUG(fmt, ...) Serial.printf("%.03f ",millis()/1000.0f);Serial.printf_P( (PGM_P)PSTR(fmt), ## __VA_ARGS__ )
 #else

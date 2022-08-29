@@ -28,8 +28,6 @@
 #include "Platform.h"
 #include "Version.h"
 
-// Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 static const char TooEarlyMessage[] PROGMEM = "Cannot send request yet because of applied retry strategy. Remaining ";
@@ -287,16 +285,48 @@ void InfluxDBClient::reserveBuffer(int size) {
     }
 }
 
+void InfluxDBClient::addZerosToTimestamp(Point &point, int zeroes) {
+    char *ts = point._timestamp, *s;
+    point._timestamp = new char[strlen(point._timestamp) + 1 + zeroes];
+    strcpy(point._timestamp, ts);
+    s = point._timestamp+strlen(ts);
+    for(int i=0;i<zeroes;i++) {
+        *s++ = '0';
+    }
+    *s = 0;
+    delete [] ts;
+}
+
+void InfluxDBClient::checkPrecisions(Point & point) {
+    if(_writeOptions._writePrecision != WritePrecision::NoTime) {
+        if(!point.hasTime()) {
+            point.setTime(_writeOptions._writePrecision);
+        // Check different write precisions
+        } else if(point._tsWritePrecision != WritePrecision::NoTime && point._tsWritePrecision != _writeOptions._writePrecision) {
+            int diff = int(point._tsWritePrecision) - int(_writeOptions._writePrecision);
+            if(diff > 0) { //point has higher precision, cut 
+                point._timestamp[strlen(point._timestamp)-diff*3] = 0;
+            } else { //point has lower precision, add zeroes
+                addZerosToTimestamp(point, diff*-3);
+            }
+        }
+    // check someone set WritePrecision on point and not on client. NS precision is ok, cause it is default on server
+    } else if(point.hasTime() && point._tsWritePrecision != WritePrecision::NoTime && point._tsWritePrecision != WritePrecision::NS) {
+        int diff = int(WritePrecision::NS) - int(point._tsWritePrecision);
+        addZerosToTimestamp(point, diff*3);
+    } 
+}
+
 bool InfluxDBClient::writePoint(Point & point) {
     if (point.hasFields()) {
-        if(_writeOptions._writePrecision != WritePrecision::NoTime && !point.hasTime()) {
-            point.setTime(_writeOptions._writePrecision);
-        }
+        checkPrecisions(point);
         String line = pointToLineProtocol(point);
         return writeRecord(line);
     }
     return false;
 }
+
+
 
 InfluxDBClient::Batch::Batch(uint16_t size):_size(size) {  
     buffer = new char*[size]; 

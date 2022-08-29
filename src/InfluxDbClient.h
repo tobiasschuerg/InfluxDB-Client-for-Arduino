@@ -50,6 +50,7 @@ class Test;
  * Automaticaly retries failed writes during next write, if server is overloaded.
  */
 class InfluxDBClient {
+  friend class Test;
   public:
     // Creates InfluxDBClient unconfigured instance. 
     // Call to setConnectionParams is required to set up client 
@@ -221,7 +222,6 @@ class InfluxDBClient {
         virtual size_t write(uint8_t data) override;
 
     };
-  friend class Test;
     ConnectionInfo _connInfo;  
     // Cached full write url
     String _writeUrl;
@@ -263,6 +263,10 @@ class InfluxDBClient {
     //  flashOnlyFull - whether to flush only full batches
     // Returns true if successful, false in case of any error 
     bool flushBufferInternal(bool flashOnlyFull);
+    // Checks precision of point and mofifies if needed
+    void checkPrecisions(Point & point);
+    // helper which adds zeroes to timestamo of point to increase precision
+    static void addZerosToTimestamp(Point &point, int zeroes);
 };
 
 

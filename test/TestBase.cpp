@@ -43,7 +43,7 @@ Point *TestBase::createPoint(const String &measurement) {
     return point;
 }
 
-bool testAssertm(int line, bool state,String message) {
+bool testAssertm(int line, bool state, const String &message) {
   if(!state) {
     ++TestBase::failures;
     Serial.printf("Assert failure line %d%s%s\n", line, message.length()>0?": ":"",message.c_str());
