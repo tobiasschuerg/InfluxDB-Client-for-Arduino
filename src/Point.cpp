@@ -28,32 +28,38 @@
 #include "Point.h"
 #include "util/helpers.h"
 
-Point::Point(const String & measurement):
-    _measurement(escapeKey(measurement, false)),
-    _tags(""),
-    _fields(""),
-    _timestamp("")
+Point::Point(const String & measurement)
 {
+    _measurement = escapeKey(measurement, false);
+    _timestamp = nullptr;
+}
 
+Point::~Point() {
+    delete [] _measurement;
+    delete [] _timestamp;
 }
 
 void Point::addTag(const String &name, String value) {
     if(_tags.length() > 0) {
         _tags += ',';
     }
-    _tags += escapeKey(name);
+    char *s = escapeKey(name);
+    _tags += s;
+    delete [] s;
     _tags += '=';
-    _tags += escapeKey(value);
+    s = escapeKey(value);
+    _tags += s;
+    delete [] s;
 }
 
 void Point::addField(const String &name, long long value) {
-  char buff[50];
+  char buff[23];
   snprintf(buff, 50, "%lld", value);
   putField(name, String(buff)+"i");
 }
 
 void Point::addField(const String &name, unsigned long long value) {
-  char buff[50];
+  char buff[23];
   snprintf(buff, 50, "%llu", value);
   putField(name, String(buff)+"i");
 }
@@ -110,7 +116,9 @@ void Point::putField(const String &name, const String &value) {
     if(_fields.length() > 0) {
         _fields += ',';
     }
-    _fields += escapeKey(name);
+    char *s = escapeKey(name);
+    _fields += s;
+    delete [] s;
     _fields += '=';
     _fields += value;
 }
@@ -121,7 +129,7 @@ String Point::toLineProtocol(const String &includeTags) const {
 
 String Point::createLineProtocol(const String &incTags) const {
     String line;
-    line.reserve(_measurement.length() + 1 + incTags.length() + 1 + _tags.length() + 1 + _fields.length() + 1 + _timestamp.length());
+    line.reserve(strLen(_measurement) + 1 + incTags.length() + 1 + _tags.length() + 1 + _fields.length() + 1 + strLen(_timestamp));
     line += _measurement;
     if(incTags.length()>0) {
         line += ",";
@@ -160,22 +168,32 @@ void  Point::setTime(WritePrecision precision) {
             setTime(getTimeStamp(&tv,0));
             break;
         case WritePrecision::NoTime:
-            _timestamp = "";
+            setTime((char *)nullptr);
             break;
     }
 }
 
 void  Point::setTime(unsigned long long timestamp) {
-    _timestamp = timeStampToString(timestamp);
+    setTime(timeStampToString(timestamp));
 }
 
-void  Point::setTime(const String &timestamp) {
-    _timestamp = timestamp;
+void Point::setTime(const String &timestamp) {
+    setTime(cloneStr(timestamp.c_str()));
+}
+
+void Point::setTime(const char *timestamp) {
+    setTime(cloneStr(timestamp));    
+}
+
+void Point::setTime(char *timestamp) {
+    delete [] _timestamp;
+    timestamp = timestamp;
 }
 
 void  Point::clearFields() {
     _fields = (char *)nullptr;
-    _timestamp = (char *)nullptr;
+    delete [] _timestamp;
+    _timestamp = nullptr;
 }
 
 void Point:: clearTags() {

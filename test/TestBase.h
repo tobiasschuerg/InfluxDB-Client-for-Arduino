@@ -56,7 +56,7 @@ public:
     static Point *createPoint(const String &measurement);
 };
 
-bool testAssertm(int line, bool state,String message);
+bool testAssertm(int line, bool state,const String &message);
 bool testAssert(int line, bool state);
 
 #endif //_E2E_TEST_H_

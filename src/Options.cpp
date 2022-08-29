@@ -32,8 +32,12 @@ WriteOptions& WriteOptions::addDefaultTag(const String &name, const String &valu
     if(_defaultTags.length() > 0) {
         _defaultTags += ',';
     }
-    _defaultTags += escapeKey(name);
+    char *s = escapeKey(name);
+    _defaultTags += s;
+    delete [] s;
+    s = escapeKey(value);
     _defaultTags += '=';
-    _defaultTags += escapeKey(value);
+    _defaultTags += s;
+    delete [] s;
     return *this; 
 }

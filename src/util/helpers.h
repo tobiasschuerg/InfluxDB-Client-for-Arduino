@@ -39,10 +39,10 @@ void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2
 unsigned long long getTimeStamp(struct timeval *tv, int secFracDigits = 3);
 
 // Converts unsigned long long timestamp to String
-String timeStampToString(unsigned long long timestamp);
+char *timeStampToString(unsigned long long timestamp, int extraCharsSpace = 0);
 
 // Escape invalid chars in measurement, tag key, tag value and field key
-String escapeKey(const String &key, bool escapeEqual = true);
+char *escapeKey(const String &key, bool escapeEqual = true);
 
 // Escape invalid chars in field value
 String escapeValue(const char *value);
@@ -54,5 +54,10 @@ bool isValidID(const char *idString);
 const char *bool2string(bool val);
 // Returns number of digits
 uint8_t getNumLength(long long l);
+// Like strdup, but uses new
+char *cloneStr(const char *str);
+// Like strlen, but accepts nullptr
+size_t strLen(const char *str);
+
 
 #endif //_INFLUXDB_CLIENT_HELPERS_H
