@@ -84,6 +84,7 @@ friend class InfluxDBClient;
     String _tags;
     String _fields;
     char *_timestamp;
+    WritePrecision _tsWritePrecision;
   protected:    
     // method for formating field into line protocol
     void putField(const String &name, const String &value);

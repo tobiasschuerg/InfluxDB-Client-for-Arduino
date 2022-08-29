@@ -263,6 +263,10 @@ class InfluxDBClient {
     //  flashOnlyFull - whether to flush only full batches
     // Returns true if successful, false in case of any error 
     bool flushBufferInternal(bool flashOnlyFull);
+    // Checks precision of point and mofifies if needed
+    void checkPrecisions(Point & point);
+    // helper which adds zeroes to timestamo of point to increase precision
+    static void addZerosToTimestamp(Point &point, int zeroes);
 };
 
 

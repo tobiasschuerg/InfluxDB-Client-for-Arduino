@@ -32,6 +32,7 @@ Point::Point(const String & measurement)
 {
     _measurement = escapeKey(measurement, false);
     _timestamp = nullptr;
+    _tsWritePrecision = WritePrecision::NoTime;
 }
 
 Point::~Point() {
@@ -171,6 +172,7 @@ void  Point::setTime(WritePrecision precision) {
             setTime((char *)nullptr);
             break;
     }
+    _tsWritePrecision = precision;
 }
 
 void  Point::setTime(unsigned long long timestamp) {
@@ -187,7 +189,7 @@ void Point::setTime(const char *timestamp) {
 
 void Point::setTime(char *timestamp) {
     delete [] _timestamp;
-    timestamp = timestamp;
+    _timestamp = timestamp;
 }
 
 void  Point::clearFields() {

@@ -71,6 +71,7 @@ void Test::run() {
     testLargeBatch();  
     testFailedWrites();
     testTimestamp();
+    testTimestampAdjustment();
     testRetryOnFailedConnection();
     testRetryOnFailedConnectionWithFlush();
     testNonRetry();
@@ -1217,10 +1218,11 @@ void Test::testTimestamp() {
         delayMicroseconds(100);
     }
 
-
+    
     serverLog(Test::apiUrl, "testTimestamp");
     InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     client.setWriteOptions(WritePrecision::S, 1, 5);
+    waitServer(Test::managementUrl, true);
     //test with no batching
     TEST_ASSERT(client.validateConnection());
     uint32_t timestamp;
@@ -1281,6 +1283,44 @@ void Test::testTimestamp() {
     TEST_END();
     deleteAll(Test::apiUrl);
     serverLog(Test::apiUrl, "testTimestamp end");
+}
+
+void Test::testTimestampAdjustment() {
+    TEST_INIT("testTimestampAdjustment");
+    InfluxDBClient client;
+    // test no client precision, but on point
+    Point point("a");
+    point.setTime(WritePrecision::S);
+    client.checkPrecisions(point);
+    TEST_ASSERTM(point.getTime().endsWith("000000000"),point.getTime() );
+
+    point.setTime(WritePrecision::MS);
+    client.checkPrecisions(point);
+    TEST_ASSERTM(point.getTime().endsWith("000"),point.getTime() );
+
+    //test not modified ts
+    point.setTime(WritePrecision::NS);
+    String a = point.getTime();
+    client.checkPrecisions(point);
+    TEST_ASSERTM(a == point.getTime(), point.getTime() );
+    
+    // test client precision and not point
+    client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::S));
+    point.setTime(WritePrecision::NoTime);
+    TEST_ASSERTM(!point.hasTime(), point.getTime() );
+    client.checkPrecisions(point);
+    TEST_ASSERTM(point.getTime().length() == 10, point.getTime() );
+    // test cut
+    point.setTime(WritePrecision::US);
+    client.checkPrecisions(point);
+    TEST_ASSERTM(point.getTime().length() == 10, point.getTime() );
+    // test extending
+    client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::US));
+    point.setTime(WritePrecision::S);
+    client.checkPrecisions(point);
+    TEST_ASSERTM(point.getTime().endsWith("000000"),point.getTime() );
+
+    TEST_END();
 }
 
 void Test::testV1() {
