@@ -1,5 +1,5 @@
 # Changelog
-## Unreleased
+##  3.12.1 [2022-08-29]
 ### Fixes
 - [193](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/193) - Automatically adjusting point timestamp  according to the setting of write precision. 
 
