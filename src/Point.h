@@ -30,6 +30,7 @@
 #include <Arduino.h>
 #include "WritePrecision.h"
 #include "util/helpers.h"
+#include <memory>
 
 /**
  * Class Point represents InfluxDB point in line protocol.
@@ -39,6 +40,8 @@ class Point {
 friend class InfluxDBClient;
   public:
     Point(const String &measurement);
+    Point(const Point &other);
+    Point& operator=(const Point &other);
     virtual ~Point();
     // Adds string tag 
     void addTag(const String &name, String value);
@@ -70,21 +73,27 @@ friend class InfluxDBClient;
     // Clear tags
     void clearTags();
     // True if a point contains at least one field. Points without a field cannot be written to db
-    bool hasFields() const { return _fields.length() > 0; }
+    bool hasFields() const { return _data->fields.length() > 0; }
     // True if a point contains at least one tag
-    bool hasTags() const   { return _tags.length() > 0; }
+    bool hasTags() const   { return _data->tags.length() > 0; }
     // True if a point contains timestamp
-    bool hasTime() const   { return strLen(_timestamp) > 0; }
+    bool hasTime() const   { return strLen(_data->timestamp) > 0; }
     // Creates line protocol with optionally added tags
     String toLineProtocol(const String &includeTags = "") const;
     // returns current timestamp
-    String getTime() const { return _timestamp; } 
+    String getTime() const { return _data->timestamp; } 
   protected:
-    char *_measurement;
-    String _tags;
-    String _fields;
-    char *_timestamp;
-    WritePrecision _tsWritePrecision;
+    class Data {
+      public:
+        Data(char *measurement);
+        ~Data();
+        char *measurement;
+        String tags;
+        String fields;
+        char *timestamp;
+        WritePrecision tsWritePrecision;
+    };
+    std::shared_ptr<Data> _data;
   protected:    
     // method for formating field into line protocol
     void putField(const String &name, const String &value);

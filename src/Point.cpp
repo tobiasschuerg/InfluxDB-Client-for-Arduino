@@ -30,27 +30,45 @@
 
 Point::Point(const String & measurement)
 {
-    _measurement = escapeKey(measurement, false);
-    _timestamp = nullptr;
-    _tsWritePrecision = WritePrecision::NoTime;
+  _data = std::make_shared<Data>(escapeKey(measurement, false));
 }
 
 Point::~Point() {
-    delete [] _measurement;
-    delete [] _timestamp;
+}
+
+Point::Data::Data(char * measurement) {
+  this->measurement = measurement;
+  timestamp = nullptr;
+  tsWritePrecision = WritePrecision::NoTime;
+}
+
+Point::Data::~Data() {
+  delete [] measurement;
+  delete [] timestamp;
+}
+
+Point::Point(const Point &other) {
+  *this = other;
+}
+
+Point& Point::operator=(const Point &other) {
+  if(this != &other) {
+    this->_data = other._data;
+  }
+  return *this;
 }
 
 void Point::addTag(const String &name, String value) {
-    if(_tags.length() > 0) {
-        _tags += ',';
-    }
-    char *s = escapeKey(name);
-    _tags += s;
-    delete [] s;
-    _tags += '=';
-    s = escapeKey(value);
-    _tags += s;
-    delete [] s;
+  if(_data->tags.length() > 0) {
+      _data->tags += ',';
+  }
+  char *s = escapeKey(name);
+  _data->tags += s;
+  delete [] s;
+  _data->tags += '=';
+  s = escapeKey(value);
+  _data->tags += s;
+  delete [] s;
 }
 
 void Point::addField(const String &name, long long value) {
@@ -114,14 +132,14 @@ void Point::addField(const String &name, const String &value)  {
 }
 
 void Point::putField(const String &name, const String &value) {
-    if(_fields.length() > 0) {
-        _fields += ',';
+    if(_data->fields.length() > 0) {
+        _data->fields += ',';
     }
     char *s = escapeKey(name);
-    _fields += s;
+    _data->fields += s;
     delete [] s;
-    _fields += '=';
-    _fields += value;
+    _data->fields += '=';
+    _data->fields += value;
 }
 
 String Point::toLineProtocol(const String &includeTags) const {
@@ -130,23 +148,23 @@ String Point::toLineProtocol(const String &includeTags) const {
 
 String Point::createLineProtocol(const String &incTags) const {
     String line;
-    line.reserve(strLen(_measurement) + 1 + incTags.length() + 1 + _tags.length() + 1 + _fields.length() + 1 + strLen(_timestamp));
-    line += _measurement;
+    line.reserve(strLen(_data->measurement) + 1 + incTags.length() + 1 + _data->tags.length() + 1 + _data->fields.length() + 1 + strLen(_data->timestamp));
+    line += _data->measurement;
     if(incTags.length()>0) {
         line += ",";
         line += incTags;
     }
     if(hasTags()) {
         line += ",";
-        line += _tags;
+        line += _data->tags;
     }
     if(hasFields()) {
         line += " ";
-        line += _fields;
+        line += _data->fields;
     }
     if(hasTime()) {
         line += " ";
-        line += _timestamp;
+        line += _data->timestamp;
     }
     return line;
  }
@@ -172,7 +190,7 @@ void  Point::setTime(WritePrecision precision) {
             setTime((char *)nullptr);
             break;
     }
-    _tsWritePrecision = precision;
+    _data->tsWritePrecision = precision;
 }
 
 void  Point::setTime(unsigned long long timestamp) {
@@ -188,16 +206,16 @@ void Point::setTime(const char *timestamp) {
 }
 
 void Point::setTime(char *timestamp) {
-    delete [] _timestamp;
-    _timestamp = timestamp;
+    delete [] _data->timestamp;
+    _data->timestamp = timestamp;
 }
 
 void  Point::clearFields() {
-    _fields = (char *)nullptr;
-    delete [] _timestamp;
-    _timestamp = nullptr;
+    _data->fields = (char *)nullptr;
+    delete [] _data->timestamp;
+    _data->timestamp = nullptr;
 }
 
 void Point:: clearTags() {
-    _tags = (char *)nullptr;
+    _data->tags = (char *)nullptr;
 }

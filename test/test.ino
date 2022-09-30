@@ -51,22 +51,21 @@ void setup() {
 }
 
 void loop() {
-    uint32_t startRAM = ESP.getFreeHeap();
-    Serial.printf("Start RAM: %d\n", startRAM);
     time_t now = time(nullptr);
     Serial.print("Start time: ");
     Serial.println(ctime(&now));
     uint32_t start = millis();
-
+    uint32_t startRAM = ESP.getFreeHeap();
+    Serial.printf("Start RAM: %d\n", startRAM);
     Test::run();
     E2ETest::run();
-
+    uint32_t endRAM = ESP.getFreeHeap();
+    Serial.printf("End RAM %d, diff: %d\n", endRAM, endRAM-startRAM);
     now = time(nullptr);
     Serial.print("End time: ");
     Serial.print(ctime(&now));
     Serial.printf("  Took: %.1fs\n", (millis()-start)/1000.0f);
-    uint32_t endRAM = ESP.getFreeHeap();
-    Serial.printf("End RAM %d, diff: %d\n", endRAM, endRAM-startRAM);
+    
 
     while(1) {
         delay(1000);

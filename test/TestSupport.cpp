@@ -69,15 +69,24 @@ int httpGET(const String &url) {
 }
 
 bool deleteAll(const String &url) {
-  return httpPOST(url + "/api/v2/delete","") == 204;
+  if(WiFi.isConnected()) {
+    return httpPOST(url + "/api/v2/delete","") == 204;
+  }
+  return false;
 }
 
 bool serverLog(const String &url, String mess) {
-  return httpPOST(url + "/log", mess) == 204;
+  if(WiFi.isConnected()) {
+    return httpPOST(url + "/log", mess) == 204;
+  } 
+  return false;
 }
 
 bool isServerUp(const String &url) {
+  if(WiFi.isConnected()) {
     return httpGET(url + "/status") == 200;
+  }
+  return false;
 }
 
 

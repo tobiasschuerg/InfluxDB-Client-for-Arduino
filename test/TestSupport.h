@@ -28,6 +28,12 @@
 #ifndef _TEST_SUPPORT_H_
 #define _TEST_SUPPORT_H_
 
+#if defined(ESP32)
+#include <WiFi.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#endif
+
 #include "query/FluxParser.h"
 
 void printFreeHeap();

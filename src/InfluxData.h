@@ -28,10 +28,10 @@
 
 class InfluxData : public Point {
  public:
-  InfluxData(String measurement) : Point(measurement) {}
+  InfluxData(const String &measurement) : Point(measurement) {}
 
-  void addValue(String key, float value) { addField(key, value); }
-  void addValueString(String key, String value) { addField(key, value); }
+  void addValue(const String &key, float value) { addField(key, value); }
+  void addValueString(const String &key, String value) { addField(key, value); }
   void setTimestamp(long int seconds);
   String toString() const;
 };
