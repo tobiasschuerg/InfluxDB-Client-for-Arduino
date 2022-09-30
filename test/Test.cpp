@@ -30,7 +30,7 @@
 
 #include <Platform.h>
 #include "../src/Version.h"
-
+#include "InfluxData.h"
 
 #define INFLUXDB_CLIENT_TESTING_BAD_URL "http://127.0.0.1:999"
 
@@ -41,6 +41,7 @@ void Test::run() {
     testUtils();
     testOptions();
     testPoint();
+    testOldAPI();
     testBatch();
     testLineProtocol();
     testEcaping();
@@ -48,6 +49,8 @@ void Test::run() {
     testIsValidID();
     testFluxTypes();
     testFluxTypesSerialization();
+    testTimestampAdjustment();
+
     testFluxParserEmpty();
     testFluxParserSingleTable();
     testFluxParserNilValue();
@@ -71,7 +74,7 @@ void Test::run() {
     testLargeBatch();  
     testFailedWrites();
     testTimestamp();
-    testTimestampAdjustment();
+    
     testRetryOnFailedConnection();
     testRetryOnFailedConnectionWithFlush();
     testNonRetry();
@@ -83,6 +86,7 @@ void Test::run() {
     testBuckets(); 
     testQueryWithParams();
     Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
+    serverLog(TestBase::managementUrl, String("Tests ") + (failures ? "FAILED" : "SUCCEEDED"));
 }
 
 void Test::testUtils() {
@@ -304,7 +308,7 @@ void Test::testPoint() {
     testLineTime = testLine + " " + snow + "123456789";
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
-    now += 10;
+    now += 5;
     snow = "";
     snow.concat(now);
     p.setTime(snow);
@@ -353,6 +357,33 @@ void Test::testPoint() {
     TEST_ASSERT(!p.hasFields());
     p.addField("nan", (double)NAN);
     TEST_ASSERT(!p.hasFields());
+ 
+    p.addField("a",1);
+    p.addTag("t","a");
+    p.setTime();
+
+    Point p2 = p;
+    Point p3("a");
+    
+    p3 = p2;
+    String lp = p2.toLineProtocol();
+    String lp2 = p3.toLineProtocol();
+    TEST_ASSERTM(lp == lp2, lp+","+lp2);
+
+    TEST_END();
+}
+
+void Test::testOldAPI() {
+    TEST_INIT("testOldAPI");
+    InfluxData d("a"), p("b");
+    d.addValue("float", 1.1);
+    d.addValueString("string", "text");
+    d.setTimestamp(1123456789l);
+
+    p = d;
+    String lp = d.toString();
+    String lp2 = p.toString();
+    TEST_ASSERTM(lp == lp2, lp+","+lp2);
 
     TEST_END();
 }
@@ -399,6 +430,7 @@ void Test::testBatch() {
         TEST_ASSERT(buff[i++] == line[j]);
     }
     TEST_ASSERT(buff[i++] == '\n');
+    delete [] buff;
     TEST_END();
 }
 
@@ -462,7 +494,7 @@ void Test::testLineProtocol() {
     line = client.pointToLineProtocol(p);
     TEST_ASSERTM(line == testLineTime, line);
 
-    now += 10;
+    now += 5;
     snow = "";
     snow += now;
     p.setTime(snow);
@@ -1309,11 +1341,15 @@ void Test::testTimestampAdjustment() {
     point.setTime(WritePrecision::NoTime);
     TEST_ASSERTM(!point.hasTime(), point.getTime() );
     client.checkPrecisions(point);
-    TEST_ASSERTM(point.getTime().length() == 10, point.getTime() );
+    int len = 10;
+    if(!WiFi.isConnected()) {
+        len = 1;
+    }
+    TEST_ASSERTM(point.getTime().length() == len, point.getTime() );
     // test cut
     point.setTime(WritePrecision::US);
     client.checkPrecisions(point);
-    TEST_ASSERTM(point.getTime().length() == 10, point.getTime() );
+    TEST_ASSERTM(point.getTime().length() == len, point.getTime() );
     // test extending
     client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::US));
     point.setTime(WritePrecision::S);
@@ -1476,25 +1512,25 @@ void Test::testFluxTypesSerialization() {
 
     struct strTest {
         FluxBase *fb;
-        const char *json;
+        const __FlashStringHelper * json;
     };
 
     strTest tests[] = {
-        { new FluxLong("long", -2020123456), "\"long\":-2020123456" },
-        { new FluxUnsignedLong("ulong", 2020123456), "\"ulong\":2020123456" },
-        { new FluxBool("bool", false),  "\"bool\":false"},
-        { new FluxDouble("double", 28.3, 1), "\"double\":28.3"},
-        { new FluxDateTime("dateTime", FluxDatatypeDatetimeRFC3339Nano, {15,34,9,22,4,120,0,0,0}, 123456), "\"dateTime\":\"2020-05-22T09:34:15.123456Z\""},
-        { new FluxString("string", "my text", FluxDatatypeString), "\"string\":\"my text\""},
-        { new FluxDouble("double", 21328.3132213,5), "\"double\":21328.31322"}
+        { new FluxLong("long", -2020123456), F("\"long\":-2020123456") },
+        { new FluxUnsignedLong("ulong", 2020123456), F("\"ulong\":2020123456") },
+        { new FluxBool("bool", false),  F("\"bool\":false")},
+        { new FluxDouble("double", 28.3, 1), F("\"double\":28.3")},
+        { new FluxDateTime("dateTime", FluxDatatypeDatetimeRFC3339Nano, {15,34,9,22,4,120,0,0,0}, 123456), F("\"dateTime\":\"2020-05-22T09:34:15.123456Z\"")},
+        { new FluxString("string", "my text", FluxDatatypeString), F("\"string\":\"my text\"")},
+        { new FluxDouble("double", 21328.3132213,5), F("\"double\":21328.31322")},
+        { new FluxString("duration", "-1h", FluxDatatypeDuration), F("\"duration\":\"-1h\"")}
     };
 
-    for(int i=0;i<7;i++) {
+    for(int i=0;i<sizeof(tests)/sizeof(strTest);i++) {
         char *buff = tests[i].fb->jsonString();
         delete tests[i].fb;
-        String json = buff;
+        TEST_ASSERTM(String(tests[i].json).equals(buff), buff);
         delete [] buff;
-        TEST_ASSERTM(json == tests[i].json , json);
     }
 
     TEST_END();

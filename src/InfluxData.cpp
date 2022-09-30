@@ -29,8 +29,8 @@
 
 void InfluxData::setTimestamp(long int seconds) 
 { 
-    _timestamp = timeStampToString(seconds,9);
-    strcat(_timestamp, "000000000"); 
+    _data->timestamp = timeStampToString(seconds,9);
+    strcat(_data->timestamp, "000000000"); 
 }
 
  String InfluxData::toString() const { 

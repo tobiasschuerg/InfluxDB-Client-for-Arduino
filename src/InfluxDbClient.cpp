@@ -286,10 +286,10 @@ void InfluxDBClient::reserveBuffer(int size) {
 }
 
 void InfluxDBClient::addZerosToTimestamp(Point &point, int zeroes) {
-    char *ts = point._timestamp, *s;
-    point._timestamp = new char[strlen(point._timestamp) + 1 + zeroes];
-    strcpy(point._timestamp, ts);
-    s = point._timestamp+strlen(ts);
+    char *ts = point._data->timestamp, *s;
+    point._data->timestamp = new char[strlen(point._data->timestamp) + 1 + zeroes];
+    strcpy(point._data->timestamp, ts);
+    s = point._data->timestamp+strlen(ts);
     for(int i=0;i<zeroes;i++) {
         *s++ = '0';
     }
@@ -302,17 +302,17 @@ void InfluxDBClient::checkPrecisions(Point & point) {
         if(!point.hasTime()) {
             point.setTime(_writeOptions._writePrecision);
         // Check different write precisions
-        } else if(point._tsWritePrecision != WritePrecision::NoTime && point._tsWritePrecision != _writeOptions._writePrecision) {
-            int diff = int(point._tsWritePrecision) - int(_writeOptions._writePrecision);
+        } else if(point._data->tsWritePrecision != WritePrecision::NoTime && point._data->tsWritePrecision != _writeOptions._writePrecision) {
+            int diff = int(point._data->tsWritePrecision) - int(_writeOptions._writePrecision);
             if(diff > 0) { //point has higher precision, cut 
-                point._timestamp[strlen(point._timestamp)-diff*3] = 0;
+                point._data->timestamp[strlen(point._data->timestamp)-diff*3] = 0;
             } else { //point has lower precision, add zeroes
                 addZerosToTimestamp(point, diff*-3);
             }
         }
     // check someone set WritePrecision on point and not on client. NS precision is ok, cause it is default on server
-    } else if(point.hasTime() && point._tsWritePrecision != WritePrecision::NoTime && point._tsWritePrecision != WritePrecision::NS) {
-        int diff = int(WritePrecision::NS) - int(point._tsWritePrecision);
+    } else if(point.hasTime() && point._data->tsWritePrecision != WritePrecision::NoTime && point._data->tsWritePrecision != WritePrecision::NS) {
+        int diff = int(WritePrecision::NS) - int(point._data->tsWritePrecision);
         addZerosToTimestamp(point, diff*3);
     } 
 }
