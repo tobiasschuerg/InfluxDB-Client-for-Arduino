@@ -1,5 +1,5 @@
 # Changelog
-## [unreleased]
+##  3.12.2 [2022-09-30]
 ### Fixes
 - [198](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/198) - Effective passing Point by value
 
