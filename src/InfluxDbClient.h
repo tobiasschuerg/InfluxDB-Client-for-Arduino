@@ -204,17 +204,17 @@ class InfluxDBClient {
       public:
         BatchStreamer(Batch *batch) ;
         virtual ~BatchStreamer() {};
+        // Clears pointers to start reading from beginning
+        void reset();
 
           // Stream overrides
         virtual int available() override;
 
-        virtual int availableForWrite() override;
+        virtual int availableForWrite();
 
         virtual int read() override;
-#if defined(ESP8266)        
-        virtual int read(uint8_t* buffer, size_t len) override;
-#endif
-        virtual size_t readBytes(char* buffer, size_t len) override;
+        virtual int read(uint8_t* buffer, size_t len);
+        virtual size_t readBytes(char* buffer, size_t len);
 
         virtual void flush() override {};
         virtual int peek()  override;
