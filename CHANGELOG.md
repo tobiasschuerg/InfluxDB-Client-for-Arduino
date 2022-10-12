@@ -1,4 +1,8 @@
 # Changelog
+##  unreleased
+### Fixes
+- [200](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/200) - Backward compatible compilation. Solves _marked 'override', but does not override_ errors.
+
 ##  3.12.2 [2022-09-30]
 ### Fixes
 - [198](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/198) - Effective passing Point by value

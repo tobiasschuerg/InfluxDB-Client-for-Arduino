@@ -50,7 +50,6 @@ void Test::run() {
     testFluxTypes();
     testFluxTypesSerialization();
     testTimestampAdjustment();
-
     testFluxParserEmpty();
     testFluxParserSingleTable();
     testFluxParserNilValue();
@@ -74,7 +73,6 @@ void Test::run() {
     testLargeBatch();  
     testFailedWrites();
     testTimestamp();
-    
     testRetryOnFailedConnection();
     testRetryOnFailedConnectionWithFlush();
     testNonRetry();
@@ -430,6 +428,18 @@ void Test::testBatch() {
         TEST_ASSERT(buff[i++] == line[j]);
     }
     TEST_ASSERT(buff[i++] == '\n');
+    buff[0] = 0;
+    str.reset();
+    //Test Stream API
+    Stream *s  = &str;
+    TEST_ASSERT(s->available() == len*2+2);
+    TEST_ASSERT(s->readBytes(buff, len+1) == len+1);
+    TEST_ASSERT(s->available() == len+1);
+    TEST_ASSERT(s->readBytes(buff+len+1, len) == len);
+    TEST_ASSERT(s->available() == 1);
+    TEST_ASSERT(s->readBytes(buff+2*len+1, 1) == 1);
+    TEST_ASSERT(s->available() == 0);
+
     delete [] buff;
     TEST_END();
 }
@@ -2459,7 +2469,8 @@ void Test::testLargeBatch() {
 #if defined(ESP8266)
     int batchSize = 330;
 #elif defined(ESP32)
-    int batchSize = 2047;
+    // 2.0.4. introduces a memory hog which causes original 2048 lines cannot be sent
+    int batchSize = 1950;
 #endif
     int len =strlen(line); 
     int points = free/len;
@@ -2477,6 +2488,7 @@ void Test::testLargeBatch() {
             WS_DEBUG_RAM("Full batch");
         }
         TEST_ASSERTM(client.writeRecord(line),client.getLastErrorMessage());
+        yield();
     }
     WS_DEBUG_RAM("Data sent");
     String query = "select";

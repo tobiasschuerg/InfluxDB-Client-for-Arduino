@@ -578,7 +578,7 @@ int InfluxDBClient::postData(Batch *batch) {
 
     BatchStreamer *bs = new BatchStreamer(batch);
     INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
-    INFLUXDB_CLIENT_DEBUG("[D] Sending:\n");       
+    INFLUXDB_CLIENT_DEBUG("[D] Sending %d:\n", bs->available());       
     
     if(!_service->doPOST(_writeUrl.c_str(), bs, PSTR("text/plain"), 204, nullptr)) {
         INFLUXDB_CLIENT_DEBUG("[D] error %d: %s\n", _service->getLastStatusCode(), _service->getLastErrorMessage().c_str());
@@ -724,15 +724,23 @@ int InfluxDBClient::BatchStreamer::availableForWrite() {
     return 0;
 }
 
-#if defined(ESP8266)        
+void InfluxDBClient::BatchStreamer::reset() {
+    _read = 0;
+    _pointer = 0;
+    _linePointer = 0;
+}
+
 int InfluxDBClient::BatchStreamer::read(uint8_t* buffer, size_t len) {
-    INFLUXDB_CLIENT_DEBUG("BatchStream::read %d\n", len);
+    INFLUXDB_CLIENT_DEBUG("BatchStream::read\n");
     return readBytes((char *)buffer, len);
 }
-#endif
-size_t InfluxDBClient::BatchStreamer::readBytes(char* buffer, size_t len) {
 
-    INFLUXDB_CLIENT_DEBUG("BatchStream::readBytes %d\n", len);
+size_t InfluxDBClient::BatchStreamer::readBytes(char* buffer, size_t len) {
+#if defined(ESP8266)
+    INFLUXDB_CLIENT_DEBUG("BatchStream::readBytes %d, free_heap %d, max_alloc_heap %d, heap_fragmentation  %d\n", len, ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation());
+#elif defined(ESP32)
+    INFLUXDB_CLIENT_DEBUG("BatchStream::readBytes %d, free_heap %d, max_alloc_heap %d\n", len, ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+#endif
     unsigned int r=0;
     for(unsigned int i=0;i<len;i++) {
         if(available()) {
