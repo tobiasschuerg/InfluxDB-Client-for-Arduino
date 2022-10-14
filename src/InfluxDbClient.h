@@ -99,7 +99,7 @@ class InfluxDBClient {
     // Returns true if setting was successful. Otherwise check getLastErrorMessage() for an error.
     // Example: 
     //    client.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
-      bool setHTTPOptions(const HTTPOptions &httpOptions);
+    bool setHTTPOptions(const HTTPOptions &httpOptions);
     // Sets connection parameters for InfluxDB 2
     // Must be called before calling any method initiating a connection to server.
     // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:8086)

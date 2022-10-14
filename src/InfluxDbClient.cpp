@@ -226,6 +226,7 @@ bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
     _writeOptions._maxRetryInterval = writeOptions._maxRetryInterval;
     _writeOptions._maxRetryAttempts = writeOptions._maxRetryAttempts;
     _writeOptions._defaultTags = writeOptions._defaultTags;
+    _writeOptions._useServerTimestamp = writeOptions._useServerTimestamp;
     return true;
 }
 
@@ -531,7 +532,7 @@ void  InfluxDBClient::dropCurrentBatch() {
 }
 
 String InfluxDBClient::pointToLineProtocol(const Point& point) {
-    return point.createLineProtocol(_writeOptions._defaultTags);
+    return point.createLineProtocol(_writeOptions._defaultTags, _writeOptions._useServerTimestamp);
 }
 
 bool InfluxDBClient::validateConnection() {

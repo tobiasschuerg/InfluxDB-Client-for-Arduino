@@ -50,6 +50,7 @@ void Test::run() {
     testFluxTypes();
     testFluxTypesSerialization();
     testTimestampAdjustment();
+    testUseServerTimestamp();
     testFluxParserEmpty();
     testFluxParserSingleTable();
     testFluxParserNilValue();
@@ -109,16 +110,10 @@ void Test::testOptions() {
     TEST_ASSERT(defWO._maxRetryInterval == 300);
     TEST_ASSERT(defWO._maxRetryAttempts == 3);
     TEST_ASSERT(defWO._defaultTags.length() == 0);
+    TEST_ASSERT(!defWO._useServerTimestamp);
 
-    //Test max batch size
-//    defWO = WriteOptions().batchSize(1<<14);
-// #if defined(ESP8266)
-//     TEST_ASSERT(defWO._batchSize == 255);
-// #elif defined(ESP32)
-//     TEST_ASSERT(defWO._batchSize == 2047);
-// #endif
 
-    defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(32000).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2");
+    defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(32000).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2").useServerTimestamp(true);
     TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
     TEST_ASSERT(defWO._batchSize == 32000);
     TEST_ASSERT(defWO._bufferSize == 20);
@@ -127,6 +122,7 @@ void Test::testOptions() {
     TEST_ASSERT(defWO._maxRetryInterval == 20);
     TEST_ASSERT(defWO._maxRetryAttempts == 5);
     TEST_ASSERT(defWO._defaultTags == "tag1=val1,tag2=val2");
+    TEST_ASSERT(defWO._useServerTimestamp);
 
     HTTPOptions defHO;
     TEST_ASSERT(!defHO._connectionReuse);
@@ -469,7 +465,9 @@ void Test::testLineProtocol() {
     String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
     TEST_ASSERTM(line == testLine, line);
 
-    client.setWriteOptions(WriteOptions().addDefaultTag("dtag","val"));
+    auto opts = WriteOptions().addDefaultTag("dtag","val");
+
+    client.setWriteOptions(opts);
 
     line = client.pointToLineProtocol(p);
     testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
@@ -542,6 +540,12 @@ void Test::testLineProtocol() {
     TEST_ASSERT(parts[2].length() == snow.length() + 9);
     delete[] parts;
 
+    client.setWriteOptions(opts.useServerTimestamp(true));
+    line = client.pointToLineProtocol(p);
+    parts = getParts(line, ' ', partsCount);
+    TEST_ASSERT(partsCount == 2);
+    delete [] parts;
+
     TEST_END();
 }
 
@@ -580,13 +584,89 @@ void Test::testBasicFunction() {
     TEST_ASSERTM( count == 5, String(count) + " vs 5");  //5 points
 
     // test precision
-    for (int i = (int)WritePrecision::NoTime; i <= (int)WritePrecision::NS; i++) {
+    for (uint8_t i = (int)WritePrecision::NoTime; i <= (int)WritePrecision::NS; i++) {
         client.setWriteOptions((WritePrecision)i, 1);
         Point *p = createPoint("test1");
         p->addField("index", i);
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
         delete p;
     }
+
+
+    TEST_END();
+    deleteAll(Test::apiUrl);
+}
+
+bool checkLinesParts(InfluxDBClient &client, size_t lineCount, int partCount) {
+    bool res = false;
+    do {
+        String query = "select";
+        FluxQueryResult q = client.query(query);
+        TEST_ASSERTM(!q.getError().length(), q.getError());
+        std::vector<String> lines = getLines(q);
+        auto count = lines.size();
+        TEST_ASSERTM( count == lineCount, String(count) + " vs " + String(lineCount));
+        for(size_t i=0;i<count;i++) {
+            int partsCount;
+            String *parts = getParts(lines[i], ',', partsCount);
+            TEST_ASSERTM(partsCount == partCount, String(i) + ":" + lines[i]); 
+            delete[] parts;
+        }
+        res = true;
+    } while(0);
+end:    
+    deleteAll(Test::apiUrl);
+    return res;
+}
+
+
+void Test::testUseServerTimestamp() {
+    TEST_INIT("testUseServerTimestamp");
+
+    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    
+    TEST_ASSERT(waitServer(Test::managementUrl, true));
+
+    // test no precision, no timestamp
+    Point *p = createPoint("test1");
+    TEST_ASSERT(client.writePoint(*p));
+    
+    TEST_ASSERT(checkLinesParts(client, 1, 9));
+
+    // Test no precision, custom timestamp
+    auto opts = WriteOptions().batchSize(2);
+    client.setWriteOptions(opts);
+
+    Point *dir = new Point("dir");
+    dir->addTag("direction", "check-precision");
+    dir->addTag("precision", "no");
+    dir->addField("a","a");
+    p->setTime("1234567890");
+    TEST_ASSERT(client.writePoint(*dir));
+    delete dir;
+    TEST_ASSERT(client.writePoint(*p));
+    
+    TEST_ASSERT(checkLinesParts(client, 1, 10));
+
+    // Test writerecitions + ts
+    client.setWriteOptions(opts.writePrecision(WritePrecision::S));
+
+    dir = new Point("dir");
+    dir->addTag("direction", "check-precision");
+    dir->addTag("precision", "s");
+    dir->addField("a","a");
+    TEST_ASSERT(client.writePoint(*dir));
+    TEST_ASSERT(client.writePoint(*p));
+    
+    TEST_ASSERT(checkLinesParts(client, 1, 10));
+    //test sending only precision
+    client.setWriteOptions(opts.useServerTimestamp(true));
+
+    TEST_ASSERT(client.writePoint(*dir));
+    TEST_ASSERT(client.writePoint(*p));
+    delete dir;
+    delete p;
+    TEST_ASSERT(checkLinesParts(client, 1, 9));
 
     TEST_END();
     deleteAll(Test::apiUrl);
@@ -2467,7 +2547,7 @@ void Test::testLargeBatch() {
     const char *line = "test1,SSID=Bonitoo-ng,deviceId=4288982576 temperature=17,humidity=28i";
     uint32_t free = ESP.getFreeHeap(); 
 #if defined(ESP8266)
-    int batchSize = 330;
+    int batchSize = 320;
 #elif defined(ESP32)
     // 2.0.4. introduces a memory hog which causes original 2048 lines cannot be sent
     int batchSize = 1950;
