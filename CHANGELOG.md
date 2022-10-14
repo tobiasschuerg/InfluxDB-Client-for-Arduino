@@ -1,5 +1,5 @@
 # Changelog
-##  unreleased
+##  3.13.0 [2022-10-14]
 ### Features
 - [202](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/202) - Added option to specify timestamp precision and do not send timestamp. Set using `WriteOption::useServerTimestamptrue)`.
 
