@@ -62,8 +62,10 @@ private:
     // Maximum count of retry attempts of failed writes, default 3
     uint16_t _maxRetryAttempts;
     // Default tags. Default tags are added to every written point. 
-    // There cannot be duplicate tags in default tags and tags included in a point.
+    // There cannot be the same tags in the default tags and among the tags included with a point.
     String _defaultTags;
+    //  Let server assign timestamp in given precision. Do not sent timestamp.
+    bool _useServerTimestamp;
 public:
     WriteOptions():
         _writePrecision(WritePrecision::NoTime),
@@ -72,17 +74,33 @@ public:
         _flushInterval(60),
         _retryInterval(5),
         _maxRetryInterval(300),
-        _maxRetryAttempts(3) {
+        _maxRetryAttempts(3),
+        _useServerTimestamp(false) {
         }
+    // Sets timestamp precision. If timestamp precision is set, but a point does not have a timestamp, timestamp is automatically assigned from the device clock.
+    // If useServerTimestamp is set to true, timestamp is not sent, only precision is specified for the server.
     WriteOptions& writePrecision(WritePrecision precision) { _writePrecision = precision; return *this; }
+    // Sets number of points that will be written to the databases at once. Points are added one by one and when number reaches batch size there are sent to server.
     WriteOptions& batchSize(uint16_t batchSize) { _batchSize = batchSize; return *this; }
+    // Sets size of the write buffer to control maximum number of record to keep in case of write failures.
+    // When max size is reached, oldest records are overwritten.
     WriteOptions& bufferSize(uint16_t bufferSize) { _bufferSize = bufferSize; return *this; }
+    // Sets interval in seconds after whitch points will be written to the db. If 
     WriteOptions& flushInterval(uint16_t flushIntervalSec) { _flushInterval = flushIntervalSec; return *this; }
+    // Sets default retry interval in sec. This is used in case of network failure or if server is bussy and doesn't specify retry interval.  
+    // Setting to zero disables retrying.
     WriteOptions& retryInterval(uint16_t retryIntervalSec) { _retryInterval = retryIntervalSec; return *this; }
+    // Sets maximum retry interval in sec.
     WriteOptions& maxRetryInterval(uint16_t maxRetryIntervalSec) { _maxRetryInterval = maxRetryIntervalSec; return *this; }
+    // Sets maximum number of retry attempts of failed writes.
     WriteOptions& maxRetryAttempts(uint16_t maxRetryAttempts) { _maxRetryAttempts = maxRetryAttempts; return *this; }
+    // Adds new default tag. Default tags are added to every written point. 
+    // There cannot be the same tag in the default tags and in the tags included with a point.
     WriteOptions& addDefaultTag(const String &name, const String &value);
+    // Clears default tag list
     WriteOptions& clearDefaultTags() { _defaultTags = (char *)nullptr; return *this; }
+    // If timestamp precision is set and useServerTimestamp  is true, timestamp from point is not sent, or assigned.
+    WriteOptions& useServerTimestamp(bool useServerTimestamp) { _useServerTimestamp = useServerTimestamp; return *this; }
 };
 
 /**
@@ -105,7 +123,9 @@ public:
         _connectionReuse(false),
         _httpReadTimeout(5000) {
         }
+    // Set true if HTTP connection should be kept open. Usable for frequent writes.
     HTTPOptions& connectionReuse(bool connectionReuse) { _connectionReuse = connectionReuse; return *this; }
+    // Sets timeout after which HTTP stops reading
     HTTPOptions& httpReadTimeout(int httpReadTimeoutMs) { _httpReadTimeout = httpReadTimeoutMs; return *this; }
 };
 

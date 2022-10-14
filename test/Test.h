@@ -44,6 +44,7 @@ private: // tests
     static void testOldAPI();
     static void testBatch();
     static void testLineProtocol();
+    static void testUseServerTimestamp();
     static void testFluxTypes();
     static void testFluxTypesSerialization();
     static void testFluxParserEmpty();

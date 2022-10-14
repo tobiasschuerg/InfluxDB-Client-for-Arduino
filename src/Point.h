@@ -100,6 +100,6 @@ friend class InfluxDBClient;
     // set timestamp
     void setTime(char *timestamp);
     // Creates line protocol string
-    String createLineProtocol(const String &incTags) const;
+    String createLineProtocol(const String &incTags, bool excludeTimestamp = false) const;
 };
 #endif //_POINT_H_

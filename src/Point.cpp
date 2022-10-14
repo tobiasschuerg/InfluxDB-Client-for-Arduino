@@ -146,7 +146,7 @@ String Point::toLineProtocol(const String &includeTags) const {
     return createLineProtocol(includeTags);
 }
 
-String Point::createLineProtocol(const String &incTags) const {
+String Point::createLineProtocol(const String &incTags, bool excludeTimestamp) const {
     String line;
     line.reserve(strLen(_data->measurement) + 1 + incTags.length() + 1 + _data->tags.length() + 1 + _data->fields.length() + 1 + strLen(_data->timestamp));
     line += _data->measurement;
@@ -162,14 +162,14 @@ String Point::createLineProtocol(const String &incTags) const {
         line += " ";
         line += _data->fields;
     }
-    if(hasTime()) {
+    if(hasTime() && !excludeTimestamp) {
         line += " ";
         line += _data->timestamp;
     }
     return line;
  }
 
-void  Point::setTime(WritePrecision precision) {
+void Point::setTime(WritePrecision precision) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     

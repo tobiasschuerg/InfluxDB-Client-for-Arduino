@@ -181,6 +181,7 @@ The client has to be configured with a time precision. The default settings is t
 client.setWriteOptions(WriteOptions().writePrecision(WritePrecision::MS));
 ```
 When a write precision is configured, the client will automatically assign the current time to the timestamp of each written point which doesn't have a timestamp assigned.
+Automated assigning of timestamp can be turned off by using `WriteOption::useServerTimestamp(true)`. Client will still specify a timestamp precision for a server.
 
 If you want to manage timestamp on your own, there are several ways to set the timestamp explicitly.
 - `setTime(WritePrecision writePrecision)` - Sets the timestamp to the actual time in the desired precision. The same precision must set in WriteOptions.

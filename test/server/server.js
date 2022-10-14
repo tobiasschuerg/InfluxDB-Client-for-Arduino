@@ -169,6 +169,12 @@ app.post(prefix + '/api/v2/write', (req,res) => {
                             console.log("Set permanentError: " + permanentError);
                             res.status(permanentError).send("bad request");
                             break;
+                        case 'check-precision':
+                            const precision = req.query['precision'];
+                            if(precision !== point.tags['precision'] && !(!precision && point.tags['precision']=='no')) {
+                                res.status(400).send("bad precision " + precision);
+                            }
+                            break;
                     }
                     
                 }
