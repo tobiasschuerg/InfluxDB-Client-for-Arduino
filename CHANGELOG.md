@@ -1,7 +1,7 @@
 # Changelog
 ##  unreleased
 ### Features
-- [201](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/201) - Added option to specify timestamp precision and do not send timestamp. Set using `WriteOption::useServerTimestamptrue)`.
+- [202](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/202) - Added option to specify timestamp precision and do not send timestamp. Set using `WriteOption::useServerTimestamptrue)`.
 
 ### Fixes
 - [200](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/200) - Backward compatible compilation. Solves _marked 'override', but does not override_ errors.
