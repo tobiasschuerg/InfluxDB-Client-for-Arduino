@@ -161,7 +161,7 @@ String BucketsClient::getOrgID(const char *org) {
   url += urlEncode(org);
   String id;
   INFLUXDB_CLIENT_DEBUG("[D] getOrgID: url %s\n", url.c_str());
-  _data->pService->doGET(url.c_str(), 200, [&id](HTTPClient *client){
+  _data->pService->doGET(url.c_str(), 200, [&id](HTTPService *client){
     id = findProperty("id",client->getString());
     return true;
   });
@@ -195,7 +195,7 @@ Bucket BucketsClient::createBucket(const char *bucketName, uint32_t expiresSec) 
     String url = _data->pService->getServerAPIURL();
     url += "buckets";
     INFLUXDB_CLIENT_DEBUG("[D] CreateBucket: url %s, body %s\n", url.c_str(), body);
-    _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](HTTPClient *client){
+    _data->pService->doPOST(url.c_str(), body, "application/json", 201, [&b](HTTPService *client){
       String resp = client->getString();
       String id = findProperty("id", resp);
       String name = findProperty("name", resp);
@@ -228,7 +228,7 @@ Bucket BucketsClient::findBucket(const char *bucketName) {
     url += "buckets?name=";
     url += urlEncode(bucketName);
     INFLUXDB_CLIENT_DEBUG("[D] findBucket: url %s\n", url.c_str());
-    _data->pService->doGET(url.c_str(), 200, [&b](HTTPClient *client){
+    _data->pService->doGET(url.c_str(), 200, [&b](HTTPService *client){
       String resp = client->getString();
       String id = findProperty("id", resp);
       if(id.length()) {

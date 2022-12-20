@@ -29,19 +29,12 @@
 
 #include "WritePrecision.h"
 
-class InfluxDBClient;
-class HTTPService;
-class Influxdb;
-class Test;
 
 /**
  * WriteOptions holds write related options
  */
 class WriteOptions {
 private:
-    friend class InfluxDBClient;
-    friend class Influxdb;
-    friend class Test;
     // Points timestamp precision
     WritePrecision _writePrecision; 
     // Number of points that will be written to the databases at once. 
@@ -77,30 +70,50 @@ public:
         _maxRetryAttempts(3),
         _useServerTimestamp(false) {
         }
-    // Sets timestamp precision. If timestamp precision is set, but a point does not have a timestamp, timestamp is automatically assigned from the device clock.
+    // Sets the timestamp precision. If timestamp precision is set, but a point does not have a timestamp, timestamp is automatically assigned from the device clock.
     // If useServerTimestamp is set to true, timestamp is not sent, only precision is specified for the server.
     WriteOptions& writePrecision(WritePrecision precision) { _writePrecision = precision; return *this; }
-    // Sets number of points that will be written to the databases at once. Points are added one by one and when number reaches batch size there are sent to server.
+    // Returns the  write precision
+    WritePrecision getWritePrecision() const { return _writePrecision; }
+    // Sets the number of points that will be written to the databases at once. Points are added one by one and when number reaches batch size there are sent to server.
     WriteOptions& batchSize(uint16_t batchSize) { _batchSize = batchSize; return *this; }
-    // Sets size of the write buffer to control maximum number of record to keep in case of write failures.
-    // When max size is reached, oldest records are overwritten.
+    // Returns the count of points that will be written to the databases at once
+    uint16_t getBatchSize() const { return _batchSize; }
+    // Sets the size of the write buffer to control maximum number of record to keep in case of write failures.
+    // When the max size is reached, oldest records are overwritten.
     WriteOptions& bufferSize(uint16_t bufferSize) { _bufferSize = bufferSize; return *this; }
-    // Sets interval in seconds after whitch points will be written to the db. If 
+    // Returns the size of the write buffer
+    uint16_t getBufferSize() const { return _bufferSize; }
+    // Sets the interval, in seconds, after which points will be written to the db. 
     WriteOptions& flushInterval(uint16_t flushIntervalSec) { _flushInterval = flushIntervalSec; return *this; }
-    // Sets default retry interval in sec. This is used in case of network failure or if server is bussy and doesn't specify retry interval.  
+    // Returns the interval, in seconds, after whitch points will be written to the db
+    uint16_t getFlushInterval() const { return _flushInterval; }
+    // Sets the default retry interval in sec. This is used in case of network failure or if server is bussy and doesn't specify retry interval.  
     // Setting to zero disables retrying.
     WriteOptions& retryInterval(uint16_t retryIntervalSec) { _retryInterval = retryIntervalSec; return *this; }
-    // Sets maximum retry interval in sec.
+    // Returns the default retry interval in sec
+    uint16_t getRetryInterval() const  { return _retryInterval; }
+    // Sets the maximum retry interval in sec.
     WriteOptions& maxRetryInterval(uint16_t maxRetryIntervalSec) { _maxRetryInterval = maxRetryIntervalSec; return *this; }
-    // Sets maximum number of retry attempts of failed writes.
+    // Returns the maximum retry interval, in sec
+    uint16_t getMaxRetryInterval() const { return _maxRetryInterval; }
+    // Sets the maximum number of retry attempts of failed writes.
     WriteOptions& maxRetryAttempts(uint16_t maxRetryAttempts) { _maxRetryAttempts = maxRetryAttempts; return *this; }
-    // Adds new default tag. Default tags are added to every written point. 
+    // Returns maximum number of retry attempts of failed writes.
+    uint16_t getMaxRetryAttempts() const { return _maxRetryAttempts; }
+    // Sets default tags list. Default tags are added to every written point. 
+    WriteOptions& defaultTags(const String &tags) {  _defaultTags = tags; return *this; }
+    // Adds new default tag. Default tags are added to every writen point. 
     // There cannot be the same tag in the default tags and in the tags included with a point.
     WriteOptions& addDefaultTag(const String &name, const String &value);
     // Clears default tag list
     WriteOptions& clearDefaultTags() { _defaultTags = (char *)nullptr; return *this; }
+    // Returns the default tag list in line protocol format
+    String getDefaultTags() const { return _defaultTags; } 
     // If timestamp precision is set and useServerTimestamp  is true, timestamp from point is not sent, or assigned.
     WriteOptions& useServerTimestamp(bool useServerTimestamp) { _useServerTimestamp = useServerTimestamp; return *this; }
+    // Returns true if server should assign timestamp if point doesn't contain a timestamp
+    bool isUseServerTimestamp() const { return _useServerTimestamp; }
 };
 
 /**
@@ -108,10 +121,6 @@ public:
  */
 class HTTPOptions {
 private:    
-    friend class InfluxDBClient;
-    friend class HTTPService;
-    friend class Influxdb;
-    friend class Test;
     // true if HTTP connection should be kept open. Usable for frequent writes.
     // Default false.
     bool _connectionReuse;
@@ -127,6 +136,11 @@ public:
     HTTPOptions& connectionReuse(bool connectionReuse) { _connectionReuse = connectionReuse; return *this; }
     // Sets timeout after which HTTP stops reading
     HTTPOptions& httpReadTimeout(int httpReadTimeoutMs) { _httpReadTimeout = httpReadTimeoutMs; return *this; }
+    // Returns true if HTTP connection should be kept open
+    bool isConnectionReuse() const { return _connectionReuse; }
+    // Returns timeout after which HTTP stops reading
+    int getHttpReadTimeout() const { return _httpReadTimeout; }
+
 };
 
 #endif //_OPTIONS_H_

@@ -27,8 +27,15 @@
 #include "InfluxDbClient.h"
 #include "Platform.h"
 #include "Version.h"
-
+#include "config.h"
 #include "util/debug.h"
+
+#ifdef INFLUXDB_CLIENT_NET_ESP   
+# include "ESPHTTPService.h"
+#endif
+#if defined(INFLUXDB_CLIENT_NET_WIFININA) || defined(INFLUXDB_CLIENT_NET_EXTERNAL)
+# include "ArduinoHTTPService.h"
+#endif
 
 static const char TooEarlyMessage[] PROGMEM = "Cannot send request yet because of applied retry strategy. Remaining ";
 
@@ -60,6 +67,26 @@ InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &db):Influx
 InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken):InfluxDBClient(serverUrl, org, bucket, authToken, nullptr) { 
 }
 
+#if defined(INFLUXDB_CLIENT_NET_EXTERNAL)
+InfluxDBClient::InfluxDBClient(Client &client, const String &serverUrl, const String &org, const String &bucket, const String &authToken):InfluxDBClient(client) { 
+    setConnectionParams(client, serverUrl, org, bucket, authToken);
+}
+
+InfluxDBClient::InfluxDBClient(Client &client, const String &serverUrl, const String &db):InfluxDBClient() {
+    setConnectionParamsV1(client, serverUrl, db);
+}
+
+void InfluxDBClient::setConnectionParams(Client &client, const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *certInfo) {
+    setConnectionParamsInternal(&client, serverUrl, org, bucket, (const char *)nullptr,(const char *) nullptr, authToken, certInfo, 2);
+}
+
+void InfluxDBClient::setConnectionParamsV1(Client &client, const String &serverUrl, const String &db, const String &user, const String &password, const char *certInfo) {
+    setConnectionParamsInternal(&client, serverUrl, (const char *)nullptr, db, user, password, (const char *)nullptr, certInfo, 1);
+}
+
+#endif
+
+
 InfluxDBClient::InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *serverCert):InfluxDBClient() {
     setConnectionParams(serverUrl, org, bucket, authToken, serverCert);
 }
@@ -69,23 +96,27 @@ void InfluxDBClient::setInsecure(bool value){
 }
 
 void InfluxDBClient::setConnectionParams(const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *certInfo) {
+    setConnectionParamsInternal(nullptr, serverUrl, org, bucket, (const char *) nullptr, (const char *)nullptr, authToken, certInfo, 2);
+}
+
+
+
+void InfluxDBClient::setConnectionParamsV1(const String &serverUrl, const String &db, const String &user, const String &password, const char *certInfo) {
+    setConnectionParamsInternal(nullptr, serverUrl, (const char *)nullptr, db, user, password, (const char *)nullptr, certInfo, 1);
+}
+
+
+void InfluxDBClient::setConnectionParamsInternal(Client *pClient, const String &serverUrl, const String &org, const String &bucket, const String &user, const String &password, const String &authToken, const char *certInfo, int dbversion) {
     clean();
+    _connInfo.tcpClient = pClient;
     _connInfo.serverUrl = serverUrl;
     _connInfo.bucket = bucket;
     _connInfo.org = org;
-    _connInfo.authToken = authToken;
-    _connInfo.certInfo = certInfo;
-    _connInfo.dbVersion = 2;
-}
-
-void InfluxDBClient::setConnectionParamsV1(const String &serverUrl, const String &db, const String &user, const String &password, const char *certInfo) {
-    clean();
-    _connInfo.serverUrl = serverUrl;
-    _connInfo.bucket = db;
     _connInfo.user = user;
     _connInfo.password = password;
+    _connInfo.authToken = authToken;
     _connInfo.certInfo = certInfo;
-    _connInfo.dbVersion = 1;
+    _connInfo.dbVersion = dbversion;
 }
 
 bool InfluxDBClient::init() {
@@ -110,14 +141,26 @@ bool InfluxDBClient::init() {
         _connInfo.lastError = F("Invalid URL scheme");
         return false;
     }
-    _service = new HTTPService(&_connInfo);
-
+#ifdef INFLUXDB_CLIENT_NET_ESP
+#if defined(INFLUXDB_CLIENT_NET_EXTERNAL)
+    if(_connInfo.tcpClient) {
+        _service = new ArduinoHTTPService(&_connInfo);
+    } else {
+        _service = new ESPHTTPService(&_connInfo);
+    }
+#else //INFLUXDB_CLIENT_NET_EXTERNAL
+    _service = new ESPHTTPService(&_connInfo);    
+#endif //INFLUXDB_CLIENT_NET_EXTERNAL
+#elif defined(INFLUXDB_CLIENT_NET_WIFININA) || defined(INFLUXDB_CLIENT_NET_EXTERNAL)    
+    _service = new ArduinoHTTPService(&_connInfo);
+#endif //INFLUXDB_CLIENT_NET_ESP
+    if(!_service->init()) {
+        return false;
+    }
     setUrls();
     
     return true;
 }
-
-
 
 InfluxDBClient::~InfluxDBClient() {
      if(_writeBuffer) {
@@ -177,9 +220,9 @@ bool InfluxDBClient::setUrls() {
         INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
         INFLUXDB_CLIENT_DEBUG("[D]  queryUrl: %s\n", _queryUrl.c_str());
     }
-    if(_writeOptions._writePrecision != WritePrecision::NoTime) {
+    if(_writeOptions.getWritePrecision() != WritePrecision::NoTime) {
         _writeUrl += "&precision=";
-        _writeUrl += precisionToString(_writeOptions._writePrecision, _connInfo.dbVersion);
+        _writeUrl += precisionToString(_writeOptions.getWritePrecision(), _connInfo.dbVersion);
         INFLUXDB_CLIENT_DEBUG("[D]  writeUrl: %s\n", _writeUrl.c_str());
     }
     return true;
@@ -199,34 +242,34 @@ bool InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
 }
 
 bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
-    if(_writeOptions._writePrecision != writeOptions._writePrecision) {
-        _writeOptions._writePrecision = writeOptions._writePrecision;
+    if(_writeOptions.getWritePrecision() != writeOptions.getWritePrecision()) {
+        _writeOptions.writePrecision(writeOptions.getWritePrecision());
         if(!setUrls()) {
             return false;
         }
     }
     bool writeBufferSizeChanges = false;
-    if(writeOptions._batchSize > 0 && _writeOptions._batchSize != writeOptions._batchSize) {
-        _writeOptions._batchSize = writeOptions._batchSize;
+    if(writeOptions.getBatchSize() > 0 && _writeOptions.getBatchSize() != writeOptions.getBatchSize()) {
+        _writeOptions.batchSize(writeOptions.getBatchSize());
         writeBufferSizeChanges = true;
     }
-    if(writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
-        _writeOptions._bufferSize = writeOptions._bufferSize;
-        if(_writeOptions._bufferSize <  2*_writeOptions._batchSize) {
-            _writeOptions._bufferSize = 2*_writeOptions._batchSize;
-            INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
+    if(writeOptions.getBufferSize() > 0 && _writeOptions.getBufferSize() != writeOptions.getBufferSize()) {
+        _writeOptions.bufferSize(writeOptions.getBufferSize());
+        if(_writeOptions.getBufferSize() <  2*_writeOptions.getBatchSize()) {
+            _writeOptions.bufferSize(2*_writeOptions.getBatchSize());
+            INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions.getBufferSize());
         }
         writeBufferSizeChanges = true;
     }
     if(writeBufferSizeChanges) {
         resetBuffer();
     }
-    _writeOptions._flushInterval = writeOptions._flushInterval;
-    _writeOptions._retryInterval = writeOptions._retryInterval;
-    _writeOptions._maxRetryInterval = writeOptions._maxRetryInterval;
-    _writeOptions._maxRetryAttempts = writeOptions._maxRetryAttempts;
-    _writeOptions._defaultTags = writeOptions._defaultTags;
-    _writeOptions._useServerTimestamp = writeOptions._useServerTimestamp;
+    _writeOptions.flushInterval(writeOptions.getFlushInterval());
+    _writeOptions.retryInterval(writeOptions.getRetryInterval());
+    _writeOptions.maxRetryInterval(writeOptions.getMaxRetryInterval());
+    _writeOptions.maxRetryAttempts(writeOptions.getMaxRetryAttempts());
+    _writeOptions.defaultTags(writeOptions.getDefaultTags());
+    _writeOptions.useServerTimestamp(writeOptions.isUseServerTimestamp());
     return true;
 }
 
@@ -255,8 +298,8 @@ void InfluxDBClient::resetBuffer() {
         }
         delete [] _writeBuffer;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: buffer Size: %d, batch size: %d\n", _writeOptions._bufferSize, _writeOptions._batchSize);
-    uint16_t a = _writeOptions._bufferSize/_writeOptions._batchSize;
+    INFLUXDB_CLIENT_DEBUG("[D] Reset buffer: buffer Size: %d, batch size: %d\n", _writeOptions.getBufferSize(), _writeOptions.getBatchSize());
+    uint16_t a = _writeOptions.getBufferSize()/_writeOptions.getBatchSize();
     //limit to max(byte)
     _writeBufferSize = a>=(1<<8)?(1<<8)-1:a;
     if(_writeBufferSize < 2) {
@@ -299,12 +342,12 @@ void InfluxDBClient::addZerosToTimestamp(Point &point, int zeroes) {
 }
 
 void InfluxDBClient::checkPrecisions(Point & point) {
-    if(_writeOptions._writePrecision != WritePrecision::NoTime) {
+    if(_writeOptions.getWritePrecision() != WritePrecision::NoTime) {
         if(!point.hasTime()) {
-            point.setTime(_writeOptions._writePrecision);
+            point.setTime(_writeOptions.getWritePrecision());
         // Check different write precisions
-        } else if(point._data->tsWritePrecision != WritePrecision::NoTime && point._data->tsWritePrecision != _writeOptions._writePrecision) {
-            int diff = int(point._data->tsWritePrecision) - int(_writeOptions._writePrecision);
+        } else if(point._data->tsWritePrecision != WritePrecision::NoTime && point._data->tsWritePrecision != _writeOptions.getWritePrecision()) {
+            int diff = int(point._data->tsWritePrecision) - int(_writeOptions.getWritePrecision());
             if(diff > 0) { //point has higher precision, cut 
                 point._data->timestamp[strlen(point._data->timestamp)-diff*3] = 0;
             } else { //point has lower precision, add zeroes
@@ -389,7 +432,7 @@ bool InfluxDBClient::writeRecord(const String &record) {
 
 bool InfluxDBClient::writeRecord(const char *record) {    
     if(!_writeBuffer[_bufferPointer]) {
-        _writeBuffer[_bufferPointer] = new Batch(_writeOptions._batchSize);
+        _writeBuffer[_bufferPointer] = new Batch(_writeOptions.getBatchSize());
     }
     if(isBufferFull() && _batchPointer <= _bufferPointer) {
         // When we are overwriting buffer and nothing is written, batchPointer must point to the oldest point
@@ -417,7 +460,7 @@ bool InfluxDBClient::checkBuffer() {
     // in case we (over)reach batchSize with non full buffer
     bool bufferReachedBatchsize = _writeBuffer[_batchPointer] && _writeBuffer[_batchPointer]->isFull();
     // or flush interval timed out
-    bool flushTimeout = _writeOptions._flushInterval > 0 && ((millis() - _lastFlushed)/1000) >= _writeOptions._flushInterval; 
+    bool flushTimeout = _writeOptions.getFlushInterval() > 0 && ((millis() - _lastFlushed)/1000) >= _writeOptions.getFlushInterval(); 
 
     INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", 
         bool2string(bufferReachedBatchsize),bool2string(flushTimeout), bool2string(isBufferFull()));
@@ -474,7 +517,7 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
                 delete [] data;
             }
             // retry on unsuccessfull connection or retryable status codes
-            bool retry = (statusCode < 0 || statusCode >= 429) && _writeOptions._maxRetryAttempts > 0;
+            bool retry = (statusCode < 0 || statusCode >= 429) && _writeOptions.getMaxRetryAttempts() > 0;
             success = statusCode >= 200 && statusCode < 300;
             // advance even on message failure x e <300;429)
             if(success || !retry) {
@@ -483,18 +526,18 @@ bool InfluxDBClient::flushBufferInternal(bool flashOnlyFull) {
             } else if(retry) {
                 _writeBuffer[_batchPointer]->retryCount++;
                 if(statusCode > 0) { //apply retry strategy only in case of HTTP errors
-                    if(_writeBuffer[_batchPointer]->retryCount > _writeOptions._maxRetryAttempts) {
+                    if(_writeBuffer[_batchPointer]->retryCount > _writeOptions.getMaxRetryAttempts()) {
                         INFLUXDB_CLIENT_DEBUG("[D] Reached max retry count, dropping batch\n");
                         dropCurrentBatch();
                     }
                     if(!_retryTime) {
-                        _retryTime = _writeOptions._retryInterval;
+                        _retryTime = _writeOptions.getRetryInterval();
                         if(_writeBuffer[_batchPointer]) {
                             for(int i=1;i<_writeBuffer[_batchPointer]->retryCount;i++) {
-                                _retryTime *= _writeOptions._retryInterval;
+                                _retryTime *= _writeOptions.getRetryInterval();
                             }
-                            if(_retryTime > _writeOptions._maxRetryInterval) {
-                                _retryTime = _writeOptions._maxRetryInterval;
+                            if(_retryTime > _writeOptions.getMaxRetryInterval()) {
+                                _retryTime = _writeOptions.getMaxRetryInterval();
                             }
                         }
                     }
@@ -532,7 +575,7 @@ void  InfluxDBClient::dropCurrentBatch() {
 }
 
 String InfluxDBClient::pointToLineProtocol(const Point& point) {
-    return point.createLineProtocol(_writeOptions._defaultTags, _writeOptions._useServerTimestamp);
+    return point.createLineProtocol(_writeOptions.getDefaultTags(), _writeOptions.isUseServerTimestamp());
 }
 
 bool InfluxDBClient::validateConnection() {
@@ -650,14 +693,8 @@ FluxQueryResult InfluxDBClient::query(const String &fluxQuery, QueryParams param
     CsvReader *reader = nullptr;
     _retryTime = 0;
     INFLUXDB_CLIENT_DEBUG("[D] Query: %s\n", body.c_str());
-    if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPClient *httpClient){
-        bool chunked = false;
-        if(httpClient->hasHeader(TransferEncoding)) {
-            String header = httpClient->header(TransferEncoding);
-            chunked = header.equalsIgnoreCase("chunked");
-        }
-        INFLUXDB_CLIENT_DEBUG("[D] chunked: %s\n", bool2string(chunked));
-        HttpStreamScanner *scanner = new HttpStreamScanner(httpClient, chunked);
+    if(_service->doPOST(_queryUrl.c_str(), body.c_str(), PSTR("application/json"), 200, [&](HTTPService *client){
+        HttpStreamScanner *scanner = new HttpStreamScanner(client);
         reader = new CsvReader(scanner);
         return false;
     })) {

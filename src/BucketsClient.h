@@ -28,7 +28,9 @@
 #define _BUCKETS_CLIENT_H_
 
 #include <HTTPService.h>
+#ifndef ARDUINO_ARCH_AVR
 #include <memory>
+#endif
 
 class BucketsClient;
 class Test;

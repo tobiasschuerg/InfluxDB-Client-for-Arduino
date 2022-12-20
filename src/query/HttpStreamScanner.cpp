@@ -26,29 +26,27 @@
 */
 #include "HttpStreamScanner.h"
 
-// Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 #include "util/helpers.h"
 
-HttpStreamScanner::HttpStreamScanner(HTTPClient *client, bool chunked)
+HttpStreamScanner::HttpStreamScanner(HTTPService *client)
 {
     _client = client;
     _stream = client->getStreamPtr();
-    _chunked = chunked;
-    _chunkHeader = chunked;
+    _chunked = client->isChunked();
+    _chunkHeader = _chunked;
     _len = client->getSize();
     INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: chunked: %s, size: %d\n", bool2string(_chunked), _len);
 }
 
 bool HttpStreamScanner::next() {
-    while(_client->connected() && (_len > 0 || _len == -1)) {
+    while(_client->isConnected() && (_len > 0 || _len == -1)) {
         _line = _stream->readStringUntil('\n');
         INFLUXDB_CLIENT_DEBUG("[D] HttpStreamScanner: line: %s\n", _line.c_str());
         ++_linesNum;
         int lineLen = _line.length();
         if(lineLen == 0) {
-            _error = HTTPC_ERROR_READ_TIMEOUT;
+            _error = -11; //HTTPC_ERROR_READ_TIMEOUT;
             return false;
         } 
         int r = lineLen +1; //+1 for terminating \n
@@ -91,8 +89,8 @@ bool HttpStreamScanner::next() {
         }
         return true;
     }
-    if(!_client->connected() && ( (_chunked && _chunkLen > 0) || (!_chunked && _len > 0))) { //report error only if we didn't went to 
-        _error = HTTPC_ERROR_CONNECTION_LOST;
+    if(!_client->isConnected() && ( (_chunked && _chunkLen > 0) || (!_chunked && _len > 0))) { //report error only if we didn't went to 
+        _error = -5; //HTTPC_ERROR_CONNECTION_LOST;
         INFLUXDB_CLIENT_DEBUG("HttpStreamScanner connection lost\n");
     } 
     return false;
@@ -101,4 +99,19 @@ bool HttpStreamScanner::next() {
 void HttpStreamScanner::close() {
     _client->end();
 }
+
+String HttpStreamScanner::errorToString(int error) {
+  String str = _client->errorToString(error);
+  if(!str.length()) {
+    switch (error)
+    {
+      case -5:
+        return F("connection lost");
+      case -11:
+        return F("read Timeout");
+    }
+  }
+  return str;
+}
+
 

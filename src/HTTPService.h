@@ -28,20 +28,22 @@
 #define _HTTP_SERVICE_H_
 
 #include <Arduino.h>
-#if defined(ESP8266)
-# include <WiFiClientSecureBearSSL.h>
-# include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-# include <HTTPClient.h>
-#else
-# error "This library currently supports only ESP8266 and ESP32."
-#endif
+#include <Client.h>
+
 #include "Options.h"
 
 
 class Test;
-typedef std::function<bool(HTTPClient *client)> httpResponseCallback;
+class HTTPService;
+
+#ifndef ARDUINO_ARCH_AVR
+#include <functional>
+#endif
+
+typedef std::function<bool(HTTPService *client)> httpResponseCallback;
 extern const char *TransferEncoding;
+extern const char *RetryAfter;
+extern const char *UserAgent;
 
 struct ConnectionInfo {
     // Connection info
@@ -62,6 +64,8 @@ struct ConnectionInfo {
     bool insecure;
     // Error message of last failed operation
     String lastError;
+    // Underlying client
+    Client *tcpClient;
 };
 
 /**
@@ -69,8 +73,8 @@ struct ConnectionInfo {
  * while taking care of Authorization and error handling
  **/
 class HTTPService {
-friend class Test;  
-  private:
+  friend class Test;  
+  protected:
     // Connection info data
     ConnectionInfo *_pConnInfo;    
     // Server API URL
@@ -79,58 +83,89 @@ friend class Test;
     uint32_t _lastRequestTime = 0;
     // HTTP status code of last request to server
     int _lastStatusCode = 0;
-    // Underlying HTTPClient instance 
-    HTTPClient *_httpClient = nullptr;
-    // Underlying connection object 
-    WiFiClient *_wifiClient = nullptr;
-#ifdef  ESP8266
-    // Trusted cert chain
-    BearSSL::X509List *_cert = nullptr;   
-#endif
     // Store retry timeout suggested by server after last request
     int _lastRetryAfter = 0;     
+    // was last call chunked
+    bool _isChunked = false; 
      // HTTP options
     HTTPOptions _httpOptions;
-protected:
-    // Sets request params
-    bool beforeRequest(const char *url);
-    // Handles response
-    bool afterRequest(int expectedStatusCode, httpResponseCallback cb, bool modifyLastConnStatus = true);
-public: 
+  protected:
+    // Initilises HTTP request and sets common request params, such as Authentication
+    virtual bool beforeRequest(const char *url, const char *method, const char *contentType);
+    // Handles response status, parses common headers, such as Retry-After
+    // When modifyLastConnStatus is true, this method must set lastRequestTime and 
+    virtual bool afterRequest(int expectedStatusCode, httpResponseCallback cb, bool modifyLastConnStatus = true);
+  public: 
     // Creates HTTPService instance
     // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:8086)
     // authToken - InfluxDB 2 authorization token 
     // certInfo - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
     HTTPService(ConnectionInfo *pConnInfo);
     // Clean instance on deletion
-    ~HTTPService();
+    virtual ~HTTPService() {};
     // Sets custom HTTP options. See HTTPOptions doc for more info. 
     // Must be called before calling any method initiating a connection to server.
+    // When overriging to apply setting to an HTTP client, always call ancestor function
     // Example: 
     //    service.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
-    void setHTTPOptions(const HTTPOptions &httpOptions);
+    virtual void setHTTPOptions(const HTTPOptions &httpOptions);
     // Returns current HTTPOption
-    HTTPOptions &getHTTPOptions() { return _httpOptions; }
-    // Performs HTTP POST by sending data. On success calls response call back  
-    bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP POST by sending stream. On success calls response call back  
-    bool doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP GET. On success calls response call back    
-    bool doGET(const char *url, int expectedCode, httpResponseCallback cb);
-    // Performs HTTP DELETE. On success calls response call back    
-    bool doDELETE(const char *url, int expectedCode, httpResponseCallback cb);
-    // Returns InfluxDBServer API URL
-    String getServerAPIURL() const { return _apiURL; }
+    virtual HTTPOptions &getHTTPOptions() { return _httpOptions; }
+      // Returns InfluxDBServer API URL
+    virtual String getServerAPIURL() const { return _apiURL; }
     // Returns value of the Retry-After HTTP header from recent call. 0 if it was missing.
-    int getLastRetryAfter() const { return _lastRetryAfter; }
+    virtual int getLastRetryAfter() const { return _lastRetryAfter; }
     // Returns HTTP status code of recent call.
-    int getLastStatusCode() const { return  _lastStatusCode;  }
+    virtual int getLastStatusCode() const { return  _lastStatusCode;  }
     // Returns time of recent call successful call.
-    uint32_t getLastRequestTime() const { return _lastRequestTime; }
+    virtual uint32_t getLastRequestTime() const { return _lastRequestTime; }
     // Returns response of last failed call.
-    String getLastErrorMessage() const { return _pConnInfo->lastError; }
+    virtual String getLastErrorMessage() const { return _pConnInfo->lastError; }
+    // Returns true if last HTTP call returned chunked response
+    virtual bool isChunked() const { return _isChunked; }
+    // Handles HTTP POST by sending data. On success calls response call back  
+    virtual bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb);
+    // Handles HTTP POST by sending stream. On success calls response call back  
+    virtual bool doPOST(const char *url, Stream *stream, const char *contentType, int expectedCode, httpResponseCallback cb);
+    // Handles HTTP GET. On success calls response call back    
+    virtual bool doGET(const char *url, int expectedCode, httpResponseCallback cb);
+    // Handles HTTP DELETE. On success calls response call back    
+    virtual bool doDELETE(const char *url, int expectedCode, httpResponseCallback cb);
+
+    // -----------------------------------
+    // Functions to override on implementations
+    //-------------------------------------
+  protected:
+    // Initilises HTTP request 
+    virtual bool initRequest(const char *url, const char *method) = 0;
+  public:
+    // Initialize service
+    virtual bool init() = 0;
+    // Performs HTTP POST by sending data.
+    virtual int POST(const char *data) = 0;
+    // Performs HTTP POST by sending stream. 
+    virtual int POST(Stream *stream) = 0;
+    // Performs HTTP GET.
+    virtual int GET() = 0;
+    // Performs HTTP DELETE.
+    virtual int DELETE() = 0;
+    // Set HTTP header to request
+    virtual void setHeader(const String &name, const String &value) = 0;
+    // Get HTTP response header value
+    virtual String getHeader(const char *name) = 0;
     // Returns true if HTTP connection is kept open
-    bool isConnected() const { return _httpClient && _httpClient->connected(); }
+    virtual bool isConnected() const = 0;
+    // Returns complete response as a string 
+    virtual String getString()  = 0;
+    // Returns pointer to underlying TCP client implementing Stream to read response
+    // Stream must be at the state after reading out headers 
+    virtual Stream *getStreamPtr() = 0;
+    // Returns size of the current response if Content-Lenght headers was set, otherwise -1
+    virtual int getSize() = 0;
+    // End HTTP call
+    virtual void end() = 0;
+    // Returns string representation of error code
+    virtual String errorToString(int error) = 0;;
 };
 
 #endif //_HTTP_SERVICE_H_

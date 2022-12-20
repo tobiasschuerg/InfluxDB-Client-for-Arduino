@@ -27,11 +27,7 @@
 #ifndef _HTTP_STREAM_SCANNER_
 #define _HTTP_STREAM_SCANNER_
 
-#if defined(ESP8266)
-# include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-# include <HTTPClient.h>
-#endif //ESP8266
+#include "../HTTPService.h"
 
 /** 
  * HttpStreamScanner parses response stream from  HTTPClient for lines.
@@ -41,14 +37,15 @@
  */ 
 class HttpStreamScanner {
 public:
-    HttpStreamScanner(HTTPClient *client, bool chunked);
+    HttpStreamScanner(HTTPService *client);
     bool next();
     void close();
     const String &getLine() const { return _line; }
     int getError() const { return _error; }
     int getLinesNum() const {return _linesNum; }
+    String errorToString(int error);
 private:
-    HTTPClient *_client;
+    HTTPService *_client;
     Stream *_stream = nullptr;
     int _len;
     String _line;

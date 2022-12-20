@@ -37,6 +37,7 @@
 #include "Options.h"
 #include "BucketsClient.h"
 #include "Version.h"
+#include "config.h"
 
 #ifdef USING_AXTLS
 #error AxTLS does not work
@@ -53,25 +54,44 @@ class InfluxDBClient {
   friend class Test;
   public:
     // Creates InfluxDBClient unconfigured instance. 
+    // Uses ESP WiFi client under the hood.
     // Call to setConnectionParams is required to set up client 
     InfluxDBClient();
-    // Creates InfluxDBClient instance for unsecured connection to InfluxDB 1
+    // Creates InfluxDBClient instance for unsecured connection to InfluxDB 1.
+    // Uses ESP WiFi client under the hood.
     // serverUrl - url of the InfluxDB 1 server (e.g. http://localhost:8086)
     // db - database name where to store or read data
     InfluxDBClient(const String &serverUrl, const String &db);
     // Creates InfluxDBClient instance for unsecured connection
+    // Uses ESP WiFi client under the hood.
     // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:8086)
     // org - name of the organization, which bucket belongs to    
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
     InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken);
     // Creates InfluxDBClient instance for secured connection
+    // Uses ESP WiFi client under the hood.
     // serverUrl - url of the InfluxDB 2 server (e.g. https://localhost:8086)
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
     // certInfo - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
     InfluxDBClient(const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *certInfo);
+#if defined(INFLUXDB_CLIENT_NET_EXTERNAL)
+    // Creates InfluxDBClient instance for unsecured connection to InfluxDB 1 with the underlying TCP client. 
+    // client - external TCP connection provider supporting the Client interface
+    // serverUrl - url of the InfluxDB 1 server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    // client - external TCP connection provider support the Client interface
+    InfluxDBClient(Client &client, const String &serverUrl, const String &db);
+    // Creates InfluxDBClient instance for unsecured connection with the underlying TCP client. 
+    // client - external TCP connection provider supporting the Client interface
+    // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:8086)
+    // org - name of the organization, which bucket belongs to    
+    // bucket - name of the bucket to write data into
+    // authToken - InfluxDB 2 authorization token
+    InfluxDBClient(Client &client, const String &serverUrl, const String &org, const String &bucket, const String &authToken);
+#endif
     // Clears instance.
     ~InfluxDBClient();
     // Allows insecure connection by skiping server certificate validation. 
@@ -116,6 +136,26 @@ class InfluxDBClient {
     // password - Optional. User password, in case of server requires authetication
     // certInfo - Optional. InfluxDB server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParamsV1(const String &serverUrl, const String &db, const String &user = (const char *)nullptr, const String &password = (const char *)nullptr, const char *certInfo = nullptr);
+#if defined(INFLUXDB_CLIENT_NET_EXTERNAL)
+    // Sets connection parameters for InfluxDB 2
+    // Must be called before calling any method initiating a connection to server.
+    // client - external TCP connection provider supporting the Client interface
+    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:8086)
+    // org - name of the organization, which bucket belongs to 
+    // bucket - name of the bucket to write data into
+    // authToken - InfluxDB 2 authorization token
+    // serverCert - Optional. InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
+    void setConnectionParams(Client &client, const String &serverUrl, const String &org, const String &bucket, const String &authToken, const char *certInfo = nullptr);    
+    // Sets parameters for connection to InfluxDB 1
+    // Must be called before calling any method initiating a connection to server.
+    // client - external TCP connection provider supporting the Client interface
+    // serverUrl - url of the InfluxDB server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    // user - Optional. User name, in case of server requires authetication
+    // password - Optional. User password, in case of server requires authetication
+    // certInfo - Optional. InfluxDB server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
+    void setConnectionParamsV1(Client &client, const String &serverUrl, const String &db, const String &user = (const char *)nullptr, const String &password = (const char *)nullptr, const char *certInfo = nullptr);
+#endif    
     // Creates line protocol string from point data and optional default tags set in WriteOptions.
     String pointToLineProtocol(const Point& point);
     // Validates connection parameters by conecting to server
@@ -222,6 +262,7 @@ class InfluxDBClient {
         virtual size_t write(uint8_t data) override;
 
     };
+    // Strucure with connection params
     ConnectionInfo _connInfo;  
     // Cached full write url
     String _writeUrl;
@@ -250,6 +291,8 @@ class InfluxDBClient {
     // Write using buffer or stream
     bool _streamWrite = false;
   protected:    
+    void setConnectionParamsInternal(Client *pClient, const String &serverUrl, const String &org, const String &bucket, 
+      const String &user, const String &password, const String &authToken, const char *certInfo, int dbversion);
     // Sends POST request with data in body
     int postData(const char *data);
     int postData(Batch *batch);
