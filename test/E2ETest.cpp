@@ -5,7 +5,7 @@ void E2ETest::run() {
     Serial.println("E2E Tests");
     testBuckets();   
     testWriteAndQuery(); 
-    Serial.printf("E2E Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
+    Serialprintf("E2E Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
 }
 
 void E2ETest::testBuckets() {

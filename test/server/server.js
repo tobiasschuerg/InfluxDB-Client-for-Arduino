@@ -43,7 +43,6 @@ mgmtApp.get('/start', (req,res) => {
         });
         res.status(201).send(`Listening on http://${server.address().address}:${server.address().port}`);
     } else {
-        server.
         res.status(204).end();
     };
 });

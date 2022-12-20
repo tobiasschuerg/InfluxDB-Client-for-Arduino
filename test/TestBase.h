@@ -37,9 +37,10 @@
   do { \
   Serial.println(testName)
 #define TEST_END()  } while(0); \
- end: Serial.printf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
+ end: Serialprintf("%s %s\n",testName,failures == temp?"SUCCEEDED":"FAILED")
 #define TEST_ASSERT(a) if(testAssert(__LINE__, (a))) goto end
 #define TEST_ASSERTM(a,m) if(testAssertm(__LINE__, (a),(m))) goto end
+
 
 class TestBase {
 public:

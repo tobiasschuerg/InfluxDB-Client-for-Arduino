@@ -9,11 +9,7 @@
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
 
-#if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
+#include <AWifi.h>
 
 #define INFLUXDB_CLIENT_TESTING_SERVER_HOST "192.168.88.142"
 #define INFLUXDB_CLIENT_TESTING_ORG "my-org"
@@ -35,7 +31,12 @@
 
 void setup() {
     Serial.begin(115200);
-    delay(2000);
+    // Wait for serial, virtual serial on USB based devices take time to initilize
+    unsigned long timeout = millis();
+    while (!Serial && millis() - timeout < 5000)
+        ;
+
+    delay(1000);
     Serial.println("Initializing tests");
     Serial.println(" Compiled on "  __DATE__ " " __TIME__);
     //Serial.setDebugOutput(true);
@@ -47,7 +48,7 @@ void setup() {
 
     Test::setup(INFLUXDB_CLIENT_MANAGEMENT_URL,INFLUXDB_CLIENT_TESTING_URL, INFLUXDB_CLIENT_E2E_TESTING_URL, INFLUXDB_CLIENT_TESTING_ORG, INFLUXDB_CLIENT_TESTING_BUC, INFLUXDB_CLIENT_TESTING_DB, INFLUXDB_CLIENT_TESTING_TOK );
 
-    Serial.printf("Using server: %s\n", INFLUXDB_CLIENT_TESTING_URL);
+    Serialprintf("Using server: %s\n", INFLUXDB_CLIENT_TESTING_URL);
 }
 
 void loop() {
@@ -55,16 +56,18 @@ void loop() {
     Serial.print("Start time: ");
     Serial.println(ctime(&now));
     uint32_t start = millis();
-    uint32_t startRAM = ESP.getFreeHeap();
-    Serial.printf("Start RAM: %d\n", startRAM);
+    uint32_t startRAM = getFreeHeap();
+    Serialprintf("Start RAM: %d\n", startRAM);
     Test::run();
+#ifdef INFLUXDB_CLIENT_HAVE_WIFI    
     E2ETest::run();
-    uint32_t endRAM = ESP.getFreeHeap();
-    Serial.printf("End RAM %d, diff: %d\n", endRAM, endRAM-startRAM);
+#endif
+    uint32_t endRAM = getFreeHeap();
+    Serialprintf("End RAM %d, diff: %d\n", endRAM, endRAM-startRAM);
     now = time(nullptr);
     Serial.print("End time: ");
     Serial.print(ctime(&now));
-    Serial.printf("  Took: %.1fs\n", (millis()-start)/1000.0f);
+    Serialprintf("  Took: %.1fs\n", (millis()-start)/1000.0f);
     
 
     while(1) {
@@ -72,10 +75,9 @@ void loop() {
     }
 }
 
-void initInet() {
-    WiFi.mode(WIFI_STA);
-    WiFi.setAutoConnect(true);
 
+void initInet() {
+#ifdef INFLUXDB_CLIENT_HAVE_WIFI
     int i = 0,j = 0;
     bool wifiOk = false;
     while(!wifiOk && j<3) {
@@ -89,16 +91,18 @@ void initInet() {
         Serial.println();
         wifiOk = WiFi.status() == WL_CONNECTED;
         if(!wifiOk) {
-            WiFi.disconnect(true);
+            WiFi.disconnect();
         }
         j++;
     }
     if (!wifiOk) {
         Serial.println("Wifi connection failed");
-        Serial.println("Restarting");
-        ESP.restart();
     } else {
-        Serial.printf("Connected to: %s - %d(%d)\n", WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI());
+#ifdef INFLUXDB_CLIENT_NET_ESP        
+        Serialprintf("Connected to: %s - %d(%d)\n", WiFi.SSID().c_str(), WiFi.channel(), WiFi.RSSI());
+#else
+        Serialprintf("Connected to: %s (%d)\n", WiFi.SSID(), WiFi.RSSI());
+#endif        
         Serial.print("Ip: ");
         Serial.println(WiFi.localIP());
 
@@ -106,4 +110,5 @@ void initInet() {
 
         deleteAll(INFLUXDB_CLIENT_TESTING_URL);
     }
+#endif    
 }

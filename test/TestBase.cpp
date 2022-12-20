@@ -1,14 +1,17 @@
 #include "TestBase.h"
 
+#include <AWifi.h>
 #if defined(ESP32)
-#include <WiFi.h>
 String chipId = String((unsigned long)ESP.getEfuseMac());
 String deviceName = "ESP32";
 #elif defined(ESP8266)
-#include <ESP8266WiFi.h>
 String chipId = String(ESP.getChipId());
 String deviceName = "ESP8266";
+#else
+String chipId = "12345678";
+String deviceName = "Arduino";
 #endif
+
 
 const char * TestBase::managementUrl;
 const char * TestBase::apiUrl;
@@ -46,7 +49,7 @@ Point *TestBase::createPoint(const String &measurement) {
 bool testAssertm(int line, bool state, const String &message) {
   if(!state) {
     ++TestBase::failures;
-    Serial.printf("Assert failure line %d%s%s\n", line, message.length()>0?": ":"",message.c_str());
+    Serialprintf("Assert failure line %d%s%s\n", line, message.length()>0?": ":"",message.c_str());
     return true;
   }
   return false;

@@ -28,7 +28,10 @@
 #define _FLUX_TYPES_H_
 
 #include <Arduino.h>
+#ifndef ARDUINO_ARCH_AVR
 #include <memory>
+#endif
+#include <time.h>
 
 /** Supported flux types:
  *  - long - converts to long
@@ -111,7 +114,7 @@ protected:
 public:    
     FluxDateTime(const String &rawValue, const char *type, struct tm value, unsigned long microseconds);
     // Struct tm for date and time
-    struct tm value;
+    tm value;
     // microseconds part
     unsigned long microseconds;
     // Formats the value part to string according to the given format. Microseconds are skipped.

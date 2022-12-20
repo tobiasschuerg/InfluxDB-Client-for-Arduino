@@ -30,7 +30,9 @@
 #include <Arduino.h>
 #include "WritePrecision.h"
 #include "util/helpers.h"
+#ifndef ARDUINO_ARCH_AVR
 #include <memory>
+#endif
 
 /**
  * Class Point represents InfluxDB point in line protocol.
@@ -38,6 +40,7 @@
  */
 class Point {
 friend class InfluxDBClient;
+friend class Test;
   public:
     Point(const String &measurement);
     Point(const Point &other);

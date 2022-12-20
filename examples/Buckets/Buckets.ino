@@ -8,16 +8,16 @@
  **/
 
 #if defined(ESP32)
-#include <WiFiMulti.h>
-WiFiMulti wifiMulti;
-#define DEVICE "ESP32"
+# define DEVICE "ESP32"
 #elif defined(ESP8266)
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
-#define DEVICE "ESP8266"
+# define DEVICE "ESP8266"
+#else
+# define DEVICE "Arduino"
 #endif
 
 #include <InfluxDbClient.h>
+// WiFi library automatic selector
+#include <AWifi.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "ssid"
@@ -35,13 +35,14 @@ ESP8266WiFiMulti wifiMulti;
 #define INFLUXDB_BUCKET "test-bucket"
 
 void setup() {
-  Serial.begin(74880);
-
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
   // Connect WiFi
   Serial.println("Connecting to " WIFI_SSID);
-  WiFi.mode(WIFI_STA);
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-  while (wifiMulti.run() != WL_CONNECTED) {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }

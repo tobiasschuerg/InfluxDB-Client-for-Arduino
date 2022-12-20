@@ -39,7 +39,7 @@ private: //helpers
 private: // tests
     static void testUtils();
     static void testOptions();
-    static void testEcaping();
+    static void testEscaping();
     static void testPoint();
     static void testOldAPI();
     static void testBatch();

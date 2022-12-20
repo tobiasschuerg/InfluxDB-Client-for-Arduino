@@ -28,8 +28,10 @@
 #define _QUERY_PARAM_H_
 
 #include "FluxTypes.h"
+#ifndef ARDUINO_ARCH_AVR
 #include <memory>
 #include <vector>
+#endif
 
 typedef std::vector<FluxBase *> ParamsList;
 /**

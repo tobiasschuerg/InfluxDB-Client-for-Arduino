@@ -27,7 +27,9 @@
 #ifndef _FLUX_PARSER_H_
 #define _FLUX_PARSER_H_
 
+#ifndef ARDUINO_ARCH_AVR
 #include <vector>
+#endif
 #include "CsvReader.h"
 #include "FluxTypes.h"
 

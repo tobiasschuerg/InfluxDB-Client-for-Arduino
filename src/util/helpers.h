@@ -28,10 +28,18 @@
 #define _INFLUXDB_CLIENT_HELPERS_H
 
 #include <Arduino.h>
-#include <sys/time.h>  
 
-// Synchronize time with NTP servers and waits for completition. Prints waiting progress and final synchronized time to the serial.
-// Accurate time is necessary for certificate validion and writing points in batch
+#ifndef ARDUINO_ARCH_AVR
+#include <sys/time.h>
+#endif
+#include "config.h"
+
+#ifndef INFLUXDB_CLIENT_NET_ESP
+#define FPSTR(pstr_pointer) (reinterpret_cast<const __FlashStringHelper *>(pstr_pointer))
+#endif
+
+// Synchronize time with NTP servers and waits for completetion. Prints waiting progress and final synchronized time to the serial.
+// Accurate time is necessary for certificate validation and writing points in batch
 // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
 void timeSync(const char *tzInfo, const char* ntpServer1, const char* ntpServer2 = nullptr, const char* ntpServer3 = nullptr);
 
@@ -58,6 +66,18 @@ uint8_t getNumLength(long long l);
 char *cloneStr(const char *str);
 // Like strlen, but accepts nullptr
 size_t strLen(const char *str);
+
+// Platform independent printf to stream
+size_t Serialprintf(const char *format, ...);
+
+// Parses http url to user, pass, server, port 
+// url is intentionally copied
+// returns true of parsing was ok
+bool parseURL(String url, String &host, int &port, String &path, String &user, String &pass);
+
+
+// Wrapper for getting a time
+bool getAccurateTime(timeval *tv);
 
 
 #endif //_INFLUXDB_CLIENT_HELPERS_H

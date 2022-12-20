@@ -11,17 +11,17 @@
  **/
 
 #if defined(ESP32)
-#include <WiFiMulti.h>
-WiFiMulti wifiMulti;
-#define DEVICE "ESP32"
+# define DEVICE "ESP32"
 #elif defined(ESP8266)
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
-#define DEVICE "ESP8266"
+# define DEVICE "ESP8266"
+#else
+# define DEVICE "Arduino"
 #endif
 
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+// WiFi library automatic selector
+#include <AWifi.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "SSID"
@@ -53,18 +53,18 @@ InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKE
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
 
   // Setup wifi
-  WiFi.mode(WIFI_STA);
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-
-  Serial.print("Connecting to wifi");
-  while (wifiMulti.run() != WL_CONNECTED) {
+  Serial.println("Connecting to " WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
   Serial.println();
-
   
   // Accurate time is necessary for certificate validation
   // For the fastest time sync find NTP servers in your area: https://www.pool.ntp.org/zone/
@@ -109,9 +109,10 @@ void loop() {
 
   // Send query to the server and get result
   FluxQueryResult result = client.query(query, params);
-
+  char buff[100];
   //Print header
-  Serial.printf("%10s %20s %5s\n","Time","SSID","RSSI");
+  snprintf(buff, 100, "%10s %20s %5s","Time","SSID","RSSI");
+  Serial.println(buff);
 
   for(int i=0;i<37;i++) {
     Serial.print('-');
@@ -134,7 +135,9 @@ void loop() {
     // Format string according to http://www.cplusplus.com/reference/ctime/strftime/
     String timeStr = time.format("%F %T");
     // Print formatted row
-    Serial.printf("%20s %10s %5d\n", timeStr.c_str(), ssid.c_str() ,rssi);
+    snprintf(buff, 100, "%20s %10s %5d", timeStr.c_str(), ssid.c_str() ,rssi);
+    Serial.println(buff);
+
     c++;
   }
   if(!c) {

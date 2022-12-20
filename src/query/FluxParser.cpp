@@ -25,9 +25,10 @@
  * SOFTWARE.
 */
 
+#ifndef ARDUINO_ARCH_AVR
+#include <algorithm>
+#endif
 #include "FluxParser.h"
-// Uncomment bellow in case of a problem and rebuild sketch
-//#define INFLUXDB_CLIENT_DEBUG_ENABLE
 #include "util/debug.h"
 
 FluxQueryResult::FluxQueryResult(CsvReader *reader) {
@@ -122,7 +123,7 @@ readRow:
     bool stat = _data->_reader->next();
     if(!stat) {
         if(_data->_reader->getError()< 0) {
-            _data->_error = HTTPClient::errorToString(_data->_reader->getError());
+            _data->_error = _data->_reader->errorString();
             INFLUXDB_CLIENT_DEBUG("Error '%s'\n", _data->_error.c_str());
         }
         return false;

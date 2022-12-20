@@ -28,15 +28,9 @@
 #ifndef _TEST_SUPPORT_H_
 #define _TEST_SUPPORT_H_
 
-#if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
 
 #include "query/FluxParser.h"
 
-void printFreeHeap();
 
 int httpPOST(const String &url, String mess);
 
@@ -61,5 +55,9 @@ std::vector<String> getLines(FluxQueryResult flux);
 bool compareTm(tm &tm1, tm &tm2);
 // Waits for server in desired state (up - true, down - false)
 bool waitServer(const String &url, bool state);
+
+int getFreeHeap();
+
+bool isNetworkAvailable();
 
 #endif //_TEST_SUPPORT_H_

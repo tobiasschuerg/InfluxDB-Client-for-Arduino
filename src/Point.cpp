@@ -72,15 +72,27 @@ void Point::addTag(const String &name, String value) {
 }
 
 void Point::addField(const String &name, long long value) {
-  char buff[23];
-  snprintf(buff, 50, "%lld", value);
-  putField(name, String(buff)+"i");
+  char buff[24];
+#ifdef INFLUXDB_CLIENT_NET_ESP
+  snprintf(buff, 24, "%lldi", value);
+#else
+ long high = value /1000000000ll;
+ long low = value % 1000000000ll;
+ snprintf(buff, 24, "%d%09di", high, low<0?low*-1:low);
+#endif 
+  putField(name, String(buff));
 }
 
 void Point::addField(const String &name, unsigned long long value) {
-  char buff[23];
-  snprintf(buff, 50, "%llu", value);
-  putField(name, String(buff)+"i");
+  char buff[24];
+#ifdef INFLUXDB_CLIENT_NET_ESP
+  snprintf(buff, 24, "%llui", value);
+#else
+  unsigned long high = value /1000000000llu;
+  unsigned long low = value % 1000000000llu;
+  snprintf(buff, 24, "%u%09ui", high, low);
+#endif 
+  putField(name, String(buff));
 }
 
 void Point::addField(const String &name, const char *value) { 
@@ -171,7 +183,7 @@ String Point::createLineProtocol(const String &incTags, bool excludeTimestamp) c
 
 void Point::setTime(WritePrecision precision) {
     struct timeval tv;
-    gettimeofday(&tv, NULL);
+    getAccurateTime(&tv);
     
     switch(precision) {
         case WritePrecision::NS:

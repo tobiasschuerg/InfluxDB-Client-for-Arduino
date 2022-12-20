@@ -12,18 +12,18 @@
  **/
 
 #if defined(ESP32)
-#include <WiFiMulti.h>
-WiFiMulti wifiMulti;
-#define DEVICE "ESP32"
+# define DEVICE "ESP32"
+#define ENC_TYPE_NONE WIFI_AUTH_OPEN //ESP32 has different enum for WiFi encryption types
 #elif defined(ESP8266)
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
-#define DEVICE "ESP8266"
-#define WIFI_AUTH_OPEN ENC_TYPE_NONE
+# define DEVICE "ESP8266"
+#else
+# define DEVICE "Arduino"
 #endif
 
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+// WiFi library automatic selector
+#include <AWifi.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "SSID"
@@ -64,14 +64,15 @@ Point sensorStatus("wifi_status");
 int iterations = 0;
 
 void setup() {
-  Serial.begin(115200);
+ Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
 
   // Setup wifi
-  WiFi.mode(WIFI_STA);
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-
-  Serial.print("Connecting to wifi");
-  while (wifiMulti.run() != WL_CONNECTED) {
+  Serial.println("Connecting to " WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
@@ -119,7 +120,7 @@ void loop() {
       sensorNetworks.addTag("device", DEVICE);
       sensorNetworks.addTag("SSID", WiFi.SSID(i));
       sensorNetworks.addTag("channel", String(WiFi.channel(i)));
-      sensorNetworks.addTag("open", String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN));
+      sensorNetworks.addTag("open", String(WiFi.encryptionType(i) == ENC_TYPE_NONE));
       sensorNetworks.addField("rssi", WiFi.RSSI(i));
       sensorNetworks.setTime(tnow);  //set the time
 
@@ -130,8 +131,9 @@ void loop() {
       // Write point into buffer - low priority measures
       client.writePoint(sensorNetworks);
     }
-  } else
+  } else {
     Serial.println("Wifi networks reporting skipped due to communication issues");
+  }
 
   // Report RSSI of currently connected network
   sensorStatus.setTime(time(nullptr));
@@ -146,11 +148,6 @@ void loop() {
 
   // Clear fields for next usage. Tags remain the same.
   sensorStatus.clearFields();
-
-  // If no Wifi signal, try to reconnect it
-  if (wifiMulti.run() != WL_CONNECTED) {
-    Serial.println("Wifi connection lost");
-  }
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
   Serial.println("Flushing data into InfluxDB");

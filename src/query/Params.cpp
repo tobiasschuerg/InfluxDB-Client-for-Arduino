@@ -26,7 +26,9 @@
 */
 
 #include "Params.h"
+#ifndef ARDUINO_ARCH_AVR
 #include <algorithm>
+#endif
 
 QueryParams::QueryParams() {
   _data = std::make_shared<ParamsList>();

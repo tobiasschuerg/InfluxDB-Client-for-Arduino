@@ -12,17 +12,17 @@
  **/
 
 #if defined(ESP32)
-#include <WiFiMulti.h>
-WiFiMulti wifiMulti;
-#define DEVICE "ESP32"
+# define DEVICE "ESP32"
 #elif defined(ESP8266)
-#include <ESP8266WiFiMulti.h>
-ESP8266WiFiMulti wifiMulti;
-#define DEVICE "ESP8266"
+# define DEVICE "ESP8266"
+#else
+# define DEVICE "Arduino"
 #endif
 
 #include <InfluxDbClient.h>
 #include <InfluxDbCloud.h>
+// WiFi library automatic selector
+#include <AWifi.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "SSID"
@@ -55,13 +55,14 @@ Point sensor("wifi_status");
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
 
   // Setup wifi
-  WiFi.mode(WIFI_STA);
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-
-  Serial.print("Connecting to wifi");
-  while (wifiMulti.run() != WL_CONNECTED) {
+  Serial.println("Connecting to " WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
@@ -97,10 +98,7 @@ void loop() {
   // Print what are we exactly writing
   Serial.print("Writing: ");
   Serial.println(client.pointToLineProtocol(sensor));
-  // If no Wifi signal, try to reconnect it
-  if (wifiMulti.run() != WL_CONNECTED) {
-    Serial.println("Wifi connection lost");
-  }
+
   // Write point
   if (!client.writePoint(sensor)) {
     Serial.print("InfluxDB write failed: ");

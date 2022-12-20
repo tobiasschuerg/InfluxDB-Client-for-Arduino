@@ -29,8 +29,14 @@
 #include "TestSupport.h"
 
 #include <Platform.h>
-#include "../src/Version.h"
+#include "Version.h"
 #include "InfluxData.h"
+#ifdef INFLUXDB_CLIENT_NET_ESP
+#include "ESPHTTPService.h"
+#else
+#include "ArduinoHTTPService.h"
+#endif
+#include <AWifi.h>
 
 #define INFLUXDB_CLIENT_TESTING_BAD_URL "http://127.0.0.1:999"
 
@@ -40,17 +46,18 @@ void Test::run() {
     // Basic tests
     testUtils();
     testOptions();
+    testEscaping();
     testPoint();
     testOldAPI();
     testBatch();
     testLineProtocol();
-    testEcaping();
     testUrlEncode();
+    testQueryParams();
     testIsValidID();
     testFluxTypes();
     testFluxTypesSerialization();
-    testTimestampAdjustment();
-    testUseServerTimestamp();
+ #ifdef INFLUXDB_CLIENT_HAVE_WIFI    
+    testBasicFunction();   
     testFluxParserEmpty();
     testFluxParserSingleTable();
     testFluxParserNilValue();
@@ -61,11 +68,11 @@ void Test::run() {
     testFluxParserInvalidDatatype();
     testFluxParserMissingDatatype();
     testFluxParserErrorInRow();
-    testQueryParams();
-    testBasicFunction();
+    testTimestampAdjustment();
     testFlushing();
     testInit();
     testRepeatedInit();
+    testUseServerTimestamp();
     testV1();
     testUserAgent();
     testHTTPReadTimeout();
@@ -84,7 +91,8 @@ void Test::run() {
     testRetryInterval();
     testBuckets(); 
     testQueryWithParams();
-    Serial.printf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
+#endif
+    Serialprintf("Tests %s\n", failures ? "FAILED" : "SUCCEEDED");
     serverLog(TestBase::managementUrl, String("Tests ") + (failures ? "FAILED" : "SUCCEEDED"));
 }
 
@@ -96,85 +104,97 @@ void Test::testUtils() {
     TEST_ASSERTM(d == 1, String(d));
     d = getNumLength(12);
     TEST_ASSERTM(d == 2, String(d));
+    String host, path, user, pass;
+    int port;
+    TEST_ASSERT(parseURL("http://host:8086/api/v2/write", host, port, path, user, pass));
+    TEST_ASSERTM(host == "host", host);
+    TEST_ASSERTM(port == 8086, String(port));
+    TEST_ASSERTM(path = "/api/v2/write", path);
+
     TEST_END();
 }
 
 void Test::testOptions() {
     TEST_INIT("testOptions");
     WriteOptions defWO;
-    TEST_ASSERT(defWO._writePrecision == WritePrecision::NoTime);
-    TEST_ASSERT(defWO._batchSize == 1);
-    TEST_ASSERT(defWO._bufferSize == 5);
-    TEST_ASSERT(defWO._flushInterval == 60);
-    TEST_ASSERT(defWO._retryInterval == 5);
-    TEST_ASSERT(defWO._maxRetryInterval == 300);
-    TEST_ASSERT(defWO._maxRetryAttempts == 3);
-    TEST_ASSERT(defWO._defaultTags.length() == 0);
-    TEST_ASSERT(!defWO._useServerTimestamp);
+    TEST_ASSERT(defWO.getWritePrecision() == WritePrecision::NoTime);
+    TEST_ASSERT(defWO.getBatchSize() == 1);
+    TEST_ASSERT(defWO.getBufferSize() == 5);
+    TEST_ASSERT(defWO.getFlushInterval() == 60);
+    TEST_ASSERT(defWO.getRetryInterval() == 5);
+    TEST_ASSERT(defWO.getMaxRetryInterval() == 300);
+    TEST_ASSERT(defWO.getMaxRetryAttempts() == 3);
+    TEST_ASSERT(defWO.getDefaultTags().length() == 0);
+    TEST_ASSERT(!defWO.isUseServerTimestamp());
 
 
     defWO = WriteOptions().writePrecision(WritePrecision::NS).batchSize(32000).bufferSize(20).flushInterval(120).retryInterval(1).maxRetryInterval(20).maxRetryAttempts(5).addDefaultTag("tag1","val1").addDefaultTag("tag2","val2").useServerTimestamp(true);
-    TEST_ASSERT(defWO._writePrecision == WritePrecision::NS);
-    TEST_ASSERT(defWO._batchSize == 32000);
-    TEST_ASSERT(defWO._bufferSize == 20);
-    TEST_ASSERT(defWO._flushInterval == 120);
-    TEST_ASSERT(defWO._retryInterval == 1);
-    TEST_ASSERT(defWO._maxRetryInterval == 20);
-    TEST_ASSERT(defWO._maxRetryAttempts == 5);
-    TEST_ASSERT(defWO._defaultTags == "tag1=val1,tag2=val2");
-    TEST_ASSERT(defWO._useServerTimestamp);
+    TEST_ASSERT(defWO.getWritePrecision() == WritePrecision::NS);
+    TEST_ASSERT(defWO.getBatchSize() == 32000);
+    TEST_ASSERT(defWO.getBufferSize() == 20);
+    TEST_ASSERT(defWO.getFlushInterval() == 120);
+    TEST_ASSERT(defWO.getRetryInterval() == 1);
+    TEST_ASSERT(defWO.getMaxRetryInterval() == 20);
+    TEST_ASSERT(defWO.getMaxRetryAttempts() == 5);
+    TEST_ASSERT(defWO.getDefaultTags() == "tag1=val1,tag2=val2");
+    TEST_ASSERT(defWO.isUseServerTimestamp());
 
     HTTPOptions defHO;
-    TEST_ASSERT(!defHO._connectionReuse);
-    TEST_ASSERT(defHO._httpReadTimeout == 5000);
+    TEST_ASSERT(!defHO.isConnectionReuse());
+    TEST_ASSERT(defHO.getHttpReadTimeout() == 5000);
 
     defHO = HTTPOptions().connectionReuse(true).httpReadTimeout(20000);
-    TEST_ASSERT(defHO._connectionReuse);
-    TEST_ASSERT(defHO._httpReadTimeout == 20000);
+    TEST_ASSERT(defHO.isConnectionReuse());
+    TEST_ASSERT(defHO.getHttpReadTimeout() == 20000);
 
     InfluxDBClient c;
-    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NoTime);
-    TEST_ASSERT(c._writeOptions._batchSize == 1);
-    TEST_ASSERT(c._writeOptions._bufferSize == 5);
-    TEST_ASSERT(c._writeOptions._flushInterval == 60);
-    TEST_ASSERT(c._writeOptions._retryInterval == 5);
-    TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
-    TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
-    ConnectionInfo connInfo = {
-            serverUrl: "http://localhost:8086", 
-            bucket: "",
-            org: "",
-            authToken: "my-token"
-    };
-    HTTPService s(&connInfo);
-    TEST_ASSERT(!s._httpOptions._connectionReuse);
-    TEST_ASSERT(s._httpOptions._httpReadTimeout == 5000);
+    TEST_ASSERT(c._writeOptions.getWritePrecision() == WritePrecision::NoTime);
+    TEST_ASSERT(c._writeOptions.getBatchSize() == 1);
+    TEST_ASSERT(c._writeOptions.getBufferSize() == 5);
+    TEST_ASSERT(c._writeOptions.getFlushInterval() == 60);
+    TEST_ASSERT(c._writeOptions.getRetryInterval() == 5);
+    TEST_ASSERT(c._writeOptions.getMaxRetryAttempts() == 3);
+    TEST_ASSERT(c._writeOptions.getMaxRetryInterval() == 300);
+    // ConnectionInfo connInfo = {
+    //         serverUrl: "http://localhost:8086", 
+    //         bucket: "",
+    //         org: "",
+    //         authToken: "my-token"
+    // };
+    ConnectionInfo connInfo = {"http://localhost:8086", "", "", "my-token"};
+#ifdef INFLUXDB_CLIENT_NET_ESP   
+    ESPHTTPService s(&connInfo);
+#else
+    ArduinoHTTPService s(&connInfo);
+#endif    
+    TEST_ASSERT(!s._httpOptions.isConnectionReuse());
+    TEST_ASSERT(s._httpOptions.getHttpReadTimeout() == 5000);
     // Client has no params
     TEST_ASSERT(!c.setWriteOptions(defWO));
     TEST_ASSERT(c.getLastErrorMessage() == "Invalid parameters");
     c.setConnectionParams("http://localhost:8086","my-org","my-bucket", "my-token");
     
     TEST_ASSERT(c.setWriteOptions(defWO));
-    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::NS);
-    TEST_ASSERT(c._writeOptions._batchSize == 32000);
-    TEST_ASSERT(c._writeOptions._bufferSize == 64000);
-    TEST_ASSERT(c._writeOptions._flushInterval == 120);
-    TEST_ASSERT(c._writeOptions._retryInterval == 1);
-    TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
-    TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
+    TEST_ASSERT(c._writeOptions.getWritePrecision() == WritePrecision::NS);
+    TEST_ASSERT(c._writeOptions.getBatchSize() == 32000);
+    TEST_ASSERT(c._writeOptions.getBufferSize() == 64000);
+    TEST_ASSERT(c._writeOptions.getFlushInterval() == 120);
+    TEST_ASSERT(c._writeOptions.getRetryInterval() == 1);
+    TEST_ASSERT(c._writeOptions.getMaxRetryAttempts() == 5);
+    TEST_ASSERT(c._writeOptions.getMaxRetryInterval() == 20);
 
     
     TEST_ASSERT(c.setHTTPOptions(defHO));
-    TEST_ASSERT(c._service->_httpOptions._connectionReuse);
-    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
+    TEST_ASSERT(c._service->_httpOptions.isConnectionReuse());
+    TEST_ASSERT(c._service->_httpOptions.getHttpReadTimeout() == 20000);
 
     c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
-    TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
-    TEST_ASSERT(c._writeOptions._batchSize == 15);
-    TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
-    TEST_ASSERT(c._writeOptions._flushInterval == 70);
-    TEST_ASSERT(!c._service->_httpOptions._connectionReuse);
-    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
+    TEST_ASSERT(c._writeOptions.getWritePrecision() == WritePrecision::MS);
+    TEST_ASSERT(c._writeOptions.getBatchSize() == 15);
+    TEST_ASSERTM(c._writeOptions.getBufferSize() == 30, String(c._writeOptions.getBufferSize()));
+    TEST_ASSERT(c._writeOptions.getFlushInterval() == 70);
+    TEST_ASSERT(!c._service->_httpOptions.isConnectionReuse());
+    TEST_ASSERT(c._service->_httpOptions.getHttpReadTimeout() == 20000);
 
     defWO = WriteOptions().batchSize(100).bufferSize(7000);
     c.setWriteOptions(defWO);
@@ -188,8 +208,8 @@ void Test::testOptions() {
 }
 
 
-void Test::testEcaping() {
-    TEST_INIT("testEcaping");
+void Test::testEscaping() {
+    TEST_INIT("testEscaping");
 
     Point p("t\re=s\nt\t_t e\"s,t");
     p.addTag("ta=g","val=ue");
@@ -221,7 +241,7 @@ void Test::testEcaping() {
     w.addDefaultTag("dtag","dvalue");
     
     const char *lp2 = "t\\\re=s\\\nt\\\t_t\\ e\"s\\,t,dta\\=g=dval\\=ue,dtag=dvalue,ta\\=g=val\\=ue,ta\\\tg=val\\\tue,ta\\\rg=val\\\rue,ta\\\ng=val\\\nue,ta\\ g=valu\\ e,ta\\,g=valu\\,e,tag=value,ta\"g=val\"ue fie\\=ld=\"val=ue\",fie\\\tld=\"val\tue\",fie\\\rld=\"val\rue\",fie\\\nld=\"val\nue\",fie\\ ld=\"val ue\",fie\\,ld=\"val,ue\",fie\"ld=\"val\\\"ue\"";
-    line = p.toLineProtocol(w._defaultTags);
+    line = p.toLineProtocol(w.getDefaultTags());
 
     TEST_ASSERTM(line == lp2, line);
     client.setWriteOptions(w);
@@ -230,6 +250,7 @@ void Test::testEcaping() {
     
     TEST_END();
 }
+
 
 
 void Test::testPoint() {
@@ -249,34 +270,34 @@ void Test::testPoint() {
     TEST_ASSERT(p.hasFields());
     p.addField("fieldBool", true);
     p.addField("fieldFloat1", 1.123f);
-    p.addField("fieldFloat2", 1.12345f, 5);
+    p.addField("fieldFloat2", -1.12345f, 5);
     p.addField(F("fieldDouble1"), 1.123);
     name = "fieldDouble2";
-    p.addField(name, 1.12345, 5);
+    p.addField(name, -1.12345, 5);
     p.addField("fieldChar", 'A');
     p.addField("fieldUChar", (unsigned char)1);
     p.addField("fieldUInt", 23u);
-    p.addField("fieldLong", 123456l);
+    p.addField("fieldLong", -123456l);
     p.addField("fieldULong", 123456ul);
-    p.addField("fieldLongLong", 9123456789l);
-    p.addField("fieldULongLong", 9123456789ul);
+    p.addField("fieldLongLong", -98765000056789ll);
+    p.addField("fieldULongLong", 98756000056789ull);
     p.addField("fieldString", "text test");
     p.addField(F("fieldString2"), F("text test2"));
     name = "fieldString3";
     value = "text test3";
     p.addField(name, value);
     String line = p.toLineProtocol();
-    String testLine = "test,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
-    TEST_ASSERTM(line == testLine, line);
-
+#define FIELD_LINE "fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=-1.12345,fieldDouble1=1.12,fieldDouble2=-1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=-123456i,fieldULong=123456i,fieldLongLong=-98765000056789i,fieldULongLong=98756000056789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\""
+    String testLine = "test,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 " FIELD_LINE;
+    TEST_ASSERTM(line == testLine, line );
     String defaultTags="dtag=val";
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
+    testLine = "test,dtag=val,tag1=tagvalue,tag2=tagvalue2,tag3=tagvalue3 " FIELD_LINE;
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
     line = p.toLineProtocol(defaultTags);
-    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\",fieldString2=\"text test2\",fieldString3=\"text test3\"";
+    testLine = "test,dtag=val " FIELD_LINE;
     TEST_ASSERTM(line == testLine, line);
 
 
@@ -290,21 +311,19 @@ void Test::testPoint() {
     TEST_ASSERTM(line == testLine, line);
 
     TEST_ASSERT(!p.hasTime());
-    time_t now = time(nullptr);
-    String snow(now);
+    time_t now = 1670416906l;
     p.setTime(now);
-    String testLineTime = testLine + " " + snow;
+    String testLineTime = testLine + " 1670416906";
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
     
     unsigned long long ts = now*1000000000LL+123456789;
     p.setTime(ts);
-    testLineTime = testLine + " " + snow + "123456789";
+    testLineTime = testLine + " 1670416906123456789";
     line = p.toLineProtocol();
     TEST_ASSERTM(line == testLineTime, line);
     now += 5;
-    snow = "";
-    snow.concat(now);
+    String snow((long int)now);
     p.setTime(snow);
     testLineTime = testLine + " " + snow;
     line = p.toLineProtocol();
@@ -362,7 +381,7 @@ void Test::testPoint() {
     p3 = p2;
     String lp = p2.toLineProtocol();
     String lp2 = p3.toLineProtocol();
-    TEST_ASSERTM(lp == lp2, lp+","+lp2);
+    TEST_ASSERTM(lp == lp2, lp+" vs\n"+lp2);
 
     TEST_END();
 }
@@ -462,7 +481,8 @@ void Test::testLineProtocol() {
     p.addField("fieldString", "text test");
 
     String line = client.pointToLineProtocol(p);
-    String testLine = "test,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+#define FIELDS_LINE2 "fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\""
+    String testLine = "test,tag1=tagvalue " FIELDS_LINE2;
     TEST_ASSERTM(line == testLine, line);
 
     auto opts = WriteOptions().addDefaultTag("dtag","val");
@@ -470,12 +490,12 @@ void Test::testLineProtocol() {
     client.setWriteOptions(opts);
 
     line = client.pointToLineProtocol(p);
-    testLine = "test,dtag=val,tag1=tagvalue fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+    testLine = "test,dtag=val,tag1=tagvalue " FIELDS_LINE2;
     TEST_ASSERTM(line == testLine, line);
 
     p.clearTags();
     line = client.pointToLineProtocol(p);
-    testLine = "test,dtag=val fieldInt=-23i,fieldBool=true,fieldFloat1=1.12,fieldFloat2=1.12345,fieldDouble1=1.12,fieldDouble2=1.12345,fieldChar=\"A\",fieldUChar=1i,fieldUInt=23i,fieldLong=123456i,fieldULong=123456i,fieldLongLong=9123456789i,fieldULongLong=9123456789i,fieldString=\"text test\"";
+    testLine = "test,dtag=val " FIELDS_LINE2;
     TEST_ASSERTM(line == testLine, line);
 
 
@@ -489,22 +509,20 @@ void Test::testLineProtocol() {
     TEST_ASSERTM(line == testLine, line);
 
     TEST_ASSERT(!p.hasTime());
-    time_t now = time(nullptr);
-    String snow(now);
+    time_t now = 1670416906l;
     p.setTime(now);
-    String testLineTime = testLine + " " + snow;
+    String testLineTime = testLine + " 1670416906";
     line = client.pointToLineProtocol(p);
-    TEST_ASSERTM(line == testLineTime, line);
+    TEST_ASSERTM(line == testLineTime, line + " vs \n" + testLineTime);
     
     unsigned long long ts = now*1000000000LL+123456789;
     p.setTime(ts);
-    testLineTime = testLine + " " + snow + "123456789";
+    testLineTime = testLine + " " + "1670416906123456789";
     line = client.pointToLineProtocol(p);
     TEST_ASSERTM(line == testLineTime, line);
 
     now += 5;
-    snow = "";
-    snow += now;
+    String snow = String((long int)now);
     p.setTime(snow);
     testLineTime = testLine + " " + snow;
     line = client.pointToLineProtocol(p);
@@ -537,7 +555,7 @@ void Test::testLineProtocol() {
     line = client.pointToLineProtocol(p);
     parts = getParts(line, ' ', partsCount);
     TEST_ASSERT(partsCount == 3);
-    TEST_ASSERT(parts[2].length() == snow.length() + 9);
+    TEST_ASSERTM(parts[2].length() == snow.length() + 9, line);
     delete[] parts;
 
     client.setWriteOptions(opts.useServerTimestamp(true));
@@ -570,6 +588,7 @@ void Test::testBasicFunction() {
     client.resetBuffer();
     
     TEST_ASSERT(waitServer(Test::managementUrl, true));
+    TEST_ASSERT(client.validateConnection());
     for (int i = 0; i < 5; i++) {
         Point *p = createPoint("test1");
         p->addField("index", i);
@@ -718,14 +737,26 @@ void Test::testUserAgent() {
     waitServer(Test::managementUrl, true);
     TEST_ASSERT(client.validateConnection());
     String url = String(Test::apiUrl) + "/test/user-agent";
+    String agent = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
+#ifdef INFLUXDB_CLIENT_NET_ESP
     WiFiClient wifiClient;
     HTTPClient http;
     TEST_ASSERT(http.begin(wifiClient, url));
     TEST_ASSERT(http.GET() == 200);
-    String agent = "influxdb-client-arduino/" INFLUXDB_CLIENT_VERSION " (" INFLUXDB_CLIENT_PLATFORM " " INFLUXDB_CLIENT_PLATFORM_VERSION ")";
     String data = http.getString();
-    TEST_ASSERTM(data == agent, data);
     http.end();
+#else
+    WiFiClient wifiClient;
+    String host, path, user, pass;
+    int port;
+    parseURL(url, host, port, path, user, pass);
+    HttpClient httpClient(wifiClient, host, port);
+    TEST_ASSERT(httpClient.get(path)==0);
+    TEST_ASSERT(httpClient.responseStatusCode()==200);
+    String data = httpClient.responseBody();
+    httpClient.stop();
+#endif
+    TEST_ASSERTM(data == agent, data);
     TEST_END();
 }
 
@@ -735,7 +766,7 @@ void Test::testHTTPReadTimeout() {
     waitServer(Test::managementUrl, true);
     TEST_ASSERT(client.validateConnection());
     //set server delay on query for 6s (client has default timeout 5s)
-    String rec = "a,direction=timeout,timeout=6 a=1";
+    String rec = "a,direction=timeout,timeout=10 a=1";
     TEST_ASSERT(client.writeRecord(rec));
     rec = "a,tag=a, a=1i";
     TEST_ASSERT(client.writeRecord(rec));
@@ -763,7 +794,7 @@ void Test::testRepeatedInit() {
     TEST_INIT("testRepeatedInit");
     
     waitServer(Test::managementUrl, true);
-    uint32_t startRAM = ESP.getFreeHeap();
+    uint32_t startRAM = getFreeHeap();
     do {
         InfluxDBClient client;
         for(int i = 0; i<20;i++) {
@@ -771,7 +802,7 @@ void Test::testRepeatedInit() {
             TEST_ASSERTM(client.validateConnection(),client.getLastErrorMessage());
         }
     } while(0);
-    uint32_t endRAM = ESP.getFreeHeap();
+    uint32_t endRAM = getFreeHeap();
     long diff = endRAM-startRAM;
     TEST_ASSERTM(diff>-300,String(diff));
     TEST_END();
@@ -915,7 +946,8 @@ void Test::testBufferOverwriteBatchsize1() {
     TEST_ASSERT(client.isBufferFull());
     TEST_ASSERTM(strstr(client._writeBuffer[0]->buffer[0], "index=10i"), client._writeBuffer[0]->buffer[0]);
 
-    setServerUrl(client,Test::apiUrl );
+    //setServerUrl(client,Test::apiUrl );
+    client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     
     waitServer(Test::managementUrl, true);
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
@@ -956,7 +988,8 @@ void Test::testBufferOverwriteBatchsize5() {
     TEST_ASSERT(client.isBufferFull());
     TEST_ASSERTM(strstr(client._writeBuffer[0]->buffer[0], "index=20i"), client._writeBuffer[0]->buffer[0]);
 
-    setServerUrl(client,Test::apiUrl );
+    //setServerUrl(client,Test::apiUrl );
+    client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
 
     waitServer(Test::managementUrl, true);
     client.setHTTPOptions(HTTPOptions().httpReadTimeout(5000));
@@ -1347,10 +1380,9 @@ void Test::testTimestamp() {
     waitServer(Test::managementUrl, true);
     //test with no batching
     TEST_ASSERT(client.validateConnection());
-    uint32_t timestamp;
+    uint32_t timestamp = 1670416906l;
     for (int i = 0; i < 20; i++) {
         Point *p = createPoint("test1");
-        timestamp = time(nullptr);
         switch (i % 4) {
             case 0:
                 p->setTime(timestamp);
@@ -1367,6 +1399,7 @@ void Test::testTimestamp() {
         p->addField("index", i);
         TEST_ASSERTM(client.writePoint(*p), String("i=") + i);
         delete p;
+        timestamp++;
     }
     String query = "";
     FluxQueryResult q = client.query(query);
@@ -1432,7 +1465,7 @@ void Test::testTimestampAdjustment() {
     TEST_ASSERTM(!point.hasTime(), point.getTime() );
     client.checkPrecisions(point);
     int len = 10;
-    if(!WiFi.isConnected()) {
+    if(!isNetworkAvailable()) {
         len = 1;
     }
     TEST_ASSERTM(point.getTime().length() == len, point.getTime() );
@@ -2445,7 +2478,7 @@ void Test::testFlushing() {
     TEST_ASSERT(client.validateConnection());
     TEST_ASSERT(!client.isBufferFull());
     TEST_ASSERT(client.isBufferEmpty());
-    client.setWriteOptions(WriteOptions().batchSize(10).bufferSize(30).flushInterval(2));
+    client.setWriteOptions(WriteOptions().batchSize(10).bufferSize(30).flushInterval(4));
 
     for (int i = 0; i < 5; i++) {
         Point *p = createPoint("test1");
@@ -2464,7 +2497,7 @@ void Test::testFlushing() {
     TEST_ASSERTM(q.getError()=="", q.getError());
     TEST_ASSERTM( count == 0, String(count) + " vs 0");  //5 points
 
-    delay(2100);
+    delay(4100);
     client.checkBuffer();
     TEST_ASSERT(!client.isBufferFull());
     TEST_ASSERT(client.isBufferEmpty());
@@ -2482,6 +2515,8 @@ void Test::testFlushing() {
 #define WS_DEBUG_RAM(text) { Serial.printf_P(PSTR(text ": free_heap %d, max_alloc_heap %d, heap_fragmentation  %d\n"), ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation()); }
 #elif defined(ESP32)
 #define WS_DEBUG_RAM(text) { Serial.printf_P(PSTR(text ": free_heap %d, max_alloc_heap %d\n"), ESP.getFreeHeap(), ESP.getMaxAllocHeap()); }
+#else
+#define WS_DEBUG_RAM(text) { Serial.println("No RAM info"); }
 #endif
 
 
@@ -2545,26 +2580,27 @@ void Test::testLargeBatch() {
 
     WS_DEBUG_RAM("After init");
     const char *line = "test1,SSID=Bonitoo-ng,deviceId=4288982576 temperature=17,humidity=28i";
-    uint32_t free = ESP.getFreeHeap(); 
+    uint32_t free = getFreeHeap();
+    int batchSize = 32;
 #if defined(ESP8266)
-    int batchSize = 320;
+    batchSize = 320;
 #elif defined(ESP32)
     // 2.0.4. introduces a memory hog which causes original 2048 lines cannot be sent
-    int batchSize = 1950;
+    batchSize = 1950;
 #endif
     int len =strlen(line); 
     int points = free/len;
-    Serial.printf("Free ram: %u, line len: %d, max points: %d\n", free, len, points);
+    Serialprintf("Free ram: %u, line len: %d, max points: %d\n", free, len, points);
     client.setWriteOptions(WriteOptions().batchSize(batchSize));
     WS_DEBUG_RAM("After options");
     TEST_ASSERT(client.validateConnection());
     WS_DEBUG_RAM("After validate");
-    if(points < client._writeOptions._batchSize) {
-         Serial.printf("warning, cannot create full batchsize %d\n",client._writeOptions._batchSize);
+    if(points < client._writeOptions.getBatchSize()) {
+         Serialprintf("warning, cannot create full batchsize %d\n",client._writeOptions.getBatchSize());
          client.setWriteOptions(WriteOptions().batchSize(points));
     }
-    for(int i=0;i<client._writeOptions._batchSize; i++) {
-        if(i == client._writeOptions._batchSize - 1) {
+    for(int i=0;i<client._writeOptions.getBatchSize(); i++) {
+        if(i == client._writeOptions.getBatchSize() - 1) {
             WS_DEBUG_RAM("Full batch");
         }
         TEST_ASSERTM(client.writeRecord(line),client.getLastErrorMessage());
@@ -2576,7 +2612,7 @@ void Test::testLargeBatch() {
     int count = countLines(q);
     WS_DEBUG_RAM("After query");
     TEST_ASSERTM(q.getError()=="", q.getError());
-    TEST_ASSERTM( count == client._writeOptions._batchSize, String(count));  
+    TEST_ASSERTM( count == client._writeOptions.getBatchSize(), String(count));  
     TEST_END();
     deleteAll(Test::apiUrl);
 }

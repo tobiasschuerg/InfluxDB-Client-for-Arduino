@@ -28,7 +28,9 @@
 #define _CSV_READER_
 
 #include "HttpStreamScanner.h"
+#ifndef ARDUINO_ARCH_AVR
 #include <vector>
+#endif
 
 /**
  * CsvReader parses csv line to token by ',' (comma) character.
@@ -42,6 +44,7 @@ public:
     void close();
     std::vector<String> getRow();
     int getError() const { return _error; };
+    String errorString() { return _scanner->errorToString(_error); }
 private:
     void clearRow();
     HttpStreamScanner *_scanner = nullptr;
