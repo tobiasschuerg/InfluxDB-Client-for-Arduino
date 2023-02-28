@@ -1,4 +1,8 @@
 # Changelog
+##  unreleased
+### Fixes
+- [210](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/210) - Allow setting of options without previously set connection params
+
 ##  3.13.0 [2022-10-14]
 ### Features
 - [202](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/202) - Added option to specify timestamp precision and do not send timestamp. Set using `WriteOption::useServerTimestamptrue)`.

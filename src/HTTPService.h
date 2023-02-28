@@ -62,6 +62,8 @@ struct ConnectionInfo {
     bool insecure;
     // Error message of last failed operation
     String lastError;
+    // HTTP options
+    HTTPOptions httpOptions;
 };
 
 /**
@@ -89,8 +91,7 @@ friend class Test;
 #endif
     // Store retry timeout suggested by server after last request
     int _lastRetryAfter = 0;     
-     // HTTP options
-    HTTPOptions _httpOptions;
+   
 protected:
     // Sets request params
     bool beforeRequest(const char *url);
@@ -104,13 +105,10 @@ public:
     HTTPService(ConnectionInfo *pConnInfo);
     // Clean instance on deletion
     ~HTTPService();
-    // Sets custom HTTP options. See HTTPOptions doc for more info. 
-    // Must be called before calling any method initiating a connection to server.
-    // Example: 
-    //    service.setHTTPOptions(HTTPOptions().httpReadTimeout(20000)).
-    void setHTTPOptions(const HTTPOptions &httpOptions);
+    // Propagates http options to http client.
+    void setHTTPOptions();
     // Returns current HTTPOption
-    HTTPOptions &getHTTPOptions() { return _httpOptions; }
+    HTTPOptions &getHTTPOptions() { return _pConnInfo->httpOptions; }
     // Performs HTTP POST by sending data. On success calls response call back  
     bool doPOST(const char *url, const char *data, const char *contentType, int expectedCode, httpResponseCallback cb);
     // Performs HTTP POST by sending stream. On success calls response call back  

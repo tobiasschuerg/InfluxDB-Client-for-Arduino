@@ -51,7 +51,7 @@ HTTPService::HTTPService(ConnectionInfo *pConnInfo):_pConnInfo(pConnInfo) {
   if(!_httpClient) {
     _httpClient = new HTTPClient;
   }
-  _httpClient->setReuse(_httpOptions._connectionReuse);
+  _httpClient->setReuse(_pConnInfo->httpOptions._connectionReuse);
 
   _httpClient->setUserAgent(FPSTR(UserAgent));
 };
@@ -74,15 +74,14 @@ HTTPService::~HTTPService() {
 }
 
 
-void HTTPService::setHTTPOptions(const HTTPOptions & httpOptions) {
-    _httpOptions = httpOptions;
-    if(!_httpClient) {
-        _httpClient = new HTTPClient;
-    }
-    _httpClient->setReuse(_httpOptions._connectionReuse);
-    _httpClient->setTimeout(_httpOptions._httpReadTimeout);
+void HTTPService::setHTTPOptions() {
+  if(!_httpClient) {
+    _httpClient = new HTTPClient;
+  }
+  _httpClient->setReuse(_pConnInfo->httpOptions._connectionReuse);
+  _httpClient->setTimeout(_pConnInfo->httpOptions._httpReadTimeout);
 #if defined(ESP32) 
-     _httpClient->setConnectTimeout(_httpOptions._httpReadTimeout);
+  _httpClient->setConnectTimeout(_pConnInfo->httpOptions._httpReadTimeout);
 #endif
 }
 

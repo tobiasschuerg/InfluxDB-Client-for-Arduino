@@ -41,3 +41,16 @@ WriteOptions& WriteOptions::addDefaultTag(const String &name, const String &valu
     delete [] s;
     return *this; 
 }
+
+void WriteOptions::printTo(Print &dest) const {
+    dest.println("WriteOptions:");
+    dest.print("\t_precision: "); dest.println((uint8_t)_writePrecision);
+    dest.print("\t_batchSize: "); dest.println(_batchSize);
+    dest.print("\t_bufferSize: "); dest.println(_bufferSize);
+    dest.print("\t_flushInterval: "); dest.println(_flushInterval);
+    dest.print("\t_retryInterval: "); dest.println(_retryInterval);
+    dest.print("\t_maxRetryInterval: "); dest.println(_maxRetryInterval);
+    dest.print("\t_maxRetryAttempts: "); dest.println(_maxRetryAttempts);
+    dest.print("\t_defaultTags: "); dest.println(_defaultTags);
+    dest.print("\t_useServerTimestamp: "); dest.println(_useServerTimestamp);
+}
