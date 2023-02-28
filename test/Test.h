@@ -39,7 +39,7 @@ private: //helpers
 private: // tests
     static void testUtils();
     static void testOptions();
-    static void testEcaping();
+    static void testEscaping();
     static void testPoint();
     static void testOldAPI();
     static void testBatch();
@@ -51,7 +51,7 @@ private: // tests
     static void testFluxParserSingleTable();
     static void testFluxParserNilValue();
     static void testFluxParserMultiTables(bool chunked);
-    static void testFluxParserErrorDiffentColumnsNum();
+    static void testFluxParserErrorDifferentColumnsNum();
     static void testFluxParserFluxError();
     static void testFluxParserInvalidDatatype();
     static void testFluxParserMissingDatatype();

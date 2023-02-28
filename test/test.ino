@@ -81,6 +81,10 @@ void initInet() {
     while(!wifiOk && j<3) {
         Serial.print("Connecting to wifi " INFLUXDB_CLIENT_TESTING_SSID);
         WiFi.begin(INFLUXDB_CLIENT_TESTING_SSID, INFLUXDB_CLIENT_TESTING_PASS);
+#ifdef ARDUINO_LOLIN_C3_MINI 
+        // Necessary for Lolin C3 mini v1.0
+        WiFi.setTxPower(WIFI_POWER_8_5dBm);
+#endif        
         while ((WiFi.status() != WL_CONNECTED) && (i < 30)) {
             Serial.print(".");
             delay(300);

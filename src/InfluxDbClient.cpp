@@ -144,7 +144,7 @@ void InfluxDBClient::clean() {
 }
 
 bool InfluxDBClient::setUrls() {
-    if(!_service && !init()) {
+    if(!_service) {
         return false;
     }
     INFLUXDB_CLIENT_DEBUG("[D] setUrls\n");
@@ -186,13 +186,10 @@ bool InfluxDBClient::setUrls() {
 }
 
 bool InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSize, uint16_t bufferSize, uint16_t flushInterval, bool preserveConnection) {
-    if(!_service && !init()) {
-        return false;
-    }
     if(!setWriteOptions(WriteOptions().writePrecision(precision).batchSize(batchSize).bufferSize(bufferSize).flushInterval(flushInterval))) {
         return false;
     }
-    if(!setHTTPOptions(_service->getHTTPOptions().connectionReuse(preserveConnection))) {
+    if(!setHTTPOptions(_connInfo.httpOptions.connectionReuse(preserveConnection))) {
         return false;
     }
     return true;
@@ -201,7 +198,7 @@ bool InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
 bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
     if(_writeOptions._writePrecision != writeOptions._writePrecision) {
         _writeOptions._writePrecision = writeOptions._writePrecision;
-        if(!setUrls()) {
+        if(_service && !setUrls()) {
             return false;
         }
     }
@@ -212,7 +209,8 @@ bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
     }
     if(writeOptions._bufferSize > 0 && _writeOptions._bufferSize != writeOptions._bufferSize) {
         _writeOptions._bufferSize = writeOptions._bufferSize;
-        if(_writeOptions._bufferSize <  2*_writeOptions._batchSize) {
+        // If retrying, we need space for at least two batches
+        if(writeOptions._retryInterval && _writeOptions._bufferSize <  2*_writeOptions._batchSize) {
             _writeOptions._bufferSize = 2*_writeOptions._batchSize;
             INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _writeOptions._bufferSize);
         }
@@ -231,10 +229,10 @@ bool InfluxDBClient::setWriteOptions(const WriteOptions & writeOptions) {
 }
 
 bool InfluxDBClient::setHTTPOptions(const HTTPOptions & httpOptions) {
-    if(!_service && !init()) {
-        return false;
+    _connInfo.httpOptions = httpOptions;
+    if(_service) {
+        _service->setHTTPOptions();
     }
-    _service->setHTTPOptions(httpOptions);
     return true;
 }
 

@@ -101,6 +101,8 @@ public:
     WriteOptions& clearDefaultTags() { _defaultTags = (char *)nullptr; return *this; }
     // If timestamp precision is set and useServerTimestamp  is true, timestamp from point is not sent, or assigned.
     WriteOptions& useServerTimestamp(bool useServerTimestamp) { _useServerTimestamp = useServerTimestamp; return *this; }
+    // prints options values to a Print device. E.g. opts.printTo(Serial);
+    void printTo(Print &dest) const;
 };
 
 /**

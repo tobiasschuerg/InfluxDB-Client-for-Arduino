@@ -44,7 +44,7 @@ void Test::run() {
     testOldAPI();
     testBatch();
     testLineProtocol();
-    testEcaping();
+    testEscaping();
     testUrlEncode();
     testIsValidID();
     testFluxTypes();
@@ -56,7 +56,7 @@ void Test::run() {
     testFluxParserNilValue();
     testFluxParserMultiTables(false);
     testFluxParserMultiTables(true);
-    testFluxParserErrorDiffentColumnsNum();
+    testFluxParserErrorDifferentColumnsNum();
     testFluxParserFluxError();
     testFluxParserInvalidDatatype();
     testFluxParserMissingDatatype();
@@ -140,6 +140,8 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._retryInterval == 5);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 3);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 300);
+    TEST_ASSERT(c._writeOptions._defaultTags == "");
+    TEST_ASSERT(!c._writeOptions._useServerTimestamp);
     ConnectionInfo connInfo = {
             serverUrl: "http://localhost:8086", 
             bucket: "",
@@ -147,11 +149,8 @@ void Test::testOptions() {
             authToken: "my-token"
     };
     HTTPService s(&connInfo);
-    TEST_ASSERT(!s._httpOptions._connectionReuse);
-    TEST_ASSERT(s._httpOptions._httpReadTimeout == 5000);
-    // Client has no params
-    TEST_ASSERT(!c.setWriteOptions(defWO));
-    TEST_ASSERT(c.getLastErrorMessage() == "Invalid parameters");
+    TEST_ASSERT(!s.getHTTPOptions()._connectionReuse);
+    TEST_ASSERT(s.getHTTPOptions()._httpReadTimeout == 5000);
     c.setConnectionParams("http://localhost:8086","my-org","my-bucket", "my-token");
     
     TEST_ASSERT(c.setWriteOptions(defWO));
@@ -162,19 +161,21 @@ void Test::testOptions() {
     TEST_ASSERT(c._writeOptions._retryInterval == 1);
     TEST_ASSERT(c._writeOptions._maxRetryAttempts == 5);
     TEST_ASSERT(c._writeOptions._maxRetryInterval == 20);
-
+    TEST_ASSERT(c._writeOptions._defaultTags == "tag1=val1,tag2=val2");
+    TEST_ASSERT(c._writeOptions._useServerTimestamp);
     
     TEST_ASSERT(c.setHTTPOptions(defHO));
-    TEST_ASSERT(c._service->_httpOptions._connectionReuse);
-    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
+    TEST_ASSERT(c._service == nullptr);
+    TEST_ASSERT(c._connInfo.httpOptions._connectionReuse);
+    TEST_ASSERT(c._connInfo.httpOptions._httpReadTimeout == 20000);
 
     c.setWriteOptions(WritePrecision::MS, 15, 14, 70, false);
     TEST_ASSERT(c._writeOptions._writePrecision == WritePrecision::MS);
     TEST_ASSERT(c._writeOptions._batchSize == 15);
     TEST_ASSERTM(c._writeOptions._bufferSize == 30, String(c._writeOptions._bufferSize));
     TEST_ASSERT(c._writeOptions._flushInterval == 70);
-    TEST_ASSERT(!c._service->_httpOptions._connectionReuse);
-    TEST_ASSERT(c._service->_httpOptions._httpReadTimeout == 20000);
+    TEST_ASSERT(!c._connInfo.httpOptions._connectionReuse);
+    TEST_ASSERT(c._connInfo.httpOptions._httpReadTimeout == 20000);
 
     defWO = WriteOptions().batchSize(100).bufferSize(7000);
     c.setWriteOptions(defWO);
@@ -188,8 +189,8 @@ void Test::testOptions() {
 }
 
 
-void Test::testEcaping() {
-    TEST_INIT("testEcaping");
+void Test::testEscaping() {
+    TEST_INIT("testEscaping");
 
     Point p("t\re=s\nt\t_t e\"s,t");
     p.addTag("ta=g","val=ue");
@@ -623,19 +624,22 @@ end:
 void Test::testUseServerTimestamp() {
     TEST_INIT("testUseServerTimestamp");
 
-    InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
+    InfluxDBClient client;
     
     TEST_ASSERT(waitServer(Test::managementUrl, true));
 
     // test no precision, no timestamp
     Point *p = createPoint("test1");
-    TEST_ASSERT(client.writePoint(*p));
+
+     // Test no precision, custom timestamp
+    auto opts = WriteOptions().batchSize(1).bufferSize(10);
+    TEST_ASSERT(client.setWriteOptions(opts));
+    client.setConnectionParams(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     
+    TEST_ASSERT(client.writePoint(*p));
     TEST_ASSERT(checkLinesParts(client, 1, 9));
 
-    // Test no precision, custom timestamp
-    auto opts = WriteOptions().batchSize(2);
-    client.setWriteOptions(opts);
+    TEST_ASSERT(client.setWriteOptions(opts.batchSize(2)));
 
     Point *dir = new Point("dir");
     dir->addTag("direction", "check-precision");
@@ -649,7 +653,7 @@ void Test::testUseServerTimestamp() {
     TEST_ASSERT(checkLinesParts(client, 1, 10));
 
     // Test writerecitions + ts
-    client.setWriteOptions(opts.writePrecision(WritePrecision::S));
+    TEST_ASSERT(client.setWriteOptions(opts.writePrecision(WritePrecision::S)));
 
     dir = new Point("dir");
     dir->addTag("direction", "check-precision");
@@ -660,7 +664,7 @@ void Test::testUseServerTimestamp() {
     
     TEST_ASSERT(checkLinesParts(client, 1, 10));
     //test sending only precision
-    client.setWriteOptions(opts.useServerTimestamp(true));
+    TEST_ASSERT(client.setWriteOptions(opts.useServerTimestamp(true)));
 
     TEST_ASSERT(client.writePoint(*dir));
     TEST_ASSERT(client.writePoint(*p));
@@ -2123,8 +2127,8 @@ void Test::testFluxParserMultiTables(bool chunked) {
     TEST_END();
 }
 
-void Test::testFluxParserErrorDiffentColumnsNum() {
-    TEST_INIT("testFluxParserErrorDiffentColumnsNum");
+void Test::testFluxParserErrorDifferentColumnsNum() {
+    TEST_INIT("testFluxParserErrorDifferentColumnsNum");
     InfluxDBClient client(Test::apiUrl, Test::orgName, Test::bucketName, Test::token);
     TEST_ASSERT(waitServer(Test::managementUrl, true));
     FluxQueryResult flux = client.query("testquery-diffNum-data");
