@@ -33,6 +33,8 @@
 # include <ESP8266HTTPClient.h>
 #elif defined(ESP32)
 # include <HTTPClient.h>
+# include <WiFiClient.h>
+# include <WiFiClientSecure.h>
 #else
 # error "This library currently supports only ESP8266 and ESP32."
 #endif
@@ -132,3 +134,4 @@ public:
 };
 
 #endif //_HTTP_SERVICE_H_
+

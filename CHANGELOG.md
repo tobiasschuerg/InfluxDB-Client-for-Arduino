@@ -1,4 +1,8 @@
 # Changelog
+## 3.13.2 [2024-06-04]
+### Fixes
+- [236](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/236) - Fix compilation problem on ESP32 Core 3.0.0
+
 ## 3.13.1 [2023-03-08]
 ### Fixes
 - [210](https://github.com/tobiasschuerg/InfluxDB-Client-for-Arduino/pull/210) - Allow setting of options without previously set connection params
