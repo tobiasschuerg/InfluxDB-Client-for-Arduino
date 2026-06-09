@@ -226,7 +226,12 @@ FluxDateTime *FluxQueryResult::convertRfc3339(String &value, const char *type) {
             String secParts = value.substring(dot+1, tail);
             fracts = strtoul((const char *) secParts.c_str(), NULL, 10);
             if(len < 6) {
-                fracts *= 10^(6-len); 
+                // Normalize to microseconds by multiplying by 10 for each missing digit.
+                // e.g. ".037" (3 digits) -> 37 * 10 * 10 * 10 = 37000 us
+                // Note: do NOT use 10^n here - in C++ ^ is bitwise XOR, not exponentiation.
+                for(int i = len; i < 6; i++) {
+                    fracts *= 10;
+                }
             }
         }
     } else {
